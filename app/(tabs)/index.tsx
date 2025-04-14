@@ -1,98 +1,201 @@
-import { StyleSheet, ScrollView, Image } from "react-native";
+import React, { useState } from "react";
+import { StyleSheet, ScrollView, Image, TouchableOpacity, View as RNView } from "react-native";
 import { Text, View } from "../../components/Themed";
-import Card from "../../components/Card";
-import Button from "../../components/Button";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import Colors from "../../constants/Colors";
 import { useColorScheme } from "react-native";
-import { useState } from "react";
 
-const CARD_DATA = [
+// 课程数据
+const COURSES = [
   {
-    id: "1",
-    title: "开始使用",
-    content: "欢迎使用跨平台移动应用脚手架。这个应用模板支持 iOS 和 Android，使用 React Native 和 Expo 构建。",
-    icon: "rocket",
+    id: "unit1",
+    title: "基础 1",
+    icon: "https://i.imgur.com/QgQQXTI.png",
+    levels: [
+      { id: "1-1", completed: true, stars: 3, type: "normal" },
+      { id: "1-2", completed: true, stars: 2, type: "normal" },
+      { id: "1-3", completed: true, stars: 3, type: "normal" },
+      { id: "1-4", completed: false, stars: 0, type: "normal", current: true },
+      { id: "1-5", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "1-6", completed: false, stars: 0, type: "challenge", locked: true },
+      { id: "1-7", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "1-8", completed: false, stars: 0, type: "normal", locked: true },
+    ],
   },
   {
-    id: "2",
-    title: "功能特点",
-    content: "内置主题支持、路由导航、组件库，方便你快速构建功能齐全的移动应用。",
-    icon: "star",
+    id: "unit2",
+    title: "基础 2",
+    icon: "https://i.imgur.com/vAMCb0f.png",
+    levels: [
+      { id: "2-1", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "2-2", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "2-3", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "2-4", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "2-5", completed: false, stars: 0, type: "challenge", locked: true },
+      { id: "2-6", completed: false, stars: 0, type: "normal", locked: true },
+    ],
   },
   {
-    id: "3",
-    title: "开发与调试",
-    content: "你可以使用 Expo Go 应用预览，或在浏览器中调试大部分功能。",
-    icon: "code-slash",
-  },
-  {
-    id: "4",
-    title: "发布上架",
-    content: "一次构建，随处运行。支持同时发布到 App Store 和 Google Play 商店。",
-    icon: "cloud-upload",
+    id: "unit3",
+    title: "旅行",
+    icon: "https://i.imgur.com/yjcbqsP.png",
+    levels: [
+      { id: "3-1", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "3-2", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "3-3", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "3-4", completed: false, stars: 0, type: "challenge", locked: true },
+      { id: "3-5", completed: false, stars: 0, type: "normal", locked: true },
+    ],
   },
 ];
 
-export default function HomeScreen() {
-  const colorScheme = useColorScheme() ?? "light";
-  const [likedCards, setLikedCards] = useState<string[]>([]);
-
-  const toggleLike = (id: string) => {
-    if (likedCards.includes(id)) {
-      setLikedCards(likedCards.filter((cardId) => cardId !== id));
-    } else {
-      setLikedCards([...likedCards, id]);
+// 定义等级徽章
+const LevelBadge = ({ level, colorScheme }: { level: any; colorScheme: string }) => {
+  // 根据类型和状态选择颜色和样式
+  const getBadgeStyle = () => {
+    if (level.locked) {
+      return {
+        backgroundColor: "#e0e0e0",
+        borderColor: "#c0c0c0",
+      };
     }
+
+    if (level.type === "challenge") {
+      return {
+        backgroundColor: level.completed ? Colors[colorScheme].gold : Colors[colorScheme].warning,
+        borderColor: level.completed ? "#daa520" : "#e78c00",
+      };
+    }
+
+    if (level.completed) {
+      return {
+        backgroundColor: Colors[colorScheme].success,
+        borderColor: "#3fa052",
+      };
+    }
+
+    if (level.current) {
+      return {
+        backgroundColor: Colors[colorScheme].accent,
+        borderColor: "#0e90d5",
+      };
+    }
+
+    return {
+      backgroundColor: Colors[colorScheme].cardBackground,
+      borderColor: Colors[colorScheme].border,
+    };
+  };
+
+  const getIconName = () => {
+    if (level.locked) {
+      return "lock";
+    }
+    if (level.type === "challenge") {
+      return "crown";
+    }
+    if (level.current) {
+      return "play";
+    }
+    if (level.completed) {
+      return "check";
+    }
+    return "circle";
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.header}>
-        <Text style={styles.title}>跨平台应用模板</Text>
-        <Text style={styles.subtitle}>快速构建 iOS 和 Android 应用</Text>
+    <TouchableOpacity style={[styles.levelBadge, getBadgeStyle()]} disabled={level.locked}>
+      <FontAwesome5 name={getIconName()} size={20} color={level.locked ? "#a0a0a0" : "white"} />
+      {level.completed && level.stars > 0 && (
+        <RNView style={styles.starsContainer}>
+          {[...Array(3)].map((_, i) => (
+            <FontAwesome5
+              key={i}
+              name="star"
+              size={10}
+              color={i < level.stars ? Colors[colorScheme].gold : "#e0e0e0"}
+              solid={i < level.stars}
+              style={{ marginHorizontal: 1 }}
+            />
+          ))}
+        </RNView>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+export default function HomeScreen() {
+  const colorScheme = useColorScheme() ?? "light";
+  const [streak, setStreak] = useState(7); // 连续学习天数
+  const [xp, setXp] = useState(523); // 经验值
+  const [gems, setGems] = useState(120); // 宝石数量
+
+  return (
+    <ScrollView style={styles.container}>
+      {/* 用户状态栏 */}
+      <View style={styles.statsBar}>
+        <RNView style={styles.statItem}>
+          <Ionicons name="flame" size={24} color={Colors[colorScheme].warning} />
+          <Text style={styles.statText}>{streak}</Text>
+        </RNView>
+        <RNView style={styles.statItem}>
+          <FontAwesome5 name="bolt" size={20} color={Colors[colorScheme].accent} />
+          <Text style={styles.statText}>{xp} XP</Text>
+        </RNView>
+        <RNView style={styles.statItem}>
+          <FontAwesome5 name="gem" size={20} color={Colors[colorScheme].gold} />
+          <Text style={styles.statText}>{gems}</Text>
+        </RNView>
       </View>
 
-      <View style={styles.bannerContainer}>
-        <Image source={{ uri: "https://reactnative.dev/img/tiny_logo.png" }} style={styles.bannerImage} />
-        <View style={styles.overlay}>
-          <Text style={styles.bannerText}>使用 React Native 和 Expo</Text>
-          <Button
-            title="了解更多"
-            size="small"
-            onPress={() => {}}
-            icon={<Ionicons name="information-circle" size={16} color="#fff" />}
-          />
+      {/* 课程列表 */}
+      {COURSES.map((course) => (
+        <View key={course.id} style={styles.courseContainer}>
+          {/* 课程标题 */}
+          <RNView style={styles.courseHeader}>
+            <Image source={{ uri: course.icon }} style={styles.courseIcon} />
+            <Text style={styles.courseTitle}>{course.title}</Text>
+          </RNView>
+
+          {/* 课程关卡 */}
+          <RNView style={styles.levelsContainer}>
+            {course.levels.map((level, index) => {
+              // 计算位置，让关卡路径弯曲
+              const isEven = index % 2 === 0;
+              const offsetY = isEven ? 0 : 40;
+
+              return (
+                <RNView
+                  key={level.id}
+                  style={[
+                    styles.levelWrapper,
+                    {
+                      left: `${(index / (course.levels.length - 1)) * 82 + 5}%`,
+                      top: offsetY,
+                    },
+                  ]}
+                >
+                  <LevelBadge level={level} colorScheme={colorScheme} />
+
+                  {/* 连接线 */}
+                  {index < course.levels.length - 1 && (
+                    <RNView
+                      style={[
+                        styles.levelConnector,
+                        {
+                          width: 40,
+                          transform: [{ rotate: isEven ? "45deg" : "-45deg" }, { translateX: 18 }],
+                          backgroundColor: level.completed ? Colors[colorScheme].success : "#e0e0e0",
+                        },
+                      ]}
+                    />
+                  )}
+                </RNView>
+              );
+            })}
+          </RNView>
         </View>
-      </View>
-
-      <View style={styles.cardsContainer}>
-        {CARD_DATA.map((card) => (
-          <Card
-            key={card.id}
-            title={card.title}
-            style={styles.card}
-            footer={
-              <View style={styles.cardFooter}>
-                <Button title="详情" type="outline" size="small" onPress={() => {}} />
-                <Ionicons
-                  name={likedCards.includes(card.id) ? "heart" : "heart-outline"}
-                  size={24}
-                  color={likedCards.includes(card.id) ? "#ff3b30" : Colors[colorScheme].text}
-                  onPress={() => toggleLike(card.id)}
-                />
-              </View>
-            }
-          >
-            <View style={styles.cardContent}>
-              <Ionicons name={card.icon} size={32} color={Colors[colorScheme].tint} style={styles.cardIcon} />
-              <Text style={styles.cardText}>{card.content}</Text>
-            </View>
-          </Card>
-        ))}
-      </View>
-
-      <Button title="开始创建" type="primary" size="large" fullWidth onPress={() => {}} style={styles.ctaButton} />
+      ))}
     </ScrollView>
   );
 }
@@ -100,78 +203,90 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  contentContainer: {
     padding: 16,
   },
-  header: {
-    alignItems: "center",
-    marginVertical: 20,
-    backgroundColor: "transparent",
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-  },
-  bannerContainer: {
-    height: 150,
-    borderRadius: 12,
-    overflow: "hidden",
-    marginBottom: 20,
-    position: "relative",
-  },
-  bannerImage: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-    backgroundColor: "#f0f0f0",
-  },
-  overlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    padding: 16,
+  statsBar: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    marginBottom: 16,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  bannerText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  cardsContainer: {
-    marginBottom: 20,
-  },
-  card: {
-    marginBottom: 12,
-  },
-  cardContent: {
+  statItem: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "transparent",
+    marginHorizontal: 16,
   },
-  cardIcon: {
+  statText: {
+    marginLeft: 6,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  courseContainer: {
+    marginBottom: 40,
+    paddingVertical: 20,
+    borderRadius: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  courseHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    paddingHorizontal: 16,
+  },
+  courseIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     marginRight: 12,
   },
-  cardText: {
-    flex: 1,
-    lineHeight: 20,
+  courseTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
   },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  levelsContainer: {
+    height: 120,
+    position: "relative",
+    marginHorizontal: 10,
+  },
+  levelWrapper: {
+    position: "absolute",
     alignItems: "center",
-    backgroundColor: "transparent",
   },
-  ctaButton: {
-    marginVertical: 16,
+  levelBadge: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    zIndex: 2,
+  },
+  levelConnector: {
+    height: 3,
+    position: "absolute",
+    right: 0,
+    top: 24,
+    zIndex: 1,
+  },
+  starsContainer: {
+    flexDirection: "row",
+    position: "absolute",
+    bottom: -15,
+    backgroundColor: "white",
+    borderRadius: 10,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
   },
 });
