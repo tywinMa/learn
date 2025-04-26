@@ -20,14 +20,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme].tint,
-        headerShown: true,
-        headerStyle: {
-          backgroundColor: Colors[colorScheme].tint,
-        },
-        headerTitleStyle: {
-          color: "#fff",
-          fontWeight: "bold",
-        },
+        headerShown: false,
         tabBarStyle: {
           ...Platform.select({
             ios: {
@@ -45,7 +38,6 @@ export default function TabLayout() {
         name="index"
         options={{
           title: "课程",
-          headerTitle: "课程",
           tabBarIcon: ({ color, focused }: TabBarIconProps) => (
             <View style={styles.tabItem}>
               <Ionicons name="book" size={24} color={color} />
@@ -58,7 +50,6 @@ export default function TabLayout() {
         name="explore"
         options={{
           title: "故事",
-          headerTitle: "故事",
           tabBarIcon: ({ color, focused }: TabBarIconProps) => (
             <View style={styles.tabItem}>
               <Ionicons name="book-outline" size={24} color={color} />
@@ -71,7 +62,6 @@ export default function TabLayout() {
         name="practice"
         options={{
           title: "练习",
-          headerTitle: "练习",
           tabBarIcon: ({ color, focused }: TabBarIconProps) => (
             <View style={[styles.tabItem, styles.centerTab]}>
               <View
@@ -85,14 +75,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="wrong-exercises"
         options={{
-          title: "排行榜",
-          headerTitle: "排行榜",
+          title: "错题本",
           tabBarIcon: ({ color, focused }: TabBarIconProps) => (
             <View style={styles.tabItem}>
-              <Ionicons name="trophy" size={24} color={color} />
-              <Text style={{ color, fontSize: 12, marginTop: 2 }}>排行榜</Text>
+              <Ionicons name="book-outline" size={24} color={color} />
+              <Text style={{ color, fontSize: 12, marginTop: 2 }}>错题本</Text>
             </View>
           ),
         }}
@@ -101,7 +90,6 @@ export default function TabLayout() {
         name="settings"
         options={{
           title: "个人",
-          headerTitle: "个人资料",
           tabBarIcon: ({ color, focused }: TabBarIconProps) => (
             <View style={styles.tabItem}>
               <Ionicons name="person" size={24} color={color} />

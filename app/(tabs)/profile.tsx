@@ -2,6 +2,7 @@ import { StyleSheet, Image, TouchableOpacity } from "react-native";
 import { Text, View } from "../../components/Themed";
 import Colors from "../../constants/Colors";
 import { useColorScheme } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
@@ -9,45 +10,69 @@ export default function ProfileScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.profileHeader}>
-        <Image source={{ uri: "https://via.placeholder.com/100" }} style={styles.avatar} />
-        <Text style={styles.name}>用户名</Text>
-        <Text style={styles.bio}>这是一个简短的个人介绍</Text>
+        <Image source={{ uri: "https://i.imgur.com/BzfaYLR.png" }} style={styles.avatar} />
+        <Text style={styles.name}>小明同学</Text>
+        <Text style={styles.bio}>初三数学爱好者，正在备战中考</Text>
       </View>
 
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>120</Text>
-          <Text style={styles.statLabel}>关注</Text>
+          <Text style={styles.statNumber}>82</Text>
+          <Text style={styles.statLabel}>题目完成</Text>
         </View>
         <View style={styles.separator} />
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>348</Text>
-          <Text style={styles.statLabel}>粉丝</Text>
+          <Text style={styles.statNumber}>95%</Text>
+          <Text style={styles.statLabel}>正确率</Text>
         </View>
         <View style={styles.separator} />
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>25</Text>
-          <Text style={styles.statLabel}>帖子</Text>
+          <Text style={styles.statNumber}>15</Text>
+          <Text style={styles.statLabel}>连续学习</Text>
         </View>
       </View>
 
       <TouchableOpacity style={[styles.editButton, { backgroundColor: Colors[colorScheme ?? "light"].tint }]}>
-        <Text style={styles.editButtonText}>编辑资料</Text>
+        <Text style={styles.editButtonText}>查看学习报告</Text>
       </TouchableOpacity>
 
       <View style={styles.infoSection}>
-        <Text style={styles.sectionTitle}>个人信息</Text>
+        <Text style={styles.sectionTitle}>学习档案</Text>
         <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>邮箱:</Text>
-          <Text style={styles.infoValue}>user@example.com</Text>
+          <Text style={styles.infoLabel}>擅长领域:</Text>
+          <Text style={styles.infoValue}>代数、函数图像</Text>
         </View>
         <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>位置:</Text>
-          <Text style={styles.infoValue}>北京, 中国</Text>
+          <Text style={styles.infoLabel}>待加强:</Text>
+          <Text style={styles.infoValue}>几何证明、概率统计</Text>
         </View>
         <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>加入时间:</Text>
-          <Text style={styles.infoValue}>2023年1月</Text>
+          <Text style={styles.infoLabel}>学习进度:</Text>
+          <Text style={styles.infoValue}>初三上学期 (75%)</Text>
+        </View>
+      </View>
+
+      <View style={styles.achievementsSection}>
+        <Text style={styles.sectionTitle}>获得成就</Text>
+        <View style={styles.achievementContainer}>
+          <View style={styles.achievement}>
+            <View style={[styles.achievementIcon, { backgroundColor: '#FFD700' }]}>
+              <Ionicons name="trophy" size={24} color="white" />
+            </View>
+            <Text style={styles.achievementText}>代数达人</Text>
+          </View>
+          <View style={styles.achievement}>
+            <View style={[styles.achievementIcon, { backgroundColor: '#4CAF50' }]}>
+              <Ionicons name="analytics" size={24} color="white" />
+            </View>
+            <Text style={styles.achievementText}>函数大师</Text>
+          </View>
+          <View style={styles.achievement}>
+            <View style={[styles.achievementIcon, { backgroundColor: '#2196F3' }]}>
+              <Ionicons name="flame" size={24} color="white" />
+            </View>
+            <Text style={styles.achievementText}>习题王者</Text>
+          </View>
         </View>
       </View>
     </View>
@@ -119,6 +144,7 @@ const styles = StyleSheet.create({
   infoSection: {
     width: "100%",
     backgroundColor: "transparent",
+    marginBottom: 24,
   },
   sectionTitle: {
     fontSize: 18,
@@ -139,5 +165,31 @@ const styles = StyleSheet.create({
   },
   infoValue: {
     flex: 1,
+  },
+  achievementsSection: {
+    width: "100%",
+    backgroundColor: "transparent",
+  },
+  achievementContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+  },
+  achievement: {
+    alignItems: "center",
+    marginBottom: 16,
+    width: "30%",
+  },
+  achievementIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  achievementText: {
+    fontSize: 12,
+    textAlign: "center",
   },
 });

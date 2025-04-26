@@ -3,34 +3,36 @@ import { Text, View } from "../../components/Themed";
 import Colors from "../../constants/Colors";
 import { useColorScheme } from "react-native";
 import { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
-  const [notifications, setNotifications] = useState(true);
+  const [dailyReminder, setDailyReminder] = useState(true);
   const [darkMode, setDarkMode] = useState(colorScheme === "dark");
-  const [locationServices, setLocationServices] = useState(true);
-  const [dataSync, setDataSync] = useState(true);
+  const [examCountdown, setExamCountdown] = useState(true);
+  const [autoPlayVideo, setAutoPlayVideo] = useState(false);
+  const [offlineMode, setOfflineMode] = useState(false);
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>设置</Text>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>用户设置</Text>
+        <Text style={styles.sectionTitle}>学习设置</Text>
 
         <TouchableOpacity style={styles.settingItem}>
-          <Text style={styles.settingText}>账户信息</Text>
-          <Text style={styles.settingValue}>修改 &gt;</Text>
+          <Text style={styles.settingText}>学习计划</Text>
+          <Text style={styles.settingValue}>每周5天 &gt;</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingItem}>
-          <Text style={styles.settingText}>密码</Text>
-          <Text style={styles.settingValue}>更改 &gt;</Text>
+          <Text style={styles.settingText}>难度级别</Text>
+          <Text style={styles.settingValue}>初三进阶 &gt;</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingItem}>
-          <Text style={styles.settingText}>隐私设置</Text>
-          <Text style={styles.settingValue}>管理 &gt;</Text>
+          <Text style={styles.settingText}>中考倒计时</Text>
+          <Text style={styles.settingValue}>120天 &gt;</Text>
         </TouchableOpacity>
       </View>
 
@@ -38,10 +40,10 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>应用设置</Text>
 
         <View style={styles.settingItem}>
-          <Text style={styles.settingText}>通知</Text>
+          <Text style={styles.settingText}>每日学习提醒</Text>
           <Switch
-            value={notifications}
-            onValueChange={setNotifications}
+            value={dailyReminder}
+            onValueChange={setDailyReminder}
             trackColor={{ false: "#767577", true: Colors[colorScheme ?? "light"].tint }}
           />
         </View>
@@ -56,19 +58,28 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.settingItem}>
-          <Text style={styles.settingText}>定位服务</Text>
+          <Text style={styles.settingText}>考试倒计时显示</Text>
           <Switch
-            value={locationServices}
-            onValueChange={setLocationServices}
+            value={examCountdown}
+            onValueChange={setExamCountdown}
             trackColor={{ false: "#767577", true: Colors[colorScheme ?? "light"].tint }}
           />
         </View>
 
         <View style={styles.settingItem}>
-          <Text style={styles.settingText}>数据同步</Text>
+          <Text style={styles.settingText}>自动播放视频</Text>
           <Switch
-            value={dataSync}
-            onValueChange={setDataSync}
+            value={autoPlayVideo}
+            onValueChange={setAutoPlayVideo}
+            trackColor={{ false: "#767577", true: Colors[colorScheme ?? "light"].tint }}
+          />
+        </View>
+
+        <View style={styles.settingItem}>
+          <Text style={styles.settingText}>离线模式</Text>
+          <Switch
+            value={offlineMode}
+            onValueChange={setOfflineMode}
             trackColor={{ false: "#767577", true: Colors[colorScheme ?? "light"].tint }}
           />
         </View>
@@ -78,17 +89,17 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>其他</Text>
 
         <TouchableOpacity style={styles.settingItem}>
+          <Text style={styles.settingText}>家长监控</Text>
+          <Text style={styles.settingValue}>&gt;</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.settingItem}>
+          <Text style={styles.settingText}>错题收藏</Text>
+          <Text style={styles.settingValue}>57题 &gt;</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.settingItem}>
           <Text style={styles.settingText}>关于我们</Text>
-          <Text style={styles.settingValue}>&gt;</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.settingItem}>
-          <Text style={styles.settingText}>帮助中心</Text>
-          <Text style={styles.settingValue}>&gt;</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.settingItem}>
-          <Text style={styles.settingText}>联系我们</Text>
           <Text style={styles.settingValue}>&gt;</Text>
         </TouchableOpacity>
 

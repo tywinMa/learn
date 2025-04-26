@@ -9,34 +9,34 @@ import { useColorScheme } from "react-native";
 const PRACTICE_SECTIONS = [
   {
     id: "1",
-    title: "基础 1",
+    title: "代数基础",
     lessons: [
-      { id: "1.1", name: "问候", completed: true, icon: "chatbubble-outline" },
-      { id: "1.2", name: "自我介绍", completed: true, icon: "person-outline" },
-      { id: "1.3", name: "食物", completed: false, icon: "fast-food-outline" },
-      { id: "1.4", name: "家庭", completed: false, icon: "people-outline" },
+      { id: "1.1", name: "一元二次方程", completed: true, icon: "calculator-outline" },
+      { id: "1.2", name: "因式分解", completed: true, icon: "options-outline" },
+      { id: "1.3", name: "二项式定理", completed: false, icon: "grid-outline" },
+      { id: "1.4", name: "公式法应用", completed: false, icon: "create-outline" },
     ],
     progress: 50,
   },
   {
     id: "2",
-    title: "旅行",
+    title: "几何与证明",
     lessons: [
-      { id: "2.1", name: "交通", completed: false, icon: "car-outline" },
-      { id: "2.2", name: "酒店", completed: false, icon: "bed-outline" },
-      { id: "2.3", name: "购物", completed: false, icon: "cart-outline" },
-      { id: "2.4", name: "问路", completed: false, icon: "map-outline" },
+      { id: "2.1", name: "相似三角形", completed: false, icon: "triangle-outline" },
+      { id: "2.2", name: "勾股定理", completed: false, icon: "analytics-outline" },
+      { id: "2.3", name: "四边形性质", completed: false, icon: "square-outline" },
+      { id: "2.4", name: "圆的切线", completed: false, icon: "ellipse-outline" },
     ],
     progress: 0,
   },
   {
     id: "3",
-    title: "商务",
+    title: "统计与概率",
     lessons: [
-      { id: "3.1", name: "会议", completed: false, icon: "business-outline" },
-      { id: "3.2", name: "项目", completed: false, icon: "document-outline" },
-      { id: "3.3", name: "电话", completed: false, icon: "call-outline" },
-      { id: "3.4", name: "邮件", completed: false, icon: "mail-outline" },
+      { id: "3.1", name: "数据统计", completed: false, icon: "stats-chart-outline" },
+      { id: "3.2", name: "频率分布", completed: false, icon: "bar-chart-outline" },
+      { id: "3.3", name: "概率计算", completed: false, icon: "dice-outline" },
+      { id: "3.4", name: "数学期望", completed: false, icon: "trending-up-outline" },
     ],
     progress: 0,
   },
@@ -44,15 +44,15 @@ const PRACTICE_SECTIONS = [
 
 export default function PracticeScreen() {
   const colorScheme = useColorScheme() ?? "light";
-  const [dailyGoal, setDailyGoal] = useState(3);
-  const [dailyProgress, setDailyProgress] = useState(1);
+  const [dailyGoal, setDailyGoal] = useState(5);
+  const [dailyProgress, setDailyProgress] = useState(2);
 
   return (
     <View style={styles.container}>
       {/* 日常目标 */}
       <View style={styles.dailyGoalContainer}>
         <View style={styles.dailyGoalHeader}>
-          <Text style={styles.dailyGoalTitle}>今日目标</Text>
+          <Text style={styles.dailyGoalTitle}>每日练习</Text>
           <Text style={styles.dailyGoalCount}>
             {dailyProgress}/{dailyGoal}
           </Text>
@@ -120,11 +120,11 @@ export default function PracticeScreen() {
           </View>
         ))}
 
-        {/* 底部角色 */}
+        {/* 底部提示框 */}
         <View style={styles.mascotContainer}>
-          <Image source={{ uri: "https://i.imgur.com/dZeL8oJ.png" }} style={styles.mascotImage} />
+          <Image source={{ uri: "https://i.imgur.com/F9zS3OT.png" }} style={styles.mascotImage} />
           <View style={styles.mascotBubble}>
-            <Text style={styles.mascotText}>继续努力学习！你已经完成了今天目标的 33%</Text>
+            <Text style={styles.mascotText}>继续练习数学题！你已经完成了今天目标的 40%，加油！</Text>
           </View>
         </View>
       </ScrollView>

@@ -1,89 +1,105 @@
-import React, { useState } from "react";
-import { StyleSheet, ScrollView, Image, TouchableOpacity, View as RNView } from "react-native";
+import React, { useState, useRef } from "react";
+import { StyleSheet, ScrollView, Image, TouchableOpacity, View as RNView, Animated, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
 import { Text, View } from "../../components/Themed";
-import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import Colors from "../../constants/Colors";
 import { useColorScheme } from "react-native";
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from "expo-router";
 
-// 课程数据
+// 单元数据 - 每个单元都有独特的主题色
 const COURSES = [
   {
     id: "unit1",
-    title: "基础 1",
+    title: "代数基础",
+    description: "掌握一元二次方程和函数基础",
     icon: "https://i.imgur.com/QgQQXTI.png",
+    color: "#58CC02",
+    secondaryColor: "#89E219",
     levels: [
-      { id: "1-1", completed: true, stars: 3, type: "normal" },
-      { id: "1-2", completed: true, stars: 2, type: "normal" },
-      { id: "1-3", completed: true, stars: 3, type: "normal" },
-      { id: "1-4", completed: false, stars: 0, type: "normal", current: true },
-      { id: "1-5", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "1-6", completed: false, stars: 0, type: "challenge", locked: true },
-      { id: "1-7", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "1-8", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "1-1", title: "一元二次方程解法", completed: true, stars: 3, type: "normal" },
+      { id: "1-2", title: "因式分解", completed: true, stars: 2, type: "normal" },
+      { id: "1-3", title: "配方法", completed: true, stars: 3, type: "normal" },
+      { id: "1-4", title: "公式法", completed: false, stars: 0, type: "normal", current: true },
+      { id: "1-5", title: "函数图像", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "1-6", title: "二次函数应用", completed: false, stars: 0, type: "challenge", locked: true },
     ],
   },
   {
     id: "unit2",
-    title: "基础 2",
+    title: "几何与证明",
+    description: "学习三角形、四边形的性质与证明",
     icon: "https://i.imgur.com/vAMCb0f.png",
+    color: "#5EC0DE",
+    secondaryColor: "#7BDAF8",
     levels: [
-      { id: "2-1", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "2-2", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "2-3", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "2-4", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "2-5", completed: false, stars: 0, type: "challenge", locked: true },
-      { id: "2-6", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "2-1", title: "相似三角形", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "2-2", title: "勾股定理", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "2-3", title: "平行四边形", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "2-4", title: "圆的性质", completed: false, stars: 0, type: "challenge", locked: true },
     ],
   },
   {
     id: "unit3",
-    title: "旅行",
+    title: "统计与概率",
+    description: "掌握数据分析与概率计算方法",
     icon: "https://i.imgur.com/yjcbqsP.png",
+    color: "#FF9600",
+    secondaryColor: "#FFC566",
     levels: [
-      { id: "3-1", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "3-2", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "3-3", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "3-4", completed: false, stars: 0, type: "challenge", locked: true },
-      { id: "3-5", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "3-1", title: "数据统计基础", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "3-2", title: "概率基础", completed: false, stars: 0, type: "normal", locked: true },
+      { id: "3-3", title: "复杂概率问题", completed: false, stars: 0, type: "challenge", locked: true },
     ],
   },
 ];
 
-// 定义等级徽章
-const LevelBadge = ({ level, colorScheme }: { level: any; colorScheme: string }) => {
-  // 根据类型和状态选择颜色和样式
+// 关卡组件
+const Level = ({ level, color, isLast, unitTitle }: { level: any; color: string; isLast: boolean; unitTitle: string }) => {
+  const router = useRouter();
+
+  // 处理关卡点击
+  const handleLevelPress = () => {
+    if (level.locked) return;
+
+    // 导航到学习页面（独立页面，不是tab）
+    router.push({
+      pathname: "/study",
+      params: {
+        id: level.id,
+        unitTitle: `${unitTitle} - ${level.title}`,
+        color: color
+      }
+    });
+  };
+
+  // 根据类型和状态选择样式
   const getBadgeStyle = () => {
     if (level.locked) {
       return {
-        backgroundColor: "#e0e0e0",
-        borderColor: "#c0c0c0",
+        backgroundColor: "#E5E5E5",
+        borderColor: "#CCCCCC",
       };
     }
 
     if (level.type === "challenge") {
       return {
-        backgroundColor: level.completed ? Colors[colorScheme].gold : Colors[colorScheme].warning,
-        borderColor: level.completed ? "#daa520" : "#e78c00",
+        backgroundColor: level.completed ? "#FFD900" : "#FFC800",
+        borderColor: "#E6B800",
       };
     }
 
     if (level.completed) {
       return {
-        backgroundColor: Colors[colorScheme].success,
-        borderColor: "#3fa052",
-      };
-    }
-
-    if (level.current) {
-      return {
-        backgroundColor: Colors[colorScheme].accent,
-        borderColor: "#0e90d5",
+        backgroundColor: color,
+        borderColor: color,
       };
     }
 
     return {
-      backgroundColor: Colors[colorScheme].cardBackground,
-      borderColor: Colors[colorScheme].border,
+      backgroundColor: "white",
+      borderColor: color,
+      borderWidth: 2,
     };
   };
 
@@ -94,199 +110,446 @@ const LevelBadge = ({ level, colorScheme }: { level: any; colorScheme: string })
     if (level.type === "challenge") {
       return "crown";
     }
-    if (level.current) {
-      return "play";
+    if (level.completed) {
+      return "star";
+    }
+    return "play";
+  };
+
+  const getIconColor = () => {
+    if (level.locked) {
+      return "#AAAAAA";
+    }
+    if (level.type === "challenge") {
+      return "white";
     }
     if (level.completed) {
-      return "check";
+      return "white";
     }
-    return "circle";
+    return color;
   };
 
   return (
-    <TouchableOpacity style={[styles.levelBadge, getBadgeStyle()]} disabled={level.locked}>
-      <FontAwesome5 name={getIconName()} size={20} color={level.locked ? "#a0a0a0" : "white"} />
-      {level.completed && level.stars > 0 && (
+    <RNView style={styles.levelContainer}>
+      <TouchableOpacity
+        style={[styles.levelBadge, getBadgeStyle()]}
+        disabled={level.locked}
+        onPress={handleLevelPress}
+      >
+        <FontAwesome5 name={getIconName()} size={22} color={getIconColor()} />
+      </TouchableOpacity>
+
+      {/* 关卡标题 */}
+      <Text style={styles.levelTitle}>{level.title}</Text>
+
+      {/* 星星评分 */}
+      {level.completed && (
         <RNView style={styles.starsContainer}>
           {[...Array(3)].map((_, i) => (
             <FontAwesome5
               key={i}
               name="star"
               size={10}
-              color={i < level.stars ? Colors[colorScheme].gold : "#e0e0e0"}
               solid={i < level.stars}
+              color={i < level.stars ? "#FFD900" : "#E0E0E0"}
               style={{ marginHorizontal: 1 }}
             />
           ))}
         </RNView>
       )}
-    </TouchableOpacity>
+
+      {/* 连接线 */}
+      {!isLast && (
+        <RNView
+          style={[
+            styles.connector,
+            {
+              backgroundColor: level.completed ? color : "#E5E5E5"
+            }
+          ]}
+        />
+      )}
+    </RNView>
   );
 };
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme() ?? "light";
-  const [streak, setStreak] = useState(7); // 连续学习天数
-  const [xp, setXp] = useState(523); // 经验值
-  const [gems, setGems] = useState(120); // 宝石数量
+  const [currentUnit, setCurrentUnit] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [xp, setXp] = useState(1175);
+  const [hearts, setHearts] = useState(5);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const screenWidth = Dimensions.get('window').width;
+  const screenHeight = Dimensions.get('window').height;
+
+  // 使用固定高度计算位置（因为直接获取的layout.y值不准确）
+  const UNIT_HEIGHTS = [750, 450, 450]; // 增加每个单元的高度估计值
+  const unitPositions = useRef<number[]>([]);
+  const lastScrollPosition = useRef(0);
+
+  // 组件挂载后初始化位置数据
+  React.useEffect(() => {
+    // 计算每个单元的绝对位置
+    let currentPosition = 60; // 设置起始偏移量，考虑顶部状态栏
+    const positions = [];
+
+    for (let i = 0; i < COURSES.length; i++) {
+      positions.push(currentPosition);
+      currentPosition += UNIT_HEIGHTS[i];
+    }
+
+    unitPositions.current = positions;
+    console.log('初始化单元位置:', positions);
+  }, []);
+
+  // 监听滚动
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const currentScrollY = event.nativeEvent.contentOffset.y;
+    const isScrollingDown = currentScrollY > lastScrollPosition.current;
+    lastScrollPosition.current = currentScrollY;
+
+    // 滚动到顶部显示第一个单元
+    if (currentScrollY <= 0) {
+      setCurrentUnit(0);
+      return;
+    }
+
+    // 确保有位置数据
+    if (unitPositions.current.length < COURSES.length) {
+      return;
+    }
+
+    // 触发点在屏幕上方一半的位置
+    const triggerY = screenHeight * 0.25;
+
+    console.log(`屏幕高度: ${screenHeight}, 触发点位置: ${triggerY}`);
+
+    // 简化逻辑：只关注当前单元和相邻单元的位置
+    // 向下滚动时
+    if (isScrollingDown) {
+      // 检查下一个单元（如果有）
+      if (currentUnit < COURSES.length - 1) {
+        const nextUnitPos = unitPositions.current[currentUnit + 1] - currentScrollY;
+        console.log(`下一个单元${currentUnit + 1}位置: ${nextUnitPos}, 触发点: ${triggerY}`);
+
+        // 当下一个单元的标题位置低于触发点时，切换到下一个单元
+        if (nextUnitPos <= triggerY) {
+          console.log(`切换到单元${currentUnit + 1}`);
+          setCurrentUnit(currentUnit + 1);
+        }
+      }
+    }
+    // 向上滚动时
+    else {
+      // 检查当前单元
+      const currentUnitPos = unitPositions.current[currentUnit] - currentScrollY;
+      console.log(`当前单元${currentUnit}位置: ${currentUnitPos}, 触发点: ${triggerY}`);
+
+      // 当当前单元的标题位置高于触发点时，如果有上一个单元，切换到上一个单元
+      if (currentUnitPos > triggerY && currentUnit > 0) {
+        console.log(`切换到单元${currentUnit - 1}`);
+        setCurrentUnit(currentUnit - 1);
+      }
+    }
+  };
+
+  const renderFixedBanner = () => {
+    if (currentUnit === -1) return null;
+    const course = COURSES[currentUnit];
+
+    return (
+      <RNView style={styles.fixedBannerContainer}>
+        <LinearGradient
+          colors={[course.color, course.secondaryColor]}
+          style={styles.unitHeader}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        >
+          <RNView style={styles.unitTitleRow}>
+            <Text style={styles.unitTitle}>第 {currentUnit + 1} 阶段，第 1 部分</Text>
+          </RNView>
+          <Text style={styles.unitSubtitle}>{course.title}</Text>
+        </LinearGradient>
+      </RNView>
+    );
+  };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* 用户状态栏 */}
-      <View style={styles.statsBar}>
-        <RNView style={styles.statItem}>
-          <Ionicons name="flame" size={24} color={Colors[colorScheme].warning} />
-          <Text style={styles.statText}>{streak}</Text>
-        </RNView>
-        <RNView style={styles.statItem}>
-          <FontAwesome5 name="bolt" size={20} color={Colors[colorScheme].accent} />
-          <Text style={styles.statText}>{xp} XP</Text>
-        </RNView>
-        <RNView style={styles.statItem}>
-          <FontAwesome5 name="gem" size={20} color={Colors[colorScheme].gold} />
-          <Text style={styles.statText}>{gems}</Text>
-        </RNView>
-      </View>
+    <RNView style={styles.container}>
+      {/* 顶部状态栏 */}
+      <RNView style={styles.statsBar}>
+        <TouchableOpacity style={styles.statItem}>
+          <MaterialCommunityIcons name="calculator-variant" size={26} color="#1CB0F6" />
+        </TouchableOpacity>
 
-      {/* 课程列表 */}
-      {COURSES.map((course) => (
-        <View key={course.id} style={styles.courseContainer}>
-          {/* 课程标题 */}
-          <RNView style={styles.courseHeader}>
-            <Image source={{ uri: course.icon }} style={styles.courseIcon} />
-            <Text style={styles.courseTitle}>{course.title}</Text>
+        <RNView style={styles.statItem}>
+          <RNView style={styles.streakContainer}>
+            <Ionicons name="flame" size={22} color="#FF9600" />
+            <Text style={[styles.statText, { color: '#FF9600' }]}>{streak}</Text>
           </RNView>
+        </RNView>
 
-          {/* 课程关卡 */}
-          <RNView style={styles.levelsContainer}>
-            {course.levels.map((level, index) => {
-              // 计算位置，让关卡路径弯曲
-              const isEven = index % 2 === 0;
-              const offsetY = isEven ? 0 : 40;
+        <RNView style={styles.statItem}>
+          <RNView style={[styles.gemContainer, { backgroundColor: "#1CB0F6" }]}>
+            <FontAwesome5 name="gem" size={14} color="white" solid />
+            <Text style={styles.gemText}>{xp}</Text>
+          </RNView>
+        </RNView>
 
-              return (
-                <RNView
+        <RNView style={styles.statItem}>
+          <RNView style={[styles.gemContainer, { backgroundColor: "#FF4B4B" }]}>
+            <Ionicons name="heart" size={16} color="white" />
+            <Text style={styles.gemText}>{hearts}</Text>
+          </RNView>
+        </RNView>
+      </RNView>
+
+      {/* 固定在顶部的 banner */}
+      {renderFixedBanner()}
+
+      <ScrollView
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
+        {/* 课程列表 */}
+        {COURSES.map((course, courseIndex) => (
+          <RNView key={course.id} style={styles.unitContainer}>
+            {/* 普通文字标题 */}
+            <RNView
+              style={styles.collapsedHeader}
+              onLayout={(event) => {
+                // 记录实际位置以便调试比较
+                const layout = event.nativeEvent.layout;
+                console.log(`单元${courseIndex}实际位置: y=${layout.y}`);
+              }}
+            >
+              <Text style={styles.collapsedTitle}>
+                第 {courseIndex + 1} 阶段 - {course.title}
+              </Text>
+            </RNView>
+
+            {/* 课程关卡路径 */}
+            <RNView style={styles.levelsPath}>
+              {course.levels.map((level, index) => (
+                <Level
                   key={level.id}
-                  style={[
-                    styles.levelWrapper,
-                    {
-                      left: `${(index / (course.levels.length - 1)) * 82 + 5}%`,
-                      top: offsetY,
-                    },
-                  ]}
-                >
-                  <LevelBadge level={level} colorScheme={colorScheme} />
+                  level={level}
+                  color={course.color}
+                  isLast={index === course.levels.length - 1}
+                  unitTitle={course.title}
+                />
+              ))}
 
-                  {/* 连接线 */}
-                  {index < course.levels.length - 1 && (
-                    <RNView
-                      style={[
-                        styles.levelConnector,
-                        {
-                          width: 40,
-                          transform: [{ rotate: isEven ? "45deg" : "-45deg" }, { translateX: 18 }],
-                          backgroundColor: level.completed ? Colors[colorScheme].success : "#e0e0e0",
-                        },
-                      ]}
-                    />
-                  )}
+              {/* 单元底部的宝箱图标 */}
+              {courseIndex === 0 && (
+                <RNView style={styles.unitEnd}>
+                  <Image
+                    source={{ uri: 'https://i.imgur.com/h3pFJG3.png' }}
+                    style={styles.chestImage}
+                  />
                 </RNView>
-              );
-            })}
+              )}
+            </RNView>
+
+            {/* 界面底部的成就托盘 */}
+            {courseIndex === COURSES.length - 1 && (
+              <RNView style={styles.achievementContainer}>
+                <RNView style={styles.leagueContainer}>
+                  <Image
+                    source={{ uri: 'https://i.imgur.com/NhBFjc6.png' }}
+                    style={styles.leagueImage}
+                  />
+                  <Text style={styles.leagueText}>1</Text>
+                </RNView>
+                <Text style={styles.achievementText}>培养数感</Text>
+              </RNView>
+            )}
           </RNView>
-        </View>
-      ))}
-    </ScrollView>
+        ))}
+      </ScrollView>
+    </RNView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
+    backgroundColor: '#ffffff',
   },
   statsBar: {
-    flexDirection: "row",
-    justifyContent: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    marginBottom: 16,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    backgroundColor: 'white',
   },
   statItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF5E5',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
   },
   statText: {
-    marginLeft: 6,
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: '600',
+    marginLeft: 4,
   },
-  courseContainer: {
-    marginBottom: 40,
-    paddingVertical: 20,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+  gemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
   },
-  courseHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 20,
-    paddingHorizontal: 16,
+  gemText: {
+    color: 'white',
+    fontSize: 17,
+    fontWeight: '600',
   },
-  courseIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    marginRight: 12,
+  scrollView: {
+    flex: 1,
   },
-  courseTitle: {
-    fontSize: 22,
-    fontWeight: "bold",
+  scrollContent: {
+    paddingTop: 16,
+    paddingBottom: 40,
   },
-  levelsContainer: {
-    height: 120,
-    position: "relative",
-    marginHorizontal: 10,
+  unitContainer: {
+    marginHorizontal: 16,
+    marginBottom: 24,
+    backgroundColor: 'white',
   },
-  levelWrapper: {
-    position: "absolute",
-    alignItems: "center",
+  unitHeader: {
+    padding: 16,
+    paddingBottom: 20,
+  },
+  collapsedHeader: {
+    padding: 16,
+    backgroundColor: 'white',
+  },
+  collapsedTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#999',
+    textAlign: 'center',
+  },
+  unitTitleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  unitTitle: {
+    color: 'white',
+    fontSize: 15,
+    fontWeight: '500',
+    opacity: 0.9,
+  },
+  unitSubtitle: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  levelsPath: {
+    padding: 24,
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  levelContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
+    width: '100%',
   },
   levelBadge: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    zIndex: 2,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  levelConnector: {
-    height: 3,
-    position: "absolute",
-    right: 0,
-    top: 24,
-    zIndex: 1,
+  connector: {
+    width: 3,
+    height: 20,
+    marginTop: 4,
   },
   starsContainer: {
-    flexDirection: "row",
-    position: "absolute",
-    bottom: -15,
-    backgroundColor: "white",
-    borderRadius: 10,
-    paddingHorizontal: 3,
-    paddingVertical: 1,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
+    flexDirection: 'row',
+    marginTop: 4,
+  },
+  unitEnd: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  chestImage: {
+    width: 80,
+    height: 80,
+    resizeMode: 'contain',
+  },
+  achievementContainer: {
+    alignItems: 'center',
+    marginTop: 16,
+    paddingTop: 24,
+    paddingBottom: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
+  },
+  leagueContainer: {
+    width: 70,
+    height: 90,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  leagueImage: {
+    width: 70,
+    height: 90,
+    resizeMode: 'contain',
+  },
+  leagueText: {
+    position: 'absolute',
+    color: 'white',
+    fontSize: 28,
+    fontWeight: 'bold',
+  },
+  achievementText: {
+    marginTop: 8,
+    fontSize: 18,
+    color: '#777',
+  },
+  fixedBannerContainer: {
+    position: 'absolute',
+    top: 56,
+    left: 24,
+    right: 24,
+    zIndex: 10,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 12,
+  },
+  levelTitle: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    textAlign: 'center',
   },
 });

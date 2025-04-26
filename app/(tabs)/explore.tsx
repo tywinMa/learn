@@ -5,56 +5,56 @@ import { Ionicons } from "@expo/vector-icons";
 import Colors from "../../constants/Colors";
 import { useColorScheme } from "react-native";
 
-// 故事数据
+// 题集数据
 const STORIES = [
   {
     id: "1",
-    title: "初次旅行",
-    description: "跟随李明的第一次海外旅行，学习实用旅行词汇和对话",
-    image: "https://i.imgur.com/nJM30bJ.jpeg",
-    difficulty: "初级",
-    duration: "5分钟",
-    category: "旅行",
+    title: "方程解法精讲",
+    description: "详解一元二次方程的各种解法技巧，包括配方法、公式法和根与系数关系",
+    image: "https://i.imgur.com/A8eQsll.jpeg",
+    difficulty: "基础",
+    duration: "15分钟",
+    category: "代数",
     new: true,
     completed: false,
   },
   {
     id: "2",
-    title: "商业会议",
-    description: "参加一场重要的商业会议，掌握商务用语",
-    image: "https://i.imgur.com/RYPnReG.jpeg",
-    difficulty: "中级",
-    duration: "10分钟",
-    category: "商务",
+    title: "几何证明题集",
+    description: "系统学习三角形、四边形的性质证明方法与技巧",
+    image: "https://i.imgur.com/OdvhLkR.jpeg",
+    difficulty: "进阶",
+    duration: "20分钟",
+    category: "几何",
     new: false,
     completed: false,
   },
   {
     id: "3",
-    title: "家庭聚会",
-    description: "学习与家人聚会时的常用表达和词汇",
-    image: "https://i.imgur.com/pX7Ar4w.jpeg",
-    difficulty: "初级",
-    duration: "7分钟",
-    category: "家庭",
+    title: "函数图像分析",
+    description: "学习函数图像的绘制、分析与应用，掌握二次函数性质",
+    image: "https://i.imgur.com/cquUCUq.jpeg",
+    difficulty: "基础",
+    duration: "12分钟",
+    category: "函数",
     new: false,
     completed: true,
   },
   {
     id: "4",
-    title: "医院就诊",
-    description: "学习在医院就诊时的必要词汇和表达",
-    image: "https://i.imgur.com/e2uhBJ4.jpeg",
-    difficulty: "中级",
-    duration: "8分钟",
-    category: "健康",
+    title: "概率与统计精选",
+    description: "中考常见概率统计题型分析与解题思路详解",
+    image: "https://i.imgur.com/rkxsxQJ.jpeg",
+    difficulty: "进阶",
+    duration: "18分钟",
+    category: "统计",
     new: true,
     completed: false,
   },
 ];
 
-// 故事分类
-const CATEGORIES = ["全部", "旅行", "商务", "家庭", "健康"];
+// 题集分类
+const CATEGORIES = ["全部", "代数", "几何", "函数", "统计"];
 
 export default function ExploreScreen() {
   const colorScheme = useColorScheme() ?? "light";
@@ -65,7 +65,7 @@ export default function ExploreScreen() {
 
   return (
     <View style={styles.container}>
-      {/* 故事分类选择 */}
+      {/* 题集分类选择 */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -98,7 +98,7 @@ export default function ExploreScreen() {
         ))}
       </ScrollView>
 
-      {/* 故事列表 */}
+      {/* 题集列表 */}
       <ScrollView style={styles.storiesContainer}>
         {filteredStories.map((story) => (
           <TouchableOpacity key={story.id} style={styles.storyCard}>
@@ -137,8 +137,8 @@ export default function ExploreScreen() {
                   </View>
                 ) : (
                   <View style={[styles.storyButton, { backgroundColor: Colors[colorScheme].accent }]}>
-                    <Ionicons name="book-outline" size={14} color="#fff" />
-                    <Text style={styles.storyButtonText}>开始阅读</Text>
+                    <Ionicons name="document-text-outline" size={14} color="#fff" />
+                    <Text style={styles.storyButtonText}>开始学习</Text>
                   </View>
                 )}
               </View>
@@ -149,7 +149,7 @@ export default function ExploreScreen() {
         {/* 底部提示 */}
         <View style={styles.bottomHint}>
           <Ionicons name="bulb-outline" size={20} color={Colors[colorScheme].warning} />
-          <Text style={styles.bottomHintText}>通过阅读故事可以获取经验值和宝石奖励！</Text>
+          <Text style={styles.bottomHintText}>通过完成题集可以获得解题经验和奖励分数！</Text>
         </View>
       </ScrollView>
     </View>
