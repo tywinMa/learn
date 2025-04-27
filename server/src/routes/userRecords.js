@@ -171,4 +171,70 @@ router.delete('/:userId/wrong-exercises/:exerciseId', async (req, res) => {
   }
 });
 
+// 获取用户在特定单元的完成情况
+router.get('/:userId/progress/:unitId', async (req, res) => {
+  try {
+    const { userId, unitId } = req.params;
+
+    // 获取该单元的所有练习题
+    const exercises = await Exercise.findAll({
+      where: { unitId },
+      attributes: ['id']
+    });
+
+    if (exercises.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: `未找到单元 ${unitId} 的练习题`
+      });
+    }
+
+    // 获取用户在该单元的所有答题记录
+    const exerciseIds = exercises.map(ex => ex.id);
+    const userRecords = await UserRecord.findAll({
+      where: {
+        userId,
+        exerciseId: { [Op.in]: exerciseIds },
+        isCorrect: true // 只计算正确的答题记录
+      }
+    });
+
+    // 计算完成率和星星数
+    const totalExercises = exercises.length;
+    const completedExercises = userRecords.length;
+    const completionRate = totalExercises > 0 ? completedExercises / totalExercises : 0;
+
+    // 根据完成率计算星星数
+    let stars = 0;
+    if (completionRate >= 1) {
+      stars = 3; // 全部完成，3颗星
+    } else if (completionRate >= 0.7) {
+      stars = 2; // 完成70%以上，2颗星
+    } else if (completionRate >= 0.3) {
+      stars = 1; // 完成30%以上，1颗星
+    }
+
+    // 判断是否解锁下一个单元
+    const unlockNext = stars === 3;
+
+    res.json({
+      success: true,
+      data: {
+        unitId,
+        totalExercises,
+        completedExercises,
+        completionRate,
+        stars,
+        unlockNext
+      }
+    });
+  } catch (error) {
+    console.error('获取用户进度出错:', error);
+    res.status(500).json({
+      success: false,
+      message: '服务器错误'
+    });
+  }
+});
+
 module.exports = router;

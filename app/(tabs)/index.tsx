@@ -1,11 +1,12 @@
-import React, { useState, useRef } from "react";
-import { StyleSheet, ScrollView, Image, TouchableOpacity, View as RNView, Animated, Dimensions, NativeSyntheticEvent, NativeScrollEvent } from "react-native";
+import React, { useState, useRef, useEffect } from "react";
+import { StyleSheet, ScrollView, Image, TouchableOpacity, View as RNView, Animated, Dimensions, NativeSyntheticEvent, NativeScrollEvent, Alert, ActivityIndicator } from "react-native";
 import { Text, View } from "../../components/Themed";
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import Colors from "../../constants/Colors";
 import { useColorScheme } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
+import { getUserUnitProgress, getMultipleUnitProgress } from "../../services/progressService";
 
 // 单元数据 - 每个单元都有独特的主题色
 const COURSES = [
@@ -17,12 +18,12 @@ const COURSES = [
     color: "#58CC02",
     secondaryColor: "#89E219",
     levels: [
-      { id: "1-1", title: "一元二次方程解法", completed: true, stars: 3, type: "normal" },
-      { id: "1-2", title: "因式分解", completed: true, stars: 2, type: "normal" },
-      { id: "1-3", title: "配方法", completed: true, stars: 3, type: "normal" },
-      { id: "1-4", title: "公式法", completed: false, stars: 0, type: "normal", current: true },
-      { id: "1-5", title: "函数图像", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "1-6", title: "二次函数应用", completed: false, stars: 0, type: "challenge", locked: true },
+      { id: "1-1", title: "一元二次方程解法", type: "normal" },
+      { id: "1-2", title: "因式分解", type: "normal" },
+      { id: "1-3", title: "配方法", type: "normal" },
+      { id: "1-4", title: "公式法", type: "normal" },
+      { id: "1-5", title: "函数图像", type: "normal" },
+      { id: "1-6", title: "二次函数应用", type: "challenge" },
     ],
   },
   {
@@ -33,10 +34,10 @@ const COURSES = [
     color: "#5EC0DE",
     secondaryColor: "#7BDAF8",
     levels: [
-      { id: "2-1", title: "相似三角形", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "2-2", title: "勾股定理", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "2-3", title: "平行四边形", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "2-4", title: "圆的性质", completed: false, stars: 0, type: "challenge", locked: true },
+      { id: "2-1", title: "相似三角形", type: "normal" },
+      { id: "2-2", title: "勾股定理", type: "normal" },
+      { id: "2-3", title: "平行四边形", type: "normal" },
+      { id: "2-4", title: "圆的性质", type: "challenge" },
     ],
   },
   {
@@ -47,20 +48,40 @@ const COURSES = [
     color: "#FF9600",
     secondaryColor: "#FFC566",
     levels: [
-      { id: "3-1", title: "数据统计基础", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "3-2", title: "概率基础", completed: false, stars: 0, type: "normal", locked: true },
-      { id: "3-3", title: "复杂概率问题", completed: false, stars: 0, type: "challenge", locked: true },
+      { id: "3-1", title: "数据统计基础", type: "normal" },
+      { id: "3-2", title: "概率基础", type: "normal" },
+      { id: "3-3", title: "复杂概率问题", type: "challenge" },
     ],
   },
 ];
 
 // 关卡组件
-const Level = ({ level, color, isLast, unitTitle }: { level: any; color: string; isLast: boolean; unitTitle: string }) => {
+const Level = ({ level, color, isLast, unitTitle, progress, previousLevelUnlocked }: {
+  level: any;
+  color: string;
+  isLast: boolean;
+  unitTitle: string;
+  progress?: any;
+  previousLevelUnlocked?: boolean;
+}) => {
   const router = useRouter();
+
+  // 计算关卡是否锁定
+  // 第一个关卡默认解锁，其他关卡需要前一个关卡达到3星才解锁
+  const isLocked = previousLevelUnlocked === false;
+
+  // 获取星星数量
+  const stars = progress?.stars || 0;
 
   // 处理关卡点击
   const handleLevelPress = () => {
-    if (level.locked) return;
+    if (isLocked) {
+      Alert.alert(
+        "关卡未解锁",
+        "请先完成前一个关卡的所有练习题，获得3颗星才能解锁此关卡。"
+      );
+      return;
+    }
 
     // 导航到学习页面（独立页面，不是tab）
     router.push({
@@ -73,9 +94,12 @@ const Level = ({ level, color, isLast, unitTitle }: { level: any; color: string;
     });
   };
 
+  // 计算完成状态
+  const isCompleted = stars > 0;
+
   // 根据类型和状态选择样式
   const getBadgeStyle = () => {
-    if (level.locked) {
+    if (isLocked) {
       return {
         backgroundColor: "#E5E5E5",
         borderColor: "#CCCCCC",
@@ -84,12 +108,12 @@ const Level = ({ level, color, isLast, unitTitle }: { level: any; color: string;
 
     if (level.type === "challenge") {
       return {
-        backgroundColor: level.completed ? "#FFD900" : "#FFC800",
+        backgroundColor: isCompleted ? "#FFD900" : "#FFC800",
         borderColor: "#E6B800",
       };
     }
 
-    if (level.completed) {
+    if (isCompleted) {
       return {
         backgroundColor: color,
         borderColor: color,
@@ -104,26 +128,26 @@ const Level = ({ level, color, isLast, unitTitle }: { level: any; color: string;
   };
 
   const getIconName = () => {
-    if (level.locked) {
+    if (isLocked) {
       return "lock";
     }
     if (level.type === "challenge") {
       return "crown";
     }
-    if (level.completed) {
+    if (isCompleted) {
       return "star";
     }
     return "play";
   };
 
   const getIconColor = () => {
-    if (level.locked) {
+    if (isLocked) {
       return "#AAAAAA";
     }
     if (level.type === "challenge") {
       return "white";
     }
-    if (level.completed) {
+    if (isCompleted) {
       return "white";
     }
     return color;
@@ -143,20 +167,18 @@ const Level = ({ level, color, isLast, unitTitle }: { level: any; color: string;
       <Text style={styles.levelTitle}>{level.title}</Text>
 
       {/* 星星评分 */}
-      {level.completed && (
-        <RNView style={styles.starsContainer}>
-          {[...Array(3)].map((_, i) => (
-            <FontAwesome5
-              key={i}
-              name="star"
-              size={10}
-              solid={i < level.stars}
-              color={i < level.stars ? "#FFD900" : "#E0E0E0"}
-              style={{ marginHorizontal: 1 }}
-            />
-          ))}
-        </RNView>
-      )}
+      <RNView style={styles.starsContainer}>
+        {[...Array(3)].map((_, i) => (
+          <FontAwesome5
+            key={i}
+            name="star"
+            size={10}
+            solid={i < stars}
+            color={i < stars ? "#FFD900" : "#E0E0E0"}
+            style={{ marginHorizontal: 1 }}
+          />
+        ))}
+      </RNView>
 
       {/* 连接线 */}
       {!isLast && (
@@ -164,7 +186,7 @@ const Level = ({ level, color, isLast, unitTitle }: { level: any; color: string;
           style={[
             styles.connector,
             {
-              backgroundColor: level.completed ? color : "#E5E5E5"
+              backgroundColor: isCompleted ? color : "#E5E5E5"
             }
           ]}
         />
@@ -182,6 +204,8 @@ export default function HomeScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const screenWidth = Dimensions.get('window').width;
   const screenHeight = Dimensions.get('window').height;
+  const [loading, setLoading] = useState(true);
+  const [progressData, setProgressData] = useState<Record<string, any>>({});
 
   // 使用固定高度计算位置（因为直接获取的layout.y值不准确）
   const UNIT_HEIGHTS = [750, 450, 450]; // 增加每个单元的高度估计值
@@ -201,6 +225,32 @@ export default function HomeScreen() {
 
     unitPositions.current = positions;
     console.log('初始化单元位置:', positions);
+  }, []);
+
+  // 获取用户进度数据
+  useEffect(() => {
+    const fetchUserProgress = async () => {
+      setLoading(true);
+      try {
+        // 收集所有关卡ID
+        const levelIds: string[] = [];
+        COURSES.forEach(course => {
+          course.levels.forEach(level => {
+            levelIds.push(level.id);
+          });
+        });
+
+        // 获取所有关卡的进度
+        const progress = await getMultipleUnitProgress(levelIds);
+        setProgressData(progress);
+      } catch (error) {
+        console.error('获取用户进度出错:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProgress();
   }, []);
 
   // 监听滚动
@@ -334,15 +384,31 @@ export default function HomeScreen() {
 
             {/* 课程关卡路径 */}
             <RNView style={styles.levelsPath}>
-              {course.levels.map((level, index) => (
-                <Level
-                  key={level.id}
-                  level={level}
-                  color={course.color}
-                  isLast={index === course.levels.length - 1}
-                  unitTitle={course.title}
-                />
-              ))}
+              {course.levels.map((level, index) => {
+                // 获取当前关卡的进度数据
+                const levelProgress = progressData[level.id];
+
+                // 获取前一个关卡的解锁状态
+                // 第一个关卡默认解锁，其他关卡需要前一个关卡达到3星才解锁
+                let previousLevelUnlocked = index === 0;
+                if (index > 0) {
+                  const prevLevelId = course.levels[index - 1].id;
+                  const prevLevelProgress = progressData[prevLevelId];
+                  previousLevelUnlocked = prevLevelProgress?.stars === 3;
+                }
+
+                return (
+                  <Level
+                    key={level.id}
+                    level={level}
+                    color={course.color}
+                    isLast={index === course.levels.length - 1}
+                    unitTitle={course.title}
+                    progress={levelProgress}
+                    previousLevelUnlocked={previousLevelUnlocked}
+                  />
+                );
+              })}
 
               {/* 单元底部的宝箱图标 */}
               {courseIndex === 0 && (
