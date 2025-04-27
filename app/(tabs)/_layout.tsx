@@ -47,13 +47,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="settings"
         options={{
-          title: "故事",
+          title: "个人",
           tabBarIcon: ({ color, focused }: TabBarIconProps) => (
             <View style={styles.tabItem}>
-              <Ionicons name="book-outline" size={24} color={color} />
-              <Text style={{ color, fontSize: 12, marginTop: 2 }}>故事</Text>
+              <Ionicons name="person" size={24} color={color} />
+              <Text style={{ color, fontSize: 12, marginTop: 2 }}>个人</Text>
             </View>
           ),
         }}
@@ -82,18 +82,6 @@ export default function TabLayout() {
             <View style={styles.tabItem}>
               <Ionicons name="book-outline" size={24} color={color} />
               <Text style={{ color, fontSize: 12, marginTop: 2 }}>错题本</Text>
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: "个人",
-          tabBarIcon: ({ color, focused }: TabBarIconProps) => (
-            <View style={styles.tabItem}>
-              <Ionicons name="person" size={24} color={color} />
-              <Text style={{ color, fontSize: 12, marginTop: 2 }}>个人</Text>
             </View>
           ),
         }}
