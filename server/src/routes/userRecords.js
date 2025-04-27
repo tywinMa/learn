@@ -118,12 +118,14 @@ router.get('/:userId/wrong-exercises', async (req, res) => {
     });
 
     // 格式化返回数据，与前端期望的格式保持一致
-    const formattedData = wrongExercises.map(wrong => ({
-      exerciseData: wrong.Exercise,
-      unitId: wrong.unitId,
-      attempts: wrong.attempts,
-      timestamp: wrong.updatedAt.getTime()
-    }));
+    const formattedData = wrongExercises
+      .filter(wrong => wrong.Exercise) // 过滤掉没有关联练习题的记录
+      .map(wrong => ({
+        exerciseData: wrong.Exercise,
+        unitId: wrong.unitId,
+        attempts: wrong.attempts,
+        timestamp: wrong.updatedAt.getTime()
+      }));
 
     res.json({
       success: true,
