@@ -6,8 +6,7 @@ import Colors from "../../constants/Colors";
 import { useColorScheme } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
-// 暂时注释掉进度服务导入，先解决错误
-// import { getUserUnitProgress, getMultipleUnitProgress } from "../services/progressService";
+import { getUserUnitProgress, getMultipleUnitProgress } from "../services/progressService";
 
 // 单元数据 - 每个单元都有独特的主题色
 const COURSES = [
@@ -233,36 +232,25 @@ export default function HomeScreen() {
     const fetchUserProgress = async () => {
       setLoading(true);
       try {
-        // 暂时使用模拟数据
-        const mockProgressData: Record<string, any> = {};
-
-        // 为每个关卡创建模拟进度数据
+        // 收集所有关卡ID
+        const levelIds: string[] = [];
         COURSES.forEach(course => {
-          course.levels.forEach((level, index) => {
-            // 第一个关卡完成度高，其他递减
-            let stars = 0;
-            if (index === 0) {
-              stars = 3; // 第一个关卡3星
-            } else if (index === 1) {
-              stars = 2; // 第二个关卡2星
-            } else if (index === 2) {
-              stars = 1; // 第三个关卡1星
-            }
-
-            mockProgressData[level.id] = {
-              unitId: level.id,
-              totalExercises: 10,
-              completedExercises: stars * 3,
-              completionRate: stars * 0.3,
-              stars: stars,
-              unlockNext: stars === 3
-            };
+          course.levels.forEach(level => {
+            levelIds.push(level.id);
           });
         });
 
-        setProgressData(mockProgressData);
+        // 从服务器获取真实的进度数据
+        const progressMap = await getMultipleUnitProgress(levelIds);
+
+        // 更新进度数据状态
+        setProgressData(progressMap);
+
+        console.log('从服务器获取的进度数据:', progressMap);
       } catch (error) {
         console.error('获取用户进度出错:', error);
+        // 出错时使用空数据
+        setProgressData({});
       } finally {
         setLoading(false);
       }

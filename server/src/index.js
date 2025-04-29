@@ -39,18 +39,35 @@ const startServer = async () => {
     // 初始化数据库并导入数据
     await initDatabase();
 
-    // 尝试启动服务器，如果端口被占用则自动选择另一个端口
+    // 尝试启动服务器，如果端口被占用则尝试杀掉占用进程
     const server = app.listen(PORT, () => {
-      const actualPort = server.address().port;
-      console.log(`服务器运行在 http://localhost:${actualPort}`);
+      console.log(`服务器运行在 http://localhost:${PORT}`);
     }).on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
-        // 端口被占用，尝试使用随机端口
-        console.log(`端口 ${PORT} 已被占用，尝试使用随机端口...`);
-        const randomPort = Math.floor(3001 + Math.random() * 1000);
-        app.listen(randomPort, () => {
-          console.log(`服务器运行在 http://localhost:${randomPort}`);
-        });
+        console.log(`端口 ${PORT} 已被占用，尝试杀掉占用进程...`);
+
+        // 在 macOS/Linux 上使用 lsof 查找占用端口的进程并杀掉
+        const { execSync } = require('child_process');
+        try {
+          // 查找占用端口的进程 PID
+          const pid = execSync(`lsof -t -i:${PORT}`).toString().trim();
+          if (pid) {
+            console.log(`找到占用端口 ${PORT} 的进程 PID: ${pid}，正在终止...`);
+            execSync(`kill -9 ${pid}`);
+            console.log(`已终止进程 ${pid}`);
+
+            // 等待进程终止后再次尝试启动服务器
+            setTimeout(() => {
+              app.listen(PORT, () => {
+                console.log(`服务器运行在 http://localhost:${PORT}`);
+              });
+            }, 1000);
+          }
+        } catch (execError) {
+          console.error(`无法终止占用端口 ${PORT} 的进程:`, execError.message);
+          console.error('请手动终止占用端口的进程后再启动服务器');
+          process.exit(1);
+        }
       } else {
         throw err;
       }
