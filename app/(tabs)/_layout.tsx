@@ -37,7 +37,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "课程",
+          title: "",
           tabBarIcon: ({ color, focused }: TabBarIconProps) => (
             <View style={styles.tabItem}>
               <Ionicons name="book" size={24} color={color} />
@@ -49,7 +49,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: "个人",
+          title: "",
           tabBarIcon: ({ color, focused }: TabBarIconProps) => (
             <View style={styles.tabItem}>
               <Ionicons name="person" size={24} color={color} />
@@ -61,7 +61,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="practice"
         options={{
-          title: "练习",
+          title: "",
           tabBarIcon: ({ color, focused }: TabBarIconProps) => (
             <View style={[styles.tabItem, styles.centerTab]}>
               <View
@@ -77,11 +77,11 @@ export default function TabLayout() {
       <Tabs.Screen
         name="wrong-exercises"
         options={{
-          title: "错题本",
+          title: "",
           tabBarIcon: ({ color, focused }: TabBarIconProps) => (
             <View style={styles.tabItem}>
               <Ionicons name="book-outline" size={24} color={color} />
-              <Text style={{ color, fontSize: 12, marginTop: 2 }}>错题本</Text>
+              <Text style={{ color, fontSize: 10, marginTop: 2 }}>错题本</Text>
             </View>
           ),
         }}

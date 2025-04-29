@@ -1,34 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, ScrollView, View as RNView, TouchableOpacity, Dimensions, StatusBar, ActivityIndicator, Alert } from 'react-native';
-import { Text, View } from '../components/Themed';
-import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
-import { Video, ResizeMode } from 'expo-av';
-import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
+import React, { useState, useEffect } from "react";
+import {
+  StyleSheet,
+  ScrollView,
+  View as RNView,
+  TouchableOpacity,
+  Dimensions,
+  StatusBar,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
+import { Text, View } from "../components/Themed";
+import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
+import { Video, ResizeMode } from "expo-av";
+import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 
 // 视频资源映射
 const VIDEO_RESOURCES = {
-  '1-1': 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4', // 示例视频URL
-  '1-2': 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
-  '1-3': 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
-  '1-4': 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
-  '2-1': 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
-  '2-2': 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
-  '2-3': 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
-  '3-1': 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
-  '3-2': 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
+  "1-1": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4", // 示例视频URL
+  "1-2": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
+  "1-3": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
+  "1-4": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
+  "2-1": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
+  "2-2": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
+  "2-3": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
+  "3-1": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
+  "3-2": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
 };
 
 // 练习题组件
 const Exercise = ({
   exercise,
   onAnswer,
-  userAnswers
+  userAnswers,
 }: {
   exercise: {
     id: string;
     question: string;
     options: string[];
-    correctAnswer: number
+    correctAnswer: number;
   };
   onAnswer: (exerciseId: string, optionIndex: number) => void;
   userAnswers: Record<string, number>;
@@ -63,7 +72,7 @@ const Exercise = ({
 
       {isAnswered && (
         <Text style={[styles.feedbackText, isCorrect ? styles.correctText : styles.incorrectText]}>
-          {isCorrect ? '回答正确！' : '回答错误，请再试一次。'}
+          {isCorrect ? "回答正确！" : "回答错误，请再试一次。"}
         </Text>
       )}
     </RNView>
@@ -78,23 +87,23 @@ export default function StudyScreen() {
   const router = useRouter();
   const [userAnswers, setUserAnswers] = useState<Record<string, number>>({});
   const [videoStatus, setVideoStatus] = useState<any>({});
-  const screenWidth = Dimensions.get('window').width;
+  const screenWidth = Dimensions.get("window").width;
   const [exercises, setExercises] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   // 临时用户ID，实际应用中应该从认证系统获取
-  const USER_ID = 'user1';
+  const USER_ID = "user1";
 
   const handleAnswer = async (exerciseId: string, optionIndex: number) => {
     // 更新本地状态
-    setUserAnswers(prev => ({
+    setUserAnswers((prev) => ({
       ...prev,
-      [exerciseId]: optionIndex
+      [exerciseId]: optionIndex,
     }));
 
     // 获取当前练习题
-    const exercise = exercises.find(ex => ex.id === exerciseId);
+    const exercise = exercises.find((ex) => ex.id === exerciseId);
     if (!exercise) return;
 
     // 判断答案是否正确
@@ -103,24 +112,24 @@ export default function StudyScreen() {
     // 提交答题结果到服务器
     try {
       // 使用 IP 地址而不是 localhost，这样在真机上也能正常工作
-      const apiUrl = `http://192.168.3.43:3000/api/users/${USER_ID}/submit`;
+      const apiUrl = `http://localhost:3000/api/users/${USER_ID}/submit`;
       const response = await fetch(apiUrl, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           exerciseId,
           unitId: lessonId,
-          isCorrect
+          isCorrect,
         }),
       });
 
       if (!response.ok) {
-        console.error('提交答题结果失败');
+        console.error("提交答题结果失败");
       }
     } catch (err) {
-      console.error('提交答题结果出错:', err);
+      console.error("提交答题结果出错:", err);
     }
   };
 
@@ -129,8 +138,10 @@ export default function StudyScreen() {
   };
 
   // 确保 id 是单个字符串
-  const lessonId = Array.isArray(id) ? id[0] : id || '1-1';
-  const videoUrl = VIDEO_RESOURCES[lessonId as keyof typeof VIDEO_RESOURCES] || 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4';
+  const lessonId = Array.isArray(id) ? id[0] : id || "1-1";
+  const videoUrl =
+    VIDEO_RESOURCES[lessonId as keyof typeof VIDEO_RESOURCES] ||
+    "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4";
 
   // 从API获取练习题
   useEffect(() => {
@@ -143,11 +154,11 @@ export default function StudyScreen() {
         if (exerciseIdParam) {
           // 获取特定的练习题
           // 使用 IP 地址而不是 localhost，这样在真机上也能正常工作
-          const apiUrl = `http://192.168.3.43:3000/api/exercises/${lessonId}/${exerciseIdParam}`;
+          const apiUrl = `http://localhost:3000/api/exercises/${lessonId}/${exerciseIdParam}`;
           const response = await fetch(apiUrl);
 
           if (!response.ok) {
-            throw new Error('获取练习题失败');
+            throw new Error("获取练习题失败");
           }
 
           const result = await response.json();
@@ -155,16 +166,16 @@ export default function StudyScreen() {
           if (result.success && result.data) {
             setExercises([result.data]);
           } else {
-            throw new Error(result.message || '获取练习题失败');
+            throw new Error(result.message || "获取练习题失败");
           }
         } else {
           // 获取单元的所有练习题，过滤掉已完成的
           // 使用 IP 地址而不是 localhost，这样在真机上也能正常工作
-          const apiUrl = `http://192.168.3.43:3000/api/exercises/${lessonId}?userId=${USER_ID}&filterCompleted=true`;
+          const apiUrl = `http://localhost:3000/api/exercises/${lessonId}?userId=${USER_ID}&filterCompleted=true`;
           const response = await fetch(apiUrl);
 
           if (!response.ok) {
-            throw new Error('获取练习题失败');
+            throw new Error("获取练习题失败");
           }
 
           const result = await response.json();
@@ -172,26 +183,26 @@ export default function StudyScreen() {
           if (result.success && result.data) {
             setExercises(result.data);
           } else {
-            throw new Error(result.message || '获取练习题失败');
+            throw new Error(result.message || "获取练习题失败");
           }
         }
       } catch (err: any) {
-        console.error('获取练习题出错:', err);
-        setError(err.message || '获取练习题失败，请稍后再试');
+        console.error("获取练习题出错:", err);
+        setError(err.message || "获取练习题失败，请稍后再试");
         // 如果API请求失败，使用默认练习题
         setExercises([
           {
-            id: '1',
-            question: '解一元二次方程：x² - 5x + 6 = 0',
-            options: ['x = 2 或 x = 3', 'x = -2 或 x = -3', 'x = 2 或 x = -3', 'x = -2 或 x = 3'],
+            id: "1",
+            question: "解一元二次方程：x² - 5x + 6 = 0",
+            options: ["x = 2 或 x = 3", "x = -2 或 x = -3", "x = 2 或 x = -3", "x = -2 或 x = 3"],
             correctAnswer: 0,
           },
           {
-            id: '2',
-            question: '已知三角形的两边长分别为3和4，且夹角为60°，求第三边的长度。',
-            options: ['5', '√13', '√19', '7'],
+            id: "2",
+            question: "已知三角形的两边长分别为3和4，且夹角为60°，求第三边的长度。",
+            options: ["5", "√13", "√19", "7"],
             correctAnswer: 2,
-          }
+          },
         ]);
       } finally {
         setLoading(false);
@@ -214,13 +225,13 @@ export default function StudyScreen() {
         <TouchableOpacity
           onPress={() => {
             // 使用 router.replace 替代 router.back，这样更可靠
-            router.replace('/(tabs)');
+            router.replace("/(tabs)");
           }}
           style={styles.backButton}
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{unitTitle || '初三数学课程'}</Text>
+        <Text style={styles.headerTitle}>{unitTitle || "初三数学课程"}</Text>
         <RNView style={styles.placeholder} />
       </RNView>
 
@@ -263,13 +274,8 @@ export default function StudyScreen() {
           ) : exercises.length === 0 ? (
             <Text style={styles.noExercisesText}>暂无练习题</Text>
           ) : (
-            exercises.map(exercise => (
-              <Exercise
-                key={exercise.id}
-                exercise={exercise}
-                onAnswer={handleAnswer}
-                userAnswers={userAnswers}
-              />
+            exercises.map((exercise) => (
+              <Exercise key={exercise.id} exercise={exercise} onAnswer={handleAnswer} userAnswers={userAnswers} />
             ))
           )}
         </RNView>
@@ -281,25 +287,25 @@ export default function StudyScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: "#f8f8f8",
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'white',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "white",
     paddingTop: 16, // 减少顶部padding
     paddingBottom: 10,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eaeaea',
+    borderBottomColor: "#eaeaea",
   },
   backButton: {
     padding: 8,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   placeholder: {
     width: 40,
@@ -308,57 +314,57 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   videoContainer: {
-    backgroundColor: '#000',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
   },
   lessonContent: {
     padding: 16,
-    backgroundColor: 'white',
+    backgroundColor: "white",
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginTop: 20,
     marginBottom: 12,
   },
   descriptionText: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#333',
+    color: "#333",
   },
   exerciseContainer: {
-    backgroundColor: '#f9f9f9',
+    backgroundColor: "#f9f9f9",
     borderRadius: 12,
     padding: 16,
     marginVertical: 10,
     borderWidth: 1,
-    borderColor: '#eaeaea',
+    borderColor: "#eaeaea",
   },
   questionText: {
     fontSize: 17,
-    fontWeight: '600',
+    fontWeight: "600",
     marginBottom: 16,
   },
   optionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'white',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "white",
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#dddddd',
+    borderColor: "#dddddd",
   },
   selectedOption: {
-    borderColor: '#5EC0DE',
+    borderColor: "#5EC0DE",
     borderWidth: 2,
   },
   correctOption: {
-    borderColor: 'green',
+    borderColor: "green",
     borderWidth: 2,
-    backgroundColor: 'rgba(0, 255, 0, 0.05)',
+    backgroundColor: "rgba(0, 255, 0, 0.05)",
   },
   optionText: {
     fontSize: 16,
@@ -370,44 +376,44 @@ const styles = StyleSheet.create({
   feedbackText: {
     marginTop: 12,
     fontSize: 16,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: "600",
+    textAlign: "center",
   },
   correctText: {
-    color: 'green',
+    color: "green",
   },
   incorrectText: {
-    color: 'red',
+    color: "red",
   },
   loadingContainer: {
     padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#666',
+    color: "#666",
   },
   errorContainer: {
     padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    backgroundColor: '#ffeeee',
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    backgroundColor: "#ffeeee",
     borderRadius: 8,
     marginVertical: 10,
   },
   errorText: {
     marginLeft: 10,
     fontSize: 16,
-    color: 'red',
+    color: "red",
   },
   noExercisesText: {
     padding: 20,
     fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    fontStyle: 'italic',
+    color: "#666",
+    textAlign: "center",
+    fontStyle: "italic",
   },
 });

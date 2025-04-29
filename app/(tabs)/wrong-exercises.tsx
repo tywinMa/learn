@@ -1,12 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  StyleSheet,
-  ScrollView,
-  View as RNView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Alert,
-} from "react-native";
+import { StyleSheet, ScrollView, View as RNView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { Text, View } from "../../components/Themed";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -26,7 +19,7 @@ export default function WrongExercisesScreen() {
       try {
         setLoading(true);
         // 使用 IP 地址而不是 localhost，这样在真机上也能正常工作
-        const apiUrl = `http://192.168.3.43:3000/api/users/${USER_ID}/wrong-exercises`;
+        const apiUrl = `http://localhost:3000/api/users/${USER_ID}/wrong-exercises`;
         const response = await fetch(apiUrl);
 
         if (!response.ok) {
@@ -56,7 +49,7 @@ export default function WrongExercisesScreen() {
   const handleRemoveExercise = async (exerciseId: string) => {
     try {
       // 使用 IP 地址而不是 localhost，这样在真机上也能正常工作
-      const apiUrl = `http://192.168.3.43:3000/api/users/${USER_ID}/wrong-exercises/${exerciseId}`;
+      const apiUrl = `http://localhost:3000/api/users/${USER_ID}/wrong-exercises/${exerciseId}`;
       const response = await fetch(apiUrl, {
         method: "DELETE",
       });
@@ -70,10 +63,7 @@ export default function WrongExercisesScreen() {
         if (!prev || !Array.isArray(prev)) {
           return [];
         }
-        return prev.filter(
-          (item) =>
-            item && item.exerciseData && item.exerciseData.id !== exerciseId
-        );
+        return prev.filter((item) => item && item.exerciseData && item.exerciseData.id !== exerciseId);
       });
 
       Alert.alert("成功", "已从错题本中删除");
@@ -89,10 +79,7 @@ export default function WrongExercisesScreen() {
       pathname: "/study",
       params: {
         id: exercise.unitId,
-        unitTitle: `错题练习 - ${exercise.exerciseData.question.substring(
-          0,
-          10
-        )}...`,
+        unitTitle: `错题练习 - ${exercise.exerciseData.question.substring(0, 10)}...`,
         exerciseId: exercise.exerciseData.id,
       },
     });
@@ -123,9 +110,7 @@ export default function WrongExercisesScreen() {
           </RNView>
         ) : (
           <RNView style={styles.exercisesContainer}>
-            <Text style={styles.sectionTitle}>
-              我的错题 ({wrongExercises.length})
-            </Text>
+            <Text style={styles.sectionTitle}>我的错题 ({wrongExercises.length})</Text>
 
             {wrongExercises.map((item, index) => {
               if (!item || !item.exerciseData) {
@@ -133,50 +118,35 @@ export default function WrongExercisesScreen() {
               }
               return (
                 <RNView key={index} style={styles.exerciseCard}>
-                  <Text style={styles.questionText}>
-                    {item.exerciseData.question}
-                  </Text>
+                  <Text style={styles.questionText}>{item.exerciseData.question}</Text>
 
                   <RNView style={styles.optionsContainer}>
-                    {item.exerciseData.options &&
-                    Array.isArray(item.exerciseData.options) ? (
-                      item.exerciseData.options.map(
-                        (option: string, optIndex: number) => (
-                          <RNView
-                            key={optIndex}
-                            style={[
-                              styles.optionItem,
-                              optIndex === item.exerciseData.correctAnswer &&
-                                styles.correctOption,
-                            ]}
-                          >
-                            <Text style={styles.optionText}>{option}</Text>
-                            {optIndex === item.exerciseData.correctAnswer && (
-                              <Ionicons
-                                name="checkmark-circle"
-                                size={20}
-                                color="green"
-                              />
-                            )}
-                          </RNView>
-                        )
-                      )
+                    {item.exerciseData.options && Array.isArray(item.exerciseData.options) ? (
+                      item.exerciseData.options.map((option: string, optIndex: number) => (
+                        <RNView
+                          key={optIndex}
+                          style={[
+                            styles.optionItem,
+                            optIndex === item.exerciseData.correctAnswer && styles.correctOption,
+                          ]}
+                        >
+                          <Text style={styles.optionText}>{option}</Text>
+                          {optIndex === item.exerciseData.correctAnswer && (
+                            <Ionicons name="checkmark-circle" size={20} color="green" />
+                          )}
+                        </RNView>
+                      ))
                     ) : (
                       <Text>无选项数据</Text>
                     )}
                   </RNView>
 
                   <RNView style={styles.attemptsContainer}>
-                    <Text style={styles.attemptsText}>
-                      尝试次数: {item.attempts}
-                    </Text>
+                    <Text style={styles.attemptsText}>尝试次数: {item.attempts}</Text>
                   </RNView>
 
                   <RNView style={styles.actionsContainer}>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => handlePracticeAgain(item)}
-                    >
+                    <TouchableOpacity style={styles.actionButton} onPress={() => handlePracticeAgain(item)}>
                       <Ionicons name="refresh" size={18} color="#5EC0DE" />
                       <Text style={styles.actionButtonText}>再练一次</Text>
                     </TouchableOpacity>
@@ -186,14 +156,7 @@ export default function WrongExercisesScreen() {
                       onPress={() => handleRemoveExercise(item.exerciseData.id)}
                     >
                       <Ionicons name="trash" size={18} color="#FF6B6B" />
-                      <Text
-                        style={[
-                          styles.actionButtonText,
-                          styles.removeButtonText,
-                        ]}
-                      >
-                        移除
-                      </Text>
+                      <Text style={[styles.actionButtonText, styles.removeButtonText]}>移除</Text>
                     </TouchableOpacity>
                   </RNView>
                 </RNView>
