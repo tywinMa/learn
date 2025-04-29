@@ -10,11 +10,13 @@ const WrongExercise = sequelize.define('WrongExercise', {
   },
   userId: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
+    unique: false // 确保不是唯一的
   },
   exerciseId: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
+    unique: false // 确保不是唯一的
   },
   unitId: {
     type: DataTypes.STRING,

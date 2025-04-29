@@ -10,9 +10,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 中间件
-app.use(cors()); // 允许跨域请求
+app.use(cors({
+  origin: '*', // 允许所有来源的请求
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+})); // 允许跨域请求
 app.use(express.json()); // 解析JSON请求体
 app.use(morgan('dev')); // 日志记录
+
+// 添加CORS预检请求处理
+app.options('*', cors());
 
 // 路由
 app.use('/api/exercises', exercisesRoutes);
