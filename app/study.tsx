@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   StyleSheet,
   ScrollView,
@@ -8,6 +8,7 @@ import {
   StatusBar,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
 import { Text, View } from "../components/Themed";
 import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
@@ -79,6 +80,66 @@ const Exercise = ({
   );
 };
 
+// 总结弹窗组件
+const SummaryModal = ({
+  visible,
+  correctCount,
+  totalCount,
+  onRetry,
+  onExit
+}: {
+  visible: boolean;
+  correctCount: number;
+  totalCount: number;
+  onRetry: () => void;
+  onExit: () => void;
+}) => {
+  return (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onExit}
+    >
+      <RNView style={styles.modalOverlay}>
+        <RNView style={styles.modalContent}>
+          <Text style={styles.modalTitle}>练习完成！</Text>
+
+          <RNView style={styles.summaryContainer}>
+            <Text style={styles.summaryText}>
+              本次练习总结：
+            </Text>
+            <Text style={styles.summaryDetail}>
+              总题数：<Text style={styles.summaryHighlight}>{totalCount}</Text> 题
+            </Text>
+            <Text style={styles.summaryDetail}>
+              答对：<Text style={styles.correctCount}>{correctCount}</Text> 题
+            </Text>
+            <Text style={styles.summaryDetail}>
+              答错：<Text style={styles.incorrectCount}>{totalCount - correctCount}</Text> 题
+            </Text>
+            <Text style={styles.summaryDetail}>
+              正确率：<Text style={styles.summaryHighlight}>{totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0}%</Text>
+            </Text>
+          </RNView>
+
+          <Text style={styles.modalQuestion}>你想要：</Text>
+
+          <RNView style={styles.modalButtons}>
+            <TouchableOpacity style={[styles.modalButton, styles.retryButton]} onPress={onRetry}>
+              <Text style={styles.modalButtonText}>重新做一遍</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.modalButton, styles.exitButton]} onPress={onExit}>
+              <Text style={styles.modalButtonText}>退出本单元</Text>
+            </TouchableOpacity>
+          </RNView>
+        </RNView>
+      </RNView>
+    </Modal>
+  );
+};
+
 export default function StudyScreen() {
   const params = useLocalSearchParams();
   const { id, unitTitle, color } = params;
@@ -92,15 +153,63 @@ export default function StudyScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // 添加新的状态变量
+  const [correctCount, setCorrectCount] = useState(0);
+  const [showSummary, setShowSummary] = useState(false);
+  const allAnswered = useRef(false);
+
   // 临时用户ID，实际应用中应该从认证系统获取
   const USER_ID = "user1";
 
+  // 检查是否所有题目都已回答
+  const checkAllAnswered = (currentAnswers: Record<string, number>) => {
+    if (allAnswered.current) return; // 如果已经显示过总结，不再重复显示
+
+    const answeredCount = Object.keys(currentAnswers).length;
+    if (answeredCount === exercises.length && exercises.length > 0) {
+      // 计算正确答案数量
+      let correct = 0;
+      exercises.forEach(ex => {
+        if (currentAnswers[ex.id] === ex.correctAnswer) {
+          correct++;
+        }
+      });
+
+      setCorrectCount(correct);
+      allAnswered.current = true;
+
+      // 延迟显示总结弹窗，给用户一点时间看到最后一题的结果
+      setTimeout(() => {
+        setShowSummary(true);
+      }, 1000);
+    }
+  };
+
+  // 重新做题
+  const handleRetry = () => {
+    setShowSummary(false);
+    setUserAnswers({});
+    setCorrectCount(0);
+    allAnswered.current = false;
+
+    // 重新获取练习题
+    fetchExercises();
+  };
+
+  // 退出本单元
+  const handleExit = () => {
+    setShowSummary(false);
+    router.replace("/(tabs)");
+  };
+
   const handleAnswer = async (exerciseId: string, optionIndex: number) => {
     // 更新本地状态
-    setUserAnswers((prev) => ({
-      ...prev,
+    const newAnswers = {
+      ...userAnswers,
       [exerciseId]: optionIndex,
-    }));
+    };
+
+    setUserAnswers(newAnswers);
 
     // 获取当前练习题
     const exercise = exercises.find((ex) => ex.id === exerciseId);
@@ -108,6 +217,9 @@ export default function StudyScreen() {
 
     // 判断答案是否正确
     const isCorrect = optionIndex === exercise.correctAnswer;
+
+    // 检查是否所有题目都已回答
+    checkAllAnswered(newAnswers);
 
     // 提交答题结果到服务器
     try {
@@ -143,72 +255,77 @@ export default function StudyScreen() {
     VIDEO_RESOURCES[lessonId as keyof typeof VIDEO_RESOURCES] ||
     "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4";
 
-  // 从API获取练习题
-  useEffect(() => {
-    const fetchExercises = async () => {
-      try {
-        setLoading(true);
-        // 这里使用你的API地址，开发环境可以使用localhost
-        // 如果在真机上测试，需要使用实际的IP地址或域名
+  // 从API获取练习题的函数
+  const fetchExercises = async () => {
+    try {
+      setLoading(true);
+      // 重置状态
+      setUserAnswers({});
+      allAnswered.current = false;
 
-        if (exerciseIdParam) {
-          // 获取特定的练习题
-          // 使用 IP 地址而不是 localhost，这样在真机上也能正常工作
-          const apiUrl = `http://localhost:3000/api/exercises/${lessonId}/${exerciseIdParam}`;
-          const response = await fetch(apiUrl);
+      // 这里使用你的API地址，开发环境可以使用localhost
+      // 如果在真机上测试，需要使用实际的IP地址或域名
 
-          if (!response.ok) {
-            throw new Error("获取练习题失败");
-          }
+      if (exerciseIdParam) {
+        // 获取特定的练习题
+        // 使用 IP 地址而不是 localhost，这样在真机上也能正常工作
+        const apiUrl = `http://localhost:3000/api/exercises/${lessonId}/${exerciseIdParam}`;
+        const response = await fetch(apiUrl);
 
-          const result = await response.json();
-
-          if (result.success && result.data) {
-            setExercises([result.data]);
-          } else {
-            throw new Error(result.message || "获取练习题失败");
-          }
-        } else {
-          // 获取单元的所有练习题，过滤掉已完成的
-          // 使用 IP 地址而不是 localhost，这样在真机上也能正常工作
-          const apiUrl = `http://localhost:3000/api/exercises/${lessonId}?userId=${USER_ID}&filterCompleted=true`;
-          const response = await fetch(apiUrl);
-
-          if (!response.ok) {
-            throw new Error("获取练习题失败");
-          }
-
-          const result = await response.json();
-
-          if (result.success && result.data) {
-            setExercises(result.data);
-          } else {
-            throw new Error(result.message || "获取练习题失败");
-          }
+        if (!response.ok) {
+          throw new Error("获取练习题失败");
         }
-      } catch (err: any) {
-        console.error("获取练习题出错:", err);
-        setError(err.message || "获取练习题失败，请稍后再试");
-        // 如果API请求失败，使用默认练习题
-        setExercises([
-          {
-            id: "1",
-            question: "解一元二次方程：x² - 5x + 6 = 0",
-            options: ["x = 2 或 x = 3", "x = -2 或 x = -3", "x = 2 或 x = -3", "x = -2 或 x = 3"],
-            correctAnswer: 0,
-          },
-          {
-            id: "2",
-            question: "已知三角形的两边长分别为3和4，且夹角为60°，求第三边的长度。",
-            options: ["5", "√13", "√19", "7"],
-            correctAnswer: 2,
-          },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
 
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          setExercises([result.data]);
+        } else {
+          throw new Error(result.message || "获取练习题失败");
+        }
+      } else {
+        // 获取单元的所有练习题，过滤掉已完成的
+        // 使用 IP 地址而不是 localhost，这样在真机上也能正常工作
+        const apiUrl = `http://localhost:3000/api/exercises/${lessonId}?userId=${USER_ID}&filterCompleted=true`;
+        const response = await fetch(apiUrl);
+
+        if (!response.ok) {
+          throw new Error("获取练习题失败");
+        }
+
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          setExercises(result.data);
+        } else {
+          throw new Error(result.message || "获取练习题失败");
+        }
+      }
+    } catch (err: any) {
+      console.error("获取练习题出错:", err);
+      setError(err.message || "获取练习题失败，请稍后再试");
+      // 如果API请求失败，使用默认练习题
+      setExercises([
+        {
+          id: "1",
+          question: "解一元二次方程：x² - 5x + 6 = 0",
+          options: ["x = 2 或 x = 3", "x = -2 或 x = -3", "x = 2 或 x = -3", "x = -2 或 x = 3"],
+          correctAnswer: 0,
+        },
+        {
+          id: "2",
+          question: "已知三角形的两边长分别为3和4，且夹角为60°，求第三边的长度。",
+          options: ["5", "√13", "√19", "7"],
+          correctAnswer: 2,
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 初始加载练习题
+  useEffect(() => {
     fetchExercises();
   }, [lessonId, exerciseIdParam]);
 
@@ -280,6 +397,15 @@ export default function StudyScreen() {
           )}
         </RNView>
       </ScrollView>
+
+      {/* 总结弹窗 */}
+      <SummaryModal
+        visible={showSummary}
+        correctCount={correctCount}
+        totalCount={exercises.length}
+        onRetry={handleRetry}
+        onExit={handleExit}
+      />
     </View>
   );
 }
@@ -415,5 +541,93 @@ const styles = StyleSheet.create({
     color: "#666",
     textAlign: "center",
     fontStyle: "italic",
+  },
+  // 总结弹窗样式
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 16,
+    color: "#333",
+    textAlign: "center",
+  },
+  summaryContainer: {
+    width: "100%",
+    backgroundColor: "#f8f8f8",
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 16,
+  },
+  summaryText: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 12,
+    color: "#333",
+  },
+  summaryDetail: {
+    fontSize: 16,
+    marginVertical: 4,
+    color: "#555",
+  },
+  summaryHighlight: {
+    fontWeight: "bold",
+    color: "#5EC0DE",
+  },
+  correctCount: {
+    fontWeight: "bold",
+    color: "green",
+  },
+  incorrectCount: {
+    fontWeight: "bold",
+    color: "red",
+  },
+  modalQuestion: {
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 16,
+    color: "#333",
+    textAlign: "center",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginHorizontal: 8,
+  },
+  retryButton: {
+    backgroundColor: "#5EC0DE",
+  },
+  exitButton: {
+    backgroundColor: "#FF9600",
+  },
+  modalButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

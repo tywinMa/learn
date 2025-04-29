@@ -5,6 +5,7 @@ const { testConnection } = require('./config/database');
 const initDatabase = require('./database/init');
 const exercisesRoutes = require('./routes/exercises');
 const userRecordsRoutes = require('./routes/userRecords');
+const userPointsRoutes = require('./routes/userPoints');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,6 +25,7 @@ app.options('*', cors());
 // 路由
 app.use('/api/exercises', exercisesRoutes);
 app.use('/api/users', userRecordsRoutes);
+app.use('/api/users', userPointsRoutes);
 
 // 根路由
 app.get('/', (req, res) => {

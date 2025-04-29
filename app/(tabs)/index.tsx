@@ -7,6 +7,7 @@ import { useColorScheme } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
 import { getUserUnitProgress, getMultipleUnitProgress } from "../services/progressService";
+import { getUserPoints } from "../services/pointsService";
 
 // 单元数据 - 每个单元都有独特的主题色
 const COURSES = [
@@ -195,11 +196,14 @@ const Level = ({ level, color, isLast, unitTitle, progress, previousLevelUnlocke
   );
 };
 
+// 临时用户ID，实际应用中应该从认证系统获取
+const USER_ID = "user1";
+
 export default function HomeScreen() {
   const colorScheme = useColorScheme() ?? "light";
   const [currentUnit, setCurrentUnit] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [xp, setXp] = useState(1175);
+  const [xp, setXp] = useState(0);
   const [hearts, setHearts] = useState(5);
   const scrollY = useRef(new Animated.Value(0)).current;
   const screenWidth = Dimensions.get('window').width;
@@ -227,9 +231,9 @@ export default function HomeScreen() {
     console.log('初始化单元位置:', positions);
   }, []);
 
-  // 获取用户进度数据
+  // 获取用户进度数据和积分
   useEffect(() => {
-    const fetchUserProgress = async () => {
+    const fetchUserData = async () => {
       setLoading(true);
       try {
         // 收集所有关卡ID
@@ -246,9 +250,14 @@ export default function HomeScreen() {
         // 更新进度数据状态
         setProgressData(progressMap);
 
+        // 获取用户积分
+        const points = await getUserPoints(USER_ID);
+        setXp(points);
+
         console.log('从服务器获取的进度数据:', progressMap);
+        console.log('从服务器获取的积分:', points);
       } catch (error) {
-        console.error('获取用户进度出错:', error);
+        console.error('获取用户数据出错:', error);
         // 出错时使用空数据
         setProgressData({});
       } finally {
@@ -256,7 +265,7 @@ export default function HomeScreen() {
       }
     };
 
-    fetchUserProgress();
+    fetchUserData();
   }, []);
 
   // 监听滚动

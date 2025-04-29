@@ -1,7 +1,7 @@
 import { Tabs } from "expo-router";
 import React from "react";
 import { Platform, View, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 import Colors from "../../constants/Colors";
 import { useColorScheme } from "react-native";
 import { Text } from "../../components/Themed";
@@ -82,6 +82,18 @@ export default function TabLayout() {
             <View style={styles.tabItem}>
               <Ionicons name="book-outline" size={24} color={color} />
               <Text style={{ color, fontSize: 10, marginTop: 2 }}>错题本</Text>
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="shop"
+        options={{
+          title: "",
+          tabBarIcon: ({ color, focused }: TabBarIconProps) => (
+            <View style={styles.tabItem}>
+              <FontAwesome5 name="store" size={20} color={color} />
+              <Text style={{ color, fontSize: 10, marginTop: 2 }}>积分商城</Text>
             </View>
           ),
         }}

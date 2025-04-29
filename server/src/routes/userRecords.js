@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Exercise, UserRecord, WrongExercise, sequelize } = require('../models');
+const { Exercise, UserRecord, WrongExercise, UserPoints, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 // 获取用户的所有答题记录
@@ -90,6 +90,24 @@ router.post('/:userId/submit', async (req, res) => {
       await WrongExercise.destroy({
         where: { userId, exerciseId }
       });
+
+      // 如果答对了，增加积分（每道题1积分）
+      // 只有第一次答对才增加积分，避免刷积分
+      if (created || (record.attemptCount === 1 && !record.isCorrect && isCorrect)) {
+        // 查找或创建用户积分记录
+        const [userPoints, pointsCreated] = await UserPoints.findOrCreate({
+          where: { userId },
+          defaults: {
+            points: 1 // 初始积分为1（第一次答对）
+          }
+        });
+
+        // 如果积分记录已存在，增加1积分
+        if (!pointsCreated) {
+          userPoints.points += 1;
+          await userPoints.save();
+        }
+      }
     }
 
     res.json({

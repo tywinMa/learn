@@ -1,6 +1,7 @@
 const Exercise = require('./Exercise');
 const UserRecord = require('./UserRecord');
 const WrongExercise = require('./WrongExercise');
+const UserPoints = require('./UserPoints');
 const { sequelize } = require('../config/database');
 
 // 定义模型之间的关系
@@ -37,6 +38,7 @@ module.exports = {
   Exercise,
   UserRecord,
   WrongExercise,
+  UserPoints,
   sequelize,
   syncDatabase
 };
