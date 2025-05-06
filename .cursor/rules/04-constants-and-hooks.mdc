@@ -1,0 +1,22 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 常量和钩子
+
+## 常量
+项目常量位于`constants/`目录，用于存储应用中使用的固定值。
+
+- [constants/Colors.ts](mdc:constants/Colors.ts) - 定义应用的颜色主题，包括亮色和暗色模式
+
+## 钩子
+自定义React钩子位于`hooks/`目录，用于抽象和重用逻辑。
+
+- [hooks/useColorScheme.ts](mdc:hooks/useColorScheme.ts) - 管理颜色方案（亮/暗模式）
+- [hooks/useColorScheme.web.ts](mdc:hooks/useColorScheme.web.ts) - 网页平台特定的颜色方案实现
+- [hooks/useThemeColor.ts](mdc:hooks/useThemeColor.ts) - 根据当前主题获取适当的颜色
+
+## 使用约定
+- 钩子名称以`use`前缀开始，遵循React Hooks的命名规范
+- 平台特定的实现使用文件扩展名标识（如`.web.ts`）

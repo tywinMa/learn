@@ -1,0 +1,30 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 组件结构
+
+项目使用可复用的React组件，位于`components/`目录。
+
+## 通用组件
+- [components/Button.tsx](mdc:components/Button.tsx) - 按钮组件
+- [components/Card.tsx](mdc:components/Card.tsx) - 卡片组件
+- [components/Collapsible.tsx](mdc:components/Collapsible.tsx) - 可折叠内容组件
+- [components/ExternalLink.tsx](mdc:components/ExternalLink.tsx) - 外部链接组件
+- [components/HapticTab.tsx](mdc:components/HapticTab.tsx) - 带触感反馈的选项卡
+- [components/ParallaxScrollView.tsx](mdc:components/ParallaxScrollView.tsx) - 视差滚动视图
+
+## 主题组件
+- [components/Themed.tsx](mdc:components/Themed.tsx) - 主题相关组件
+- [components/ThemedText.tsx](mdc:components/ThemedText.tsx) - 主题文本组件
+- [components/ThemedView.tsx](mdc:components/ThemedView.tsx) - 主题视图组件
+
+## UI组件
+- [components/ui/](mdc:components/ui) - 特定UI组件
+  - [components/ui/TabBarBackground.tsx](mdc:components/ui/TabBarBackground.tsx) - 标签栏背景
+  - [components/ui/IconSymbol.tsx](mdc:components/ui/IconSymbol.tsx) - 图标符号
+
+## 平台特定组件
+- 以`.ios.tsx`结尾的文件是iOS平台特定的实现
+- 无后缀的文件作为其他平台的默认实现
