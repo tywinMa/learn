@@ -32,12 +32,22 @@ router.get('/', async (req, res) => {
 router.get('/:unitId', async (req, res) => {
   try {
     const { unitId } = req.params;
-    const { userId, filterCompleted } = req.query;
+    const { userId, filterCompleted, types } = req.query;
 
-    console.log(`获取单元 ${unitId} 的练习题，筛选参数: 用户=${userId}, 过滤已完成=${filterCompleted}`);
+    console.log(`获取单元 ${unitId} 的练习题，筛选参数: 用户=${userId}, 过滤已完成=${filterCompleted}, 题型=${types}`);
 
     // 查询条件
     const whereClause = { unitId };
+
+    // 根据题型筛选
+    if (types) {
+      const typesList = types.split(',');
+      if (typesList.length > 0) {
+        whereClause.type = {
+          [Op.in]: typesList
+        };
+      }
+    }
 
     // 如果需要过滤已完成的题目，且提供了用户ID
     let completedExerciseIds = [];
@@ -74,6 +84,35 @@ router.get('/:unitId', async (req, res) => {
       });
     }
 
+    // 处理附加信息，格式化返回数据
+    const formattedExercises = exercises.map(ex => {
+      // 创建基本题目对象
+      const exercise = ex.toJSON();
+      
+      // 添加是否已完成标志
+      exercise.completed = completedExerciseIds.includes(ex.id);
+      
+      // 处理不同题型的特殊格式化
+      switch (exercise.type) {
+        case 'matching':
+        case 'drag_drop':
+        case 'sort':
+          // 这些题型需要在前端才能看到正确答案
+          if (!exercise.completed) {
+            exercise.correctAnswer = null;
+          }
+          break;
+        case 'math':
+          // 数学题型保留正确答案的值，但隐藏解题步骤
+          if (!exercise.completed && exercise.correctAnswer && exercise.correctAnswer.steps) {
+            exercise.correctAnswer = { value: exercise.correctAnswer.value };
+          }
+          break;
+      }
+      
+      return exercise;
+    });
+
     // 检查是否所有题目都已完成
     const allCompleted = exercises.length > 0 && 
                          completedExerciseIds.length >= exercises.length && 
@@ -91,16 +130,24 @@ router.get('/:unitId', async (req, res) => {
     }
 
     // 如果需要过滤已完成的题目
-    let filteredExercises = exercises;
+    let filteredExercises = formattedExercises;
     if (filterCompleted === 'true' && completedExerciseIds.length > 0) {
-      filteredExercises = exercises.filter(ex => !completedExerciseIds.includes(ex.id));
+      filteredExercises = formattedExercises.filter(ex => !completedExerciseIds.includes(ex.id));
       console.log(`过滤后剩余 ${filteredExercises.length} 道练习题`);
     }
+
+    // 获取题型统计信息
+    const typeStats = {};
+    exercises.forEach(ex => {
+      const type = ex.type || 'choice';
+      typeStats[type] = (typeStats[type] || 0) + 1;
+    });
 
     res.json({
       success: true,
       data: filteredExercises,
-      allCompleted: allCompleted
+      allCompleted: allCompleted,
+      typeStats: typeStats
     });
   } catch (error) {
     console.error('获取单元练习题出错:', error);

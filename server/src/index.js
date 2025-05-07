@@ -7,6 +7,7 @@ const exercisesRoutes = require('./routes/exercises');
 const userRecordsRoutes = require('./routes/userRecords');
 const userPointsRoutes = require('./routes/userPoints');
 const addMissingExercises = require('./utils/addMissingExercises');
+const addNewExerciseTypes = require('./utils/addNewExerciseTypes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -54,6 +55,9 @@ const startServer = async () => {
 
     // 添加可能缺失的练习题
     await addMissingExercises();
+    
+    // 添加新类型的多样化练习题
+    await addNewExerciseTypes();
 
     // 尝试启动服务器，如果端口被占用则尝试杀掉占用进程
     const server = app.listen(PORT, () => {

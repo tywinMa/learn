@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  TextInput,
 } from "react-native";
 import { Text, View } from "../components/Themed";
 import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
@@ -46,40 +47,442 @@ const Exercise = ({
   exercise: {
     id: string;
     question: string;
-    options: string[];
-    correctAnswer: number;
+    options: any;
+    correctAnswer: any;
+    type?: string;
   };
-  onAnswer: (exerciseId: string, optionIndex: number) => void;
-  userAnswers: Record<string, number>;
+  onAnswer: (exerciseId: string, optionIndex: number, matchingAnswers?: number[], fillBlankAnswers?: string[]) => void;
+  userAnswers: Record<string, number | number[] | string[]>;
 }) => {
   const isAnswered = userAnswers.hasOwnProperty(exercise.id);
-  const isCorrect = isAnswered && userAnswers[exercise.id] === exercise.correctAnswer;
+  const isCorrect = isAnswered && 
+    (exercise.type === 'matching' 
+      ? JSON.stringify(userAnswers[exercise.id]) === JSON.stringify(exercise.correctAnswer)
+      : userAnswers[exercise.id] === exercise.correctAnswer);
+  const exerciseType = exercise.type || 'choice'; // 默认为选择题类型
+  
+  // 匹配题状态
+  const [selectedLeftIndex, setSelectedLeftIndex] = useState<number | null>(null);
+  const [matchingPairs, setMatchingPairs] = useState<number[]>(
+    Array(exercise.options?.left?.length || 0).fill(-1)
+  );
+  
+  // 当匹配题建立完整的映射关系后提交答案
+  const submitMatchingAnswer = () => {
+    // 检查是否所有左侧项目都已匹配
+    if (matchingPairs.every(pair => pair !== -1)) {
+      onAnswer(exercise.id, 0, matchingPairs);
+    }
+  };
+
+  // 处理不同题型的渲染逻辑
+  const renderExerciseContent = () => {
+    switch (exerciseType) {
+      case 'choice':
+        // 选择题
+        return (
+          <>
+            {Array.isArray(exercise.options) ? (
+              exercise.options.map((option: string, index: number) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.optionButton,
+                    isAnswered && userAnswers[exercise.id] === index && styles.selectedOption,
+                    isAnswered && index === exercise.correctAnswer && styles.correctOption,
+                  ]}
+                  onPress={() => onAnswer(exercise.id, index)}
+                  disabled={isAnswered}
+                >
+                  <Text style={styles.optionText}>{option}</Text>
+                  {isAnswered && index === exercise.correctAnswer && (
+                    <Ionicons name="checkmark-circle" size={24} color="green" style={styles.icon} />
+                  )}
+                  {isAnswered && userAnswers[exercise.id] === index && index !== exercise.correctAnswer && (
+                    <Ionicons name="close-circle" size={24} color="red" style={styles.icon} />
+                  )}
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={styles.errorText}>选项数据格式错误</Text>
+            )}
+          </>
+        );
+      
+      case 'matching':
+        // 匹配题
+        return (
+          <RNView style={styles.matchingOuterContainer}>
+            {exercise.options && exercise.options.left && exercise.options.right ? (
+              <>
+                <Text style={styles.matchingInstructions}>
+                  请点击左侧项目，然后点击右侧对应项目进行匹配
+                </Text>
+                <RNView style={styles.matchingContainer}>
+                  <RNView style={styles.matchingColumn}>
+                    <Text style={styles.columnHeader}>左侧项目</Text>
+                    {exercise.options.left.map((item: string, leftIndex: number) => (
+                      <TouchableOpacity
+                        key={leftIndex}
+                        style={[
+                          styles.matchingItem,
+                          selectedLeftIndex === leftIndex && styles.selectedMatchingItem,
+                          matchingPairs[leftIndex] !== -1 && styles.matchedItem
+                        ]}
+                        onPress={() => {
+                          if (isAnswered) return;
+                          setSelectedLeftIndex(leftIndex);
+                        }}
+                        disabled={isAnswered}
+                      >
+                        <Text style={styles.matchingText}>{item}</Text>
+                        {matchingPairs[leftIndex] !== -1 && (
+                          <RNView style={styles.matchingNumberBadge}>
+                            <Text style={styles.matchingNumberText}>{matchingPairs[leftIndex] + 1}</Text>
+                          </RNView>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </RNView>
+                  
+                  <RNView style={styles.matchingArrowsColumn}>
+                    {matchingPairs.map((rightIndex, leftIndex) => 
+                      rightIndex !== -1 ? (
+                        <RNView key={leftIndex} style={styles.matchingArrow}>
+                          <Ionicons name="arrow-forward" size={20} color="#5EC0DE" />
+                        </RNView>
+                      ) : null
+                    )}
+                  </RNView>
+                  
+                  <RNView style={styles.matchingColumn}>
+                    <Text style={styles.columnHeader}>右侧项目</Text>
+                    {exercise.options.right.map((item: string, rightIndex: number) => (
+                      <TouchableOpacity
+                        key={rightIndex}
+                        style={[
+                          styles.matchingItem,
+                          matchingPairs.includes(rightIndex) && styles.matchedItem
+                        ]}
+                        onPress={() => {
+                          if (isAnswered || selectedLeftIndex === null) return;
+                          // 更新匹配关系
+                          const newPairs = [...matchingPairs];
+                          // 如果这个右侧项目已经被匹配了，先清除原来的匹配
+                          const existingPairIndex = newPairs.findIndex(p => p === rightIndex);
+                          if (existingPairIndex !== -1) {
+                            newPairs[existingPairIndex] = -1;
+                          }
+                          newPairs[selectedLeftIndex] = rightIndex;
+                          setMatchingPairs(newPairs);
+                          setSelectedLeftIndex(null);
+                          
+                          // 如果所有项目都已匹配，自动提交答案
+                          if (newPairs.every(p => p !== -1)) {
+                            setTimeout(() => submitMatchingAnswer(), 500);
+                          }
+                        }}
+                        disabled={isAnswered || selectedLeftIndex === null}
+                      >
+                        <Text style={styles.matchingText}>{item}</Text>
+                        {matchingPairs.includes(rightIndex) && (
+                          <RNView style={styles.matchingNumberBadge}>
+                            <Text style={styles.matchingNumberText}>
+                              {matchingPairs.findIndex(p => p === rightIndex) + 1}
+                            </Text>
+                          </RNView>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </RNView>
+                </RNView>
+                
+                {!isAnswered && selectedLeftIndex !== null && (
+                  <Text style={styles.matchingPrompt}>
+                    现在请在右侧选择对应项目
+                  </Text>
+                )}
+                
+                {!isAnswered && matchingPairs.some(p => p !== -1) && matchingPairs.some(p => p === -1) && (
+                  <TouchableOpacity 
+                    style={styles.resetMatchingButton}
+                    onPress={() => {
+                      setSelectedLeftIndex(null);
+                      setMatchingPairs(Array(exercise.options.left.length).fill(-1));
+                    }}
+                  >
+                    <Text style={styles.resetMatchingText}>重置匹配</Text>
+                  </TouchableOpacity>
+                )}
+                
+                {isAnswered && (
+                  <RNView style={styles.matchingResultContainer}>
+                    <Text style={styles.matchingResultTitle}>正确答案：</Text>
+                    {Array.isArray(exercise.correctAnswer) && exercise.options.left.map((leftItem: string, index: number) => {
+                      const correctRightIndex = exercise.correctAnswer[index];
+                      return (
+                        <Text key={index} style={styles.matchingResultText}>
+                          {leftItem} ➔ {exercise.options.right[correctRightIndex]}
+                        </Text>
+                      );
+                    })}
+                  </RNView>
+                )}
+              </>
+            ) : (
+              <Text style={styles.errorText}>匹配数据格式错误</Text>
+            )}
+          </RNView>
+        );
+      
+      case 'drag_drop':
+        // 拖拽题
+        const [dragItems, setDragItems] = useState<string[]>(
+          exercise.options?.elements ? [...exercise.options.elements] : []
+        );
+        const [dropTargets, setDropTargets] = useState<(string | null)[]>(
+          exercise.options?.positions ? exercise.options.positions.map(() => null) : []
+        );
+        
+        const handleDragSelect = (item: string) => {
+          if (isAnswered) return;
+          // 选择一个元素进行拖放，使用简化的点选方式代替真实拖放
+          // 如果已经在某个位置上，先移除
+          const existingIndex = dropTargets.findIndex(t => t === item);
+          if (existingIndex !== -1) {
+            const newTargets = [...dropTargets];
+            newTargets[existingIndex] = null;
+            setDropTargets(newTargets);
+            return;
+          }
+          
+          // 记录当前选中的元素
+          setSelectedDragItem(item);
+        };
+        
+        const handleDropSelect = (targetIndex: number) => {
+          if (isAnswered || !selectedDragItem) return;
+          
+          // 放置选中元素到目标位置
+          const newTargets = [...dropTargets];
+          newTargets[targetIndex] = selectedDragItem;
+          setDropTargets(newTargets);
+          setSelectedDragItem(null);
+          
+          // 如果所有位置都填满了，提交答案
+          if (newTargets.every(t => t !== null)) {
+            const dragDropAnswers = newTargets.map(target => {
+              return exercise.options.elements.findIndex((el: string) => el === target);
+            });
+            setTimeout(() => onAnswer(exercise.id, 0, dragDropAnswers), 500);
+          }
+        };
+        
+        const [selectedDragItem, setSelectedDragItem] = useState<string | null>(null);
+        
+        return (
+          <RNView style={styles.dragDropContainer}>
+            {exercise.options && exercise.options.elements && exercise.options.positions ? (
+              <>
+                <Text style={styles.dragDropInstructions}>
+                  请先点击左侧元素，然后点击右侧位置进行放置
+                </Text>
+                
+                <RNView style={styles.dragDropContent}>
+                  {/* 拖动项容器 */}
+                  <RNView style={styles.dragItemsContainer}>
+                    <Text style={styles.dragDropSectionTitle}>元素</Text>
+                    {exercise.options.elements.map((item: string, index: number) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.dragItem,
+                          selectedDragItem === item && styles.selectedDragItem,
+                          dropTargets.includes(item) && styles.placedDragItem
+                        ]}
+                        onPress={() => handleDragSelect(item)}
+                        disabled={isAnswered}
+                      >
+                        <Text style={styles.dragItemText}>{item}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </RNView>
+                  
+                  {/* 放置区容器 */}
+                  <RNView style={styles.dropTargetsContainer}>
+                    <Text style={styles.dragDropSectionTitle}>位置</Text>
+                    {exercise.options.positions.map((position: string, index: number) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={[
+                          styles.dropTarget,
+                          dropTargets[index] !== null && styles.filledDropTarget
+                        ]}
+                        onPress={() => handleDropSelect(index)}
+                        disabled={isAnswered || selectedDragItem === null}
+                      >
+                        <Text style={styles.dropTargetLabel}>{position}</Text>
+                        {dropTargets[index] && (
+                          <RNView style={styles.droppedItemContainer}>
+                            <Text style={styles.droppedItemText}>{dropTargets[index]}</Text>
+                          </RNView>
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </RNView>
+                </RNView>
+                
+                {!isAnswered && selectedDragItem && (
+                  <Text style={styles.dragDropPrompt}>
+                    请在右侧选择要放置"{selectedDragItem}"的位置
+                  </Text>
+                )}
+                
+                {!isAnswered && dropTargets.some(t => t !== null) && (
+                  <TouchableOpacity 
+                    style={styles.resetDragDropButton}
+                    onPress={() => {
+                      setSelectedDragItem(null);
+                      setDropTargets(exercise.options.positions.map(() => null));
+                    }}
+                  >
+                    <Text style={styles.resetDragDropText}>重置所有位置</Text>
+                  </TouchableOpacity>
+                )}
+                
+                {isAnswered && (
+                  <RNView style={styles.dragDropResultContainer}>
+                    <Text style={styles.dragDropResultTitle}>正确答案：</Text>
+                    {Array.isArray(exercise.correctAnswer) && exercise.options.positions.map((position: string, index: number) => {
+                      const correctElementIndex = exercise.correctAnswer[index];
+                      const correctElement = exercise.options.elements[correctElementIndex];
+                      return (
+                        <Text key={index} style={styles.dragDropResultItem}>
+                          {position}: {correctElement}
+                        </Text>
+                      );
+                    })}
+                  </RNView>
+                )}
+              </>
+            ) : (
+              <Text style={styles.errorText}>拖拽题数据格式错误</Text>
+            )}
+          </RNView>
+        );
+      
+      case 'fill_blank':
+        // 填空题
+        const [blankAnswers, setBlankAnswers] = useState<string[]>(
+          Array.isArray(exercise.correctAnswer) ? Array(exercise.correctAnswer.length).fill('') : []
+        );
+        
+        // 解析问题文本，找出空白处
+        const renderFillBlankQuestion = () => {
+          if (!exercise.question) return null;
+          
+          // 将问题文本按照空白处分割
+          const parts = exercise.question.split('____');
+          
+          if (parts.length <= 1) {
+            // 没有空白处，直接显示问题
+            return <Text style={styles.fillBlankQuestion}>{exercise.question}</Text>;
+          }
+          
+          // 渲染包含输入框的问题
+          return (
+            <RNView style={styles.fillBlankQuestionContainer}>
+              {parts.map((part, index) => (
+                <RNView key={index} style={styles.fillBlankPart}>
+                  {/* 显示文本部分 */}
+                  {part && <Text style={styles.fillBlankText}>{part}</Text>}
+                  
+                  {/* 添加输入框，最后一个部分后面不需要输入框 */}
+                  {index < parts.length - 1 && (
+                    <TextInput
+                      style={[
+                        styles.fillBlankInput,
+                        isAnswered && styles.fillBlankInputDisabled,
+                        isAnswered && 
+                          (blankAnswers[index] === exercise.correctAnswer[index] 
+                            ? styles.fillBlankInputCorrect 
+                            : styles.fillBlankInputIncorrect)
+                      ]}
+                      value={blankAnswers[index]}
+                      onChangeText={(text) => {
+                        if (isAnswered) return;
+                        const newAnswers = [...blankAnswers];
+                        newAnswers[index] = text;
+                        setBlankAnswers(newAnswers);
+                        
+                        // 检查是否所有空都已填写
+                        if (newAnswers.every(ans => ans.trim() !== '')) {
+                          // 检查答案是否正确
+                          const isCorrect = newAnswers.every(
+                            (ans, i) => ans.trim() === exercise.correctAnswer[i]
+                          );
+                          setTimeout(() => onAnswer(exercise.id, isCorrect ? 1 : 0, undefined, newAnswers), 500);
+                        }
+                      }}
+                      placeholder="填写答案"
+                      editable={!isAnswered}
+                    />
+                  )}
+                </RNView>
+              ))}
+            </RNView>
+          );
+        };
+        
+        return (
+          <RNView style={styles.fillBlankContainer}>
+            {renderFillBlankQuestion()}
+            
+            {isAnswered && (
+              <RNView style={styles.fillBlankResultContainer}>
+                <Text style={styles.fillBlankResultTitle}>正确答案：</Text>
+                {Array.isArray(exercise.correctAnswer) && exercise.correctAnswer.map((answer, index) => (
+                  <Text key={index} style={styles.fillBlankResultText}>
+                    空白{index + 1}: {answer}
+                  </Text>
+                ))}
+              </RNView>
+            )}
+            
+            {!isAnswered && blankAnswers.some(ans => ans !== '') && (
+              <TouchableOpacity 
+                style={styles.resetFillBlankButton}
+                onPress={() => {
+                  setBlankAnswers(Array(exercise.correctAnswer.length).fill(''));
+                }}
+              >
+                <Text style={styles.resetFillBlankText}>清空所有答案</Text>
+              </TouchableOpacity>
+            )}
+          </RNView>
+        );
+      
+      case 'sort':
+      case 'math':
+        // 其他题型的临时提示
+        return (
+          <RNView style={styles.otherTypeContainer}>
+            <Text style={styles.otherTypeText}>
+              {exerciseType === 'sort' ? '排序题' : '数学计算题'} 
+              - 请在应用更新后使用此功能
+            </Text>
+          </RNView>
+        );
+      
+      default:
+        return <Text style={styles.errorText}>未知题型: {exerciseType}</Text>;
+    }
+  };
 
   return (
     <RNView style={styles.exerciseContainer}>
       <Text style={styles.questionText}>{exercise.question}</Text>
-
-      {exercise.options.map((option: string, index: number) => (
-        <TouchableOpacity
-          key={index}
-          style={[
-            styles.optionButton,
-            isAnswered && userAnswers[exercise.id] === index && styles.selectedOption,
-            isAnswered && index === exercise.correctAnswer && styles.correctOption,
-          ]}
-          onPress={() => onAnswer(exercise.id, index)}
-          disabled={isAnswered}
-        >
-          <Text style={styles.optionText}>{option}</Text>
-          {isAnswered && index === exercise.correctAnswer && (
-            <Ionicons name="checkmark-circle" size={24} color="green" style={styles.icon} />
-          )}
-          {isAnswered && userAnswers[exercise.id] === index && index !== exercise.correctAnswer && (
-            <Ionicons name="close-circle" size={24} color="red" style={styles.icon} />
-          )}
-        </TouchableOpacity>
-      ))}
-
+      {renderExerciseContent()}
       {isAnswered && (
         <Text style={[styles.feedbackText, isCorrect ? styles.correctText : styles.incorrectText]}>
           {isCorrect ? "回答正确！" : "回答错误，请再试一次。"}
@@ -216,7 +619,7 @@ export default function StudyScreen() {
   const exerciseIdParam = Array.isArray(params.exerciseId) ? params.exerciseId[0] : params.exerciseId;
 
   const router = useRouter();
-  const [userAnswers, setUserAnswers] = useState<Record<string, number>>({});
+  const [userAnswers, setUserAnswers] = useState<Record<string, number | number[] | string[]>>({});
   const [videoStatus, setVideoStatus] = useState<any>({});
   const screenWidth = Dimensions.get("window").width;
   const [exercises, setExercises] = useState<any[]>([]);
@@ -229,7 +632,7 @@ export default function StudyScreen() {
   const allAnswered = useRef(false);
 
   // 检查是否所有题目都已回答
-  const checkAllAnswered = (currentAnswers: Record<string, number>) => {
+  const checkAllAnswered = (currentAnswers: Record<string, number | number[] | string[]>) => {
     if (allAnswered.current) return; // 如果已经显示过总结，不再重复显示
 
     const answeredCount = Object.keys(currentAnswers).length;
@@ -237,8 +640,51 @@ export default function StudyScreen() {
       // 计算正确答案数量
       let correct = 0;
       exercises.forEach(ex => {
-        if (currentAnswers[ex.id] === ex.correctAnswer) {
-          correct++;
+        // 根据题型判断答案是否正确
+        switch (ex.type || 'choice') {
+          case 'choice':
+            if (currentAnswers[ex.id] === ex.correctAnswer) {
+              correct++;
+            }
+            break;
+          case 'matching':
+            if (
+              Array.isArray(currentAnswers[ex.id]) && 
+              Array.isArray(ex.correctAnswer) && 
+              JSON.stringify(currentAnswers[ex.id]) === JSON.stringify(ex.correctAnswer)
+            ) {
+              correct++;
+            }
+            break;
+          case 'drag_drop':
+            if (
+              Array.isArray(currentAnswers[ex.id]) && 
+              Array.isArray(ex.correctAnswer) && 
+              JSON.stringify(currentAnswers[ex.id]) === JSON.stringify(ex.correctAnswer)
+            ) {
+              correct++;
+            }
+            break;
+          case 'fill_blank':
+            if (
+              Array.isArray(currentAnswers[ex.id]) && 
+              Array.isArray(ex.correctAnswer) &&
+              (currentAnswers[ex.id] as string[]).every(
+                (answer, index) => answer.trim() === ex.correctAnswer[index]
+              )
+            ) {
+              correct++;
+            }
+            break;
+          case 'sort':
+          case 'math':
+            // 其他题型 - 暂时跳过计算
+            console.log(`${ex.type}题型尚未完全支持，跳过正确率计算`);
+            break;
+          default:
+            if (currentAnswers[ex.id] === ex.correctAnswer) {
+              correct++;
+            }
         }
       });
 
@@ -275,11 +721,11 @@ export default function StudyScreen() {
     });
   };
 
-  const handleAnswer = async (exerciseId: string, optionIndex: number) => {
+  const handleAnswer = async (exerciseId: string, optionIndex: number, matchingAnswers?: number[], fillBlankAnswers?: string[]) => {
     // 更新本地状态
     const newAnswers = {
       ...userAnswers,
-      [exerciseId]: optionIndex,
+      [exerciseId]: fillBlankAnswers || matchingAnswers || optionIndex,
     };
 
     setUserAnswers(newAnswers);
@@ -288,8 +734,44 @@ export default function StudyScreen() {
     const exercise = exercises.find((ex) => ex.id === exerciseId);
     if (!exercise) return;
 
-    // 判断答案是否正确
-    const isCorrect = optionIndex === exercise.correctAnswer;
+    // 判断答案是否正确 - 根据不同题型
+    let isCorrect = false;
+    
+    switch (exercise.type || 'choice') {
+      case 'choice':
+        // 选择题 - 直接比较索引
+        isCorrect = optionIndex === exercise.correctAnswer;
+        break;
+      case 'matching':
+        // 匹配题 - 比较数组
+        if (matchingAnswers && Array.isArray(exercise.correctAnswer)) {
+          isCorrect = JSON.stringify(matchingAnswers) === JSON.stringify(exercise.correctAnswer);
+        }
+        break;
+      case 'drag_drop':
+        // 拖拽题 - 比较数组
+        if (matchingAnswers && Array.isArray(exercise.correctAnswer)) {
+          isCorrect = JSON.stringify(matchingAnswers) === JSON.stringify(exercise.correctAnswer);
+        }
+        break;
+      case 'fill_blank':
+        // 填空题 - 逐个比较填入的答案
+        if (fillBlankAnswers && Array.isArray(exercise.correctAnswer)) {
+          isCorrect = fillBlankAnswers.every(
+            (answer, index) => answer.trim() === exercise.correctAnswer[index]
+          );
+        }
+        break;
+      case 'sort':
+      case 'math':
+        // 其他题型 - 暂时默认为不正确，因为前端尚未实现这些题型的完整交互
+        // 在完整实现后需要更新此逻辑
+        isCorrect = false;
+        console.log(`${exercise.type}题型尚未完全支持，答案判断待实现`);
+        break;
+      default:
+        isCorrect = optionIndex === exercise.correctAnswer;
+    }
 
     // 检查是否所有题目都已回答
     checkAllAnswered(newAnswers);
@@ -297,7 +779,13 @@ export default function StudyScreen() {
     // 提交答题结果到服务器
     try {
       const apiUrl = `${API_BASE_URL}/users/${USER_ID}/submit`;
-      console.log('提交答题结果:', { exerciseId, unitId: lessonId, isCorrect });
+      console.log('提交答题结果:', { 
+        exerciseId, 
+        unitId: lessonId, 
+        isCorrect,
+        answerType: exercise.type || 'choice',
+        answerValue: matchingAnswers || optionIndex
+      });
       
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -320,7 +808,36 @@ export default function StudyScreen() {
           // 计算所有答题是否都正确
           const allCorrect = Object.keys(newAnswers).every(id => {
             const ex = exercises.find(e => e.id === id);
-            return ex && newAnswers[id] === ex.correctAnswer;
+            if (!ex) return false;
+            
+            // 根据题型判断答案是否正确
+            switch (ex.type || 'choice') {
+              case 'choice':
+                return newAnswers[id] === ex.correctAnswer;
+              case 'matching':
+                if (Array.isArray(newAnswers[id]) && Array.isArray(ex.correctAnswer)) {
+                  return JSON.stringify(newAnswers[id]) === JSON.stringify(ex.correctAnswer);
+                }
+                return false;
+              case 'drag_drop':
+                if (Array.isArray(newAnswers[id]) && Array.isArray(ex.correctAnswer)) {
+                  return JSON.stringify(newAnswers[id]) === JSON.stringify(ex.correctAnswer);
+                }
+                return false;
+              case 'fill_blank':
+                if (Array.isArray(newAnswers[id]) && Array.isArray(ex.correctAnswer)) {
+                  return (newAnswers[id] as string[]).every(
+                    (answer, index) => answer.trim() === ex.correctAnswer[index]
+                  );
+                }
+                return false;
+              case 'sort':
+              case 'math':
+                // 其他题型 - 尚未完整实现
+                return false;
+              default:
+                return newAnswers[id] === ex.correctAnswer;
+            }
           });
           
           if (allCorrect) {
@@ -455,12 +972,14 @@ export default function StudyScreen() {
           question: "解一元二次方程：x² - 5x + 6 = 0",
           options: ["x = 2 或 x = 3", "x = -2 或 x = -3", "x = 2 或 x = -3", "x = -2 或 x = 3"],
           correctAnswer: 0,
+          type: "choice"
         },
         {
           id: "2",
           question: "已知三角形的两边长分别为3和4，且夹角为60°，求第三边的长度。",
           options: ["5", "√13", "√19", "7"],
           correctAnswer: 2,
+          type: "choice"
         },
       ]);
     } finally {
@@ -725,9 +1244,10 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   errorText: {
-    marginLeft: 10,
+    color: 'red',
     fontSize: 16,
-    color: "red",
+    textAlign: 'center',
+    marginVertical: 10,
   },
   noExercisesText: {
     padding: 20,
@@ -882,6 +1402,280 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryAllButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  matchingOuterContainer: {
+    padding: 20,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 12,
+    marginVertical: 10,
+    borderWidth: 1,
+    borderColor: "#eaeaea",
+  },
+  matchingInstructions: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  matchingContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  matchingColumn: {
+    flex: 1,
+  },
+  columnHeader: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 12,
+  },
+  matchingItem: {
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#dddddd",
+    borderRadius: 4,
+  },
+  selectedMatchingItem: {
+    borderColor: "#5EC0DE",
+    borderWidth: 2,
+  },
+  matchedItem: {
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+  },
+  matchingArrowsColumn: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  matchingArrow: {
+    width: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  matchingText: {
+    fontSize: 16,
+  },
+  matchingNumberBadge: {
+    backgroundColor: "#5EC0DE",
+    borderRadius: 12,
+    padding: 4,
+    marginLeft: 8,
+  },
+  matchingNumberText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "white",
+  },
+  matchingPrompt: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  resetMatchingButton: {
+    backgroundColor: "#5EC0DE",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  resetMatchingText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  matchingResultContainer: {
+    marginTop: 12,
+    padding: 16,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#eaeaea",
+  },
+  matchingResultTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 12,
+  },
+  matchingResultText: {
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  fillBlankContainer: {
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fillBlankText: {
+    fontSize: 16,
+    color: "#555",
+  },
+  otherTypeContainer: {
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  otherTypeText: {
+    fontSize: 16,
+    color: "#555",
+  },
+  dragDropContainer: {
+    padding: 20,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 12,
+    marginVertical: 10,
+    borderWidth: 1,
+    borderColor: "#eaeaea",
+  },
+  dragDropInstructions: {
+    fontSize: 16,
+    fontWeight: "600",
+    marginBottom: 12,
+  },
+  dragDropContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dragItemsContainer: {
+    flex: 1,
+  },
+  dragDropSectionTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 12,
+  },
+  dragItem: {
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#dddddd",
+    borderRadius: 4,
+  },
+  selectedDragItem: {
+    borderColor: "#5EC0DE",
+    borderWidth: 2,
+  },
+  placedDragItem: {
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+  },
+  dropTargetsContainer: {
+    flex: 1,
+  },
+  dropTarget: {
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#dddddd",
+    borderRadius: 4,
+  },
+  filledDropTarget: {
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+  },
+  dropTargetLabel: {
+    fontSize: 16,
+  },
+  droppedItemContainer: {
+    backgroundColor: "#5EC0DE",
+    borderRadius: 4,
+    padding: 4,
+  },
+  droppedItemText: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "white",
+  },
+  dragDropPrompt: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  resetDragDropButton: {
+    backgroundColor: "#5EC0DE",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  resetDragDropText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  dragDropResultContainer: {
+    marginTop: 12,
+    padding: 16,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#eaeaea",
+  },
+  dragDropResultTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 12,
+  },
+  dragDropResultItem: {
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  dragItemText: {
+    fontSize: 16,
+  },
+  fillBlankQuestionContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  fillBlankPart: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  fillBlankQuestion: {
+    fontSize: 16,
+    color: "#333",
+  },
+  fillBlankInput: {
+    flex: 1,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#dddddd",
+    borderRadius: 4,
+  },
+  fillBlankInputDisabled: {
+    backgroundColor: "rgba(0, 0, 0, 0.05)",
+  },
+  fillBlankInputCorrect: {
+    borderColor: "green",
+    borderWidth: 2,
+  },
+  fillBlankInputIncorrect: {
+    borderColor: "red",
+    borderWidth: 2,
+  },
+  fillBlankResultContainer: {
+    marginTop: 12,
+    padding: 16,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#eaeaea",
+  },
+  fillBlankResultTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 12,
+  },
+  fillBlankResultText: {
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  resetFillBlankButton: {
+    backgroundColor: "#5EC0DE",
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  resetFillBlankText: {
     color: "white",
     fontSize: 16,
     fontWeight: "600",
