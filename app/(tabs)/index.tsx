@@ -5,9 +5,10 @@ import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-ico
 import Colors from "../../constants/Colors";
 import { useColorScheme } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from "expo-router";
-import { getUserUnitProgress, getMultipleUnitProgress } from "../services/progressService";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { getUserUnitProgress, getMultipleUnitProgress, USER_ID as PROGRESS_USER_ID } from "../services/progressService";
 import { getUserPoints } from "../services/pointsService";
+import UnlockModal from "../../components/UnlockModal";
 
 // 单元数据 - 每个单元都有独特的主题色
 const COURSES = [
@@ -66,6 +67,8 @@ const Level = ({ level, color, isLast, unitTitle, progress, previousLevelUnlocke
   previousLevelUnlocked?: boolean;
 }) => {
   const router = useRouter();
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [previousLevelInfo, setPreviousLevelInfo] = useState({title: ""});
 
   // 计算关卡是否锁定
   // 第一个关卡默认解锁，其他关卡需要前一个关卡达到3星才解锁
@@ -74,13 +77,57 @@ const Level = ({ level, color, isLast, unitTitle, progress, previousLevelUnlocke
   // 获取星星数量
   const stars = progress?.stars || 0;
 
+  // 获取上一个关卡信息
+  useEffect(() => {
+    if (isLocked) {
+      // 在COURSES中查找当前关卡和前一个关卡
+      const currentLevelId = level.id;
+      let previousLevel = null;
+      
+      // 遍历所有课程
+      for (const course of COURSES) {
+        // 找到当前关卡的索引
+        const currentLevelIndex = course.levels.findIndex(lvl => lvl.id === currentLevelId);
+        
+        // 如果找到当前关卡且不是第一个
+        if (currentLevelIndex > 0) {
+          previousLevel = course.levels[currentLevelIndex - 1];
+          setPreviousLevelInfo({
+            title: `${course.title} - ${previousLevel.title}`
+          });
+          break;
+        }
+        
+        // 如果是第一个关卡但不是第一个课程
+        if (currentLevelIndex === 0 && currentLevelId.includes("-1") && !currentLevelId.includes("1-1")) {
+          // 查找上一个课程的最后一个关卡
+          const courseNumber = parseInt(currentLevelId.split("-")[0]);
+          if (courseNumber > 1) {
+            const previousCourse = COURSES.find(c => c.id === `unit${courseNumber - 1}`);
+            if (previousCourse && previousCourse.levels.length > 0) {
+              previousLevel = previousCourse.levels[previousCourse.levels.length - 1];
+              setPreviousLevelInfo({
+                title: `${previousCourse.title} - ${previousLevel.title}`
+              });
+              break;
+            }
+          }
+        }
+      }
+      
+      // 如果找不到匹配的关卡，使用默认值
+      if (!previousLevel) {
+        setPreviousLevelInfo({
+          title: "上一关卡"
+        });
+      }
+    }
+  }, [isLocked, level.id]);
+
   // 处理关卡点击
   const handleLevelPress = () => {
     if (isLocked) {
-      Alert.alert(
-        "关卡未解锁",
-        "请先完成前一个关卡的所有练习题，获得3颗星才能解锁此关卡。"
-      );
+      setShowUnlockModal(true);
       return;
     }
 
@@ -192,12 +239,19 @@ const Level = ({ level, color, isLast, unitTitle, progress, previousLevelUnlocke
           ]}
         />
       )}
+
+      {/* 解锁关卡的模态窗口 */}
+      <UnlockModal
+        visible={showUnlockModal}
+        onClose={() => setShowUnlockModal(false)}
+        previousLevelTitle={previousLevelInfo.title}
+      />
     </RNView>
   );
 };
 
 // 临时用户ID，实际应用中应该从认证系统获取
-const USER_ID = "user1";
+// const USER_ID = "user1";  // 使用从服务导入的常量
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme() ?? "light";
@@ -210,6 +264,11 @@ export default function HomeScreen() {
   const screenHeight = Dimensions.get('window').height;
   const [loading, setLoading] = useState(true);
   const [progressData, setProgressData] = useState<Record<string, any>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [showFixedBanner, setShowFixedBanner] = useState(true);
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const refreshTrigger = params.refresh; // 获取刷新触发参数
 
   // 使用固定高度计算位置（因为直接获取的layout.y值不准确）
   const UNIT_HEIGHTS = [750, 450, 450]; // 增加每个单元的高度估计值
@@ -231,42 +290,71 @@ export default function HomeScreen() {
     console.log('初始化单元位置:', positions);
   }, []);
 
-  // 获取用户进度数据和积分
+  // 分阶段获取用户进度数据和积分
   useEffect(() => {
     const fetchUserData = async () => {
       setLoading(true);
+      setError(null);
+      
       try {
-        // 收集所有关卡ID
-        const levelIds: string[] = [];
-        COURSES.forEach(course => {
-          course.levels.forEach(level => {
-            levelIds.push(level.id);
-          });
+        // 立即异步获取积分数据
+        getUserPoints(PROGRESS_USER_ID).then(points => {
+          console.log('积分获取成功:', points);
+          setXp(points);
+        }).catch(error => {
+          console.error('获取积分出错:', error);
         });
-
-        // 从服务器获取真实的进度数据
-        const progressMap = await getMultipleUnitProgress(levelIds);
-
-        // 更新进度数据状态
-        setProgressData(progressMap);
-
-        // 获取用户积分
-        const points = await getUserPoints(USER_ID);
-        setXp(points);
-
-        console.log('从服务器获取的进度数据:', progressMap);
-        console.log('从服务器获取的积分:', points);
-      } catch (error) {
+        
+        // 按阶段获取进度数据
+        await fetchProgressByStage(0); // 立即获取第一阶段数据
+        
+        // 延迟获取后续阶段数据
+        setTimeout(() => {
+          fetchProgressByStage(1); // 第二阶段
+        }, 500);
+        
+        setTimeout(() => {
+          fetchProgressByStage(2); // 第三阶段
+        }, 1000);
+        
+      } catch (error: any) {
         console.error('获取用户数据出错:', error);
-        // 出错时使用空数据
-        setProgressData({});
+        setError(error.message || "获取用户进度时出错，将显示默认进度");
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserData();
-  }, []);
+    
+  }, [refreshTrigger]); // 添加refreshTrigger到依赖数组，当它变化时重新加载数据
+  
+  // 按阶段获取进度数据的函数
+  const fetchProgressByStage = async (stageIndex: number) => {
+    if (stageIndex < 0 || stageIndex >= COURSES.length) return;
+    
+    try {
+      // 获取当前阶段的所有关卡ID
+      const levelIds: string[] = [];
+      COURSES[stageIndex].levels.forEach(level => {
+        levelIds.push(level.id);
+      });
+      
+      console.log(`正在获取第${stageIndex + 1}阶段进度数据...`);
+      const stageProgress = await getMultipleUnitProgress(levelIds);
+      
+      // 合并到现有进度数据
+      setProgressData(prevData => ({
+        ...prevData,
+        ...stageProgress
+      }));
+      
+      console.log(`第${stageIndex + 1}阶段进度数据获取成功`);
+    } catch (error: any) {
+      console.error(`获取第${stageIndex + 1}阶段进度数据出错:`, error);
+      // 错误不影响UI展示，也不设置全局错误
+    }
+  };
 
   // 监听滚动
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -340,6 +428,19 @@ export default function HomeScreen() {
     );
   };
 
+  // 退出本单元
+  const handleExit = () => {
+    setShowFixedBanner(false);
+    
+    // 强制重新获取用户进度数据
+    router.push({
+      pathname: "/(tabs)",
+      params: {
+        refresh: Date.now().toString() // 添加时间戳参数，强制组件刷新
+      }
+    });
+  };
+
   return (
     <RNView style={styles.container}>
       {/* 顶部状态栏 */}
@@ -370,8 +471,54 @@ export default function HomeScreen() {
         </RNView>
       </RNView>
 
+      {/* 显示错误提示 */}
+      {error && (
+        <RNView style={styles.errorContainer}>
+          <RNView style={styles.errorContent}>
+            <Ionicons name="warning" size={20} color="#FF9600" />
+            <Text style={styles.errorText}>{error}</Text>
+          </RNView>
+          <TouchableOpacity 
+            style={styles.refreshButton}
+            onPress={() => {
+              // 刷新数据，使用分阶段获取方式
+              setLoading(true);
+              setError(null);
+              
+              // 立即异步获取积分
+              getUserPoints(PROGRESS_USER_ID).then(points => {
+                setXp(points);
+              }).catch(error => {
+                console.error('刷新积分出错:', error);
+              });
+              
+              // 按顺序获取各阶段进度
+              const refreshStages = async () => {
+                try {
+                  // 优先获取第一阶段
+                  await fetchProgressByStage(0);
+                  
+                  // 然后获取剩余阶段
+                  setTimeout(() => fetchProgressByStage(1), 300);
+                  setTimeout(() => fetchProgressByStage(2), 600);
+                } catch (err) {
+                  console.error('刷新进度数据出错:', err);
+                  setError('刷新数据失败');
+                } finally {
+                  setLoading(false);
+                }
+              };
+              
+              refreshStages();
+            }}
+          >
+            <Text style={styles.refreshButtonText}>重试</Text>
+          </TouchableOpacity>
+        </RNView>
+      )}
+
       {/* 固定在顶部的 banner */}
-      {renderFixedBanner()}
+      {showFixedBanner && renderFixedBanner()}
 
       <ScrollView
         style={styles.scrollView}
@@ -632,5 +779,38 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
     textAlign: 'center',
+  },
+  errorContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(255, 150, 0, 0.1)',
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  errorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  errorText: {
+    color: '#FF9600',
+    fontSize: 14,
+    marginLeft: 8,
+    flex: 1,
+  },
+  refreshButton: {
+    backgroundColor: '#FF9600',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  refreshButtonText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

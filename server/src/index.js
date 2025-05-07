@@ -6,6 +6,7 @@ const initDatabase = require('./database/init');
 const exercisesRoutes = require('./routes/exercises');
 const userRecordsRoutes = require('./routes/userRecords');
 const userPointsRoutes = require('./routes/userPoints');
+const addMissingExercises = require('./utils/addMissingExercises');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,6 +33,16 @@ app.get('/', (req, res) => {
   res.json({ message: '学习应用API服务器运行中' });
 });
 
+// 添加全局错误处理中间件
+app.use((err, req, res, next) => {
+  console.error('服务器错误:', err.stack);
+  res.status(500).json({
+    success: false,
+    message: '服务器内部错误',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal Server Error'
+  });
+});
+
 // 初始化数据库并启动服务器
 const startServer = async () => {
   try {
@@ -40,6 +51,9 @@ const startServer = async () => {
 
     // 初始化数据库并导入数据
     await initDatabase();
+
+    // 添加可能缺失的练习题
+    await addMissingExercises();
 
     // 尝试启动服务器，如果端口被占用则尝试杀掉占用进程
     const server = app.listen(PORT, () => {

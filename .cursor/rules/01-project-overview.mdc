@@ -5,7 +5,7 @@ alwaysApply: false
 ---
 # 项目概述
 
-这是一个基于React Native和Expo的跨平台移动应用脚手架，支持iOS和Android平台。
+这是一个基于React Native和Expo的跨平台移动应用脚手架，支持iOS和Android平台。并且有服务端的代码
 
 ## 核心文件
 - [package.json](mdc:package.json) - 项目配置和依赖
@@ -19,6 +19,7 @@ alwaysApply: false
 - [constants/](mdc:constants) - 常量定义
 - [assets/](mdc:assets) - 静态资源
 - [hooks/](mdc:hooks) - 自定义React钩子
+- @server/ - 服务端内容
 
 ## 开发指南
 项目使用Expo Router进行导航。入口点是Expo Router的入口。

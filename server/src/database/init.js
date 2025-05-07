@@ -93,6 +93,52 @@ const initDatabase = async () => {
           correctAnswer: 1,
         }
       ],
+      '1-5': [
+        {
+          id: '1-5-1',
+          question: '二次函数 f(x) = ax² + bx + c 的图像是什么形状？',
+          options: ['抛物线', '直线', '双曲线', '圆形'],
+          correctAnswer: 0,
+        },
+        {
+          id: '1-5-2',
+          question: '当 a > 0 时，二次函数 f(x) = ax² + bx + c 的图像开口方向是？',
+          options: ['向上', '向下', '向左', '向右'],
+          correctAnswer: 0,
+        },
+        {
+          id: '1-5-3',
+          question: '二次函数 f(x) = x² - 6x + 8 的顶点坐标是多少？',
+          options: ['(3, -1)', '(3, 1)', '(-3, 1)', '(-3, -1)'],
+          correctAnswer: 0,
+        },
+        {
+          id: '1-5-4',
+          question: '二次函数 f(x) = -2x² + 4x - 1 的最大值在哪个点取得？',
+          options: ['x = 1', 'x = 2', 'x = -1', 'x = 0'],
+          correctAnswer: 0,
+        }
+      ],
+      '1-6': [
+        {
+          id: '1-6-1',
+          question: '某物体从高处自由落下，其下落距离s与时间t的关系为s = 4.9t²，则2秒后下落了多少米？',
+          options: ['4.9米', '9.8米', '19.6米', '39.2米'],
+          correctAnswer: 2,
+        },
+        {
+          id: '1-6-2',
+          question: '小明以每秒5米的速度向一堵墙扔球，球离手时距离墙10米，则球飞行的总时间约为多少秒？',
+          options: ['1秒', '2秒', '3秒', '4秒'],
+          correctAnswer: 2,
+        },
+        {
+          id: '1-6-3',
+          question: '一块长方形农田的周长为60米，为了使其面积最大，长和宽应各为多少米？',
+          options: ['15米和15米', '20米和10米', '30米和0米', '25米和5米'],
+          correctAnswer: 0,
+        }
+      ],
 
       // 第二单元
       '2-1': [
@@ -128,6 +174,57 @@ const initDatabase = async () => {
           correctAnswer: 0,
         }
       ],
+      '2-3': [
+        {
+          id: '2-3-1',
+          question: '平行四边形的定义是什么？',
+          options: [
+            '对边平行且相等的四边形',
+            '四条边都相等的四边形',
+            '有一组对边平行的四边形',
+            '对角线互相平分的四边形'
+          ],
+          correctAnswer: 0,
+        },
+        {
+          id: '2-3-2',
+          question: '平行四边形的对角线互相平分，这句话的正确性是？',
+          options: ['正确', '错误', '部分正确', '无法判断'],
+          correctAnswer: 0,
+        },
+        {
+          id: '2-3-3',
+          question: '如果一个四边形的对边分别平行，那么这个四边形一定是？',
+          options: ['平行四边形', '菱形', '矩形', '正方形'],
+          correctAnswer: 0,
+        }
+      ],
+      '2-4': [
+        {
+          id: '2-4-1',
+          question: '圆的切线与半径的夹角是多少度？',
+          options: ['90度', '60度', '45度', '30度'],
+          correctAnswer: 0,
+        },
+        {
+          id: '2-4-2',
+          question: '如果两个圆相交，它们最多有几个交点？',
+          options: ['1个', '2个', '3个', '4个'],
+          correctAnswer: 1,
+        },
+        {
+          id: '2-4-3',
+          question: '圆内接四边形的对角之和是多少度？',
+          options: ['180度', '270度', '360度', '540度'],
+          correctAnswer: 2,
+        },
+        {
+          id: '2-4-4',
+          question: '一个圆的面积是64π平方厘米，则它的半径是多少厘米？',
+          options: ['4', '8', '16', '32'],
+          correctAnswer: 0,
+        }
+      ],
 
       // 第三单元
       '3-1': [
@@ -156,6 +253,32 @@ const initDatabase = async () => {
           question: '投掷两个骰子，点数和为7的概率是多少？',
           options: ['1/6', '7/36', '1/12', '1/36'],
           correctAnswer: 1,
+        }
+      ],
+      '3-3': [
+        {
+          id: '3-3-1',
+          question: '如果事件A和事件B互斥，则 P(A∩B) 等于多少？',
+          options: ['0', 'P(A)×P(B)', 'P(A)+P(B)', '1-P(A)-P(B)'],
+          correctAnswer: 0,
+        },
+        {
+          id: '3-3-2',
+          question: '如果事件A和事件B独立，则 P(A|B) 等于多少？',
+          options: ['P(A)', 'P(B)', 'P(A)×P(B)', 'P(A)/P(B)'],
+          correctAnswer: 0,
+        },
+        {
+          id: '3-3-3',
+          question: '一个袋子里有3个红球和2个蓝球，随机取出2个球，取出的两个球都是红球的概率是多少？',
+          options: ['3/10', '3/5', '9/25', '6/25'],
+          correctAnswer: 0,
+        },
+        {
+          id: '3-3-4',
+          question: '如果一个随机变量X服从标准正态分布，则 P(X > 0) 等于多少？',
+          options: ['0.5', '0.6827', '0.9545', '0.9973'],
+          correctAnswer: 0,
         }
       ]
     };

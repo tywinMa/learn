@@ -1,5 +1,10 @@
-// API基础URL
-const API_BASE_URL = "http://localhost:3000/api";
+// 根据环境选择不同的API基础URL
+// 本地开发时使用绝对URL，生产环境使用相对URL
+const isDevelopment = process.env.NODE_ENV === 'development';
+// API基础URL - 本地开发使用IP地址，生产环境使用相对路径
+const API_BASE_URL = isDevelopment 
+  ? "http://localhost:3000/api"  // 开发环境
+  : "/api";  // 生产环境，使用相对路径
 
 // 获取用户积分
 export const getUserPoints = async (userId: string): Promise<number> => {

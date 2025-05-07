@@ -34,15 +34,19 @@ router.get('/:unitId', async (req, res) => {
     const { unitId } = req.params;
     const { userId, filterCompleted } = req.query;
 
+    console.log(`获取单元 ${unitId} 的练习题，筛选参数: 用户=${userId}, 过滤已完成=${filterCompleted}`);
+
     // 查询条件
     const whereClause = { unitId };
 
     // 如果需要过滤已完成的题目，且提供了用户ID
-    if (filterCompleted === 'true' && userId) {
+    let completedExerciseIds = [];
+    if (userId) {
       // 查找用户已正确完成的练习题ID
       const completedExercises = await UserRecord.findAll({
         where: {
           userId,
+          exerciseId: { [Op.like]: `${unitId}-%` }, // 确保只获取当前单元的记录
           isCorrect: true
         },
         attributes: ['exerciseId'],
@@ -50,14 +54,8 @@ router.get('/:unitId', async (req, res) => {
       });
 
       // 提取已完成的练习题ID数组
-      const completedExerciseIds = completedExercises.map(record => record.exerciseId);
-
-      // 如果有已完成的练习题，则排除它们
-      if (completedExerciseIds.length > 0) {
-        whereClause.id = {
-          [Op.notIn]: completedExerciseIds
-        };
-      }
+      completedExerciseIds = completedExercises.map(record => record.exerciseId);
+      console.log(`用户 ${userId} 已完成的练习题: ${completedExerciseIds.join(', ') || '无'}`);
     }
 
     // 查询练习题
@@ -66,22 +64,50 @@ router.get('/:unitId', async (req, res) => {
       order: [['id', 'ASC']]
     });
 
+    console.log(`找到 ${exercises.length} 道练习题`);
+
     if (exercises.length === 0) {
+      console.log(`未找到单元 ${unitId} 的练习题`);
       return res.status(404).json({
         success: false,
         message: `未找到单元 ${unitId} 的练习题`
       });
     }
 
+    // 检查是否所有题目都已完成
+    const allCompleted = exercises.length > 0 && 
+                         completedExerciseIds.length >= exercises.length && 
+                         exercises.every(ex => completedExerciseIds.includes(ex.id));
+
+    // 如果所有题目都已完成且需要过滤已完成的题目
+    if (allCompleted && filterCompleted === 'true') {
+      console.log(`用户 ${userId} 已完成单元 ${unitId} 的所有练习题`);
+      return res.status(200).json({
+        success: true,
+        data: [],
+        message: '所有练习题已完成',
+        allCompleted: true
+      });
+    }
+
+    // 如果需要过滤已完成的题目
+    let filteredExercises = exercises;
+    if (filterCompleted === 'true' && completedExerciseIds.length > 0) {
+      filteredExercises = exercises.filter(ex => !completedExerciseIds.includes(ex.id));
+      console.log(`过滤后剩余 ${filteredExercises.length} 道练习题`);
+    }
+
     res.json({
       success: true,
-      data: exercises
+      data: filteredExercises,
+      allCompleted: allCompleted
     });
   } catch (error) {
     console.error('获取单元练习题出错:', error);
     res.status(500).json({
       success: false,
-      message: '服务器错误'
+      message: '获取练习题时发生服务器错误',
+      error: error.message
     });
   }
 });
