@@ -43,6 +43,7 @@ const Exercise = ({
   exercise,
   onAnswer,
   userAnswers,
+  showAnswers,
 }: {
   exercise: {
     id: string;
@@ -53,9 +54,10 @@ const Exercise = ({
   };
   onAnswer: (exerciseId: string, optionIndex: number, matchingAnswers?: number[], fillBlankAnswers?: string[]) => void;
   userAnswers: Record<string, number | number[] | string[]>;
+  showAnswers: boolean;
 }) => {
   const isAnswered = userAnswers.hasOwnProperty(exercise.id);
-  const isCorrect = isAnswered && 
+  const isCorrect = isAnswered && showAnswers && 
     (exercise.type === 'matching' 
       ? JSON.stringify(userAnswers[exercise.id]) === JSON.stringify(exercise.correctAnswer)
       : userAnswers[exercise.id] === exercise.correctAnswer);
@@ -89,16 +91,16 @@ const Exercise = ({
                   style={[
                     styles.optionButton,
                     isAnswered && userAnswers[exercise.id] === index && styles.selectedOption,
-                    isAnswered && index === exercise.correctAnswer && styles.correctOption,
+                    isAnswered && showAnswers && index === exercise.correctAnswer && styles.correctOption,
                   ]}
                   onPress={() => onAnswer(exercise.id, index)}
                   disabled={isAnswered}
                 >
                   <Text style={styles.optionText}>{option}</Text>
-                  {isAnswered && index === exercise.correctAnswer && (
+                  {isAnswered && showAnswers && index === exercise.correctAnswer && (
                     <Ionicons name="checkmark-circle" size={24} color="green" style={styles.icon} />
                   )}
-                  {isAnswered && userAnswers[exercise.id] === index && index !== exercise.correctAnswer && (
+                  {isAnswered && showAnswers && userAnswers[exercise.id] === index && index !== exercise.correctAnswer && (
                     <Ionicons name="close-circle" size={24} color="red" style={styles.icon} />
                   )}
                 </TouchableOpacity>
@@ -118,9 +120,12 @@ const Exercise = ({
                 <Text style={styles.matchingInstructions}>
                   请点击左侧项目，然后点击右侧对应项目进行匹配
                 </Text>
-                <RNView style={styles.matchingContainer}>
-                  <RNView style={styles.matchingColumn}>
-                    <Text style={styles.columnHeader}>左侧项目</Text>
+                
+                {/* 将匹配题布局改为垂直方向排列，更适合手机端 */}
+                <RNView style={styles.matchingContainerVertical}>
+                  {/* 左侧项目 */}
+                  <Text style={styles.columnHeader}>左侧项目</Text>
+                  <RNView style={styles.matchingItems}>
                     {exercise.options.left.map((item: string, leftIndex: number) => (
                       <TouchableOpacity
                         key={leftIndex}
@@ -138,25 +143,21 @@ const Exercise = ({
                         <Text style={styles.matchingText}>{item}</Text>
                         {matchingPairs[leftIndex] !== -1 && (
                           <RNView style={styles.matchingNumberBadge}>
-                            <Text style={styles.matchingNumberText}>{matchingPairs[leftIndex] + 1}</Text>
+                            <Text style={styles.matchingNumberText}>{leftIndex + 1}</Text>
                           </RNView>
                         )}
                       </TouchableOpacity>
                     ))}
                   </RNView>
                   
-                  <RNView style={styles.matchingArrowsColumn}>
-                    {matchingPairs.map((rightIndex, leftIndex) => 
-                      rightIndex !== -1 ? (
-                        <RNView key={leftIndex} style={styles.matchingArrow}>
-                          <Ionicons name="arrow-forward" size={20} color="#5EC0DE" />
-                        </RNView>
-                      ) : null
-                    )}
+                  {/* 连接指示 */}
+                  <RNView style={styles.matchingConnector}>
+                    <Ionicons name="arrow-down" size={20} color="#5EC0DE" />
                   </RNView>
                   
-                  <RNView style={styles.matchingColumn}>
-                    <Text style={styles.columnHeader}>右侧项目</Text>
+                  {/* 右侧项目 */}
+                  <Text style={styles.columnHeader}>右侧项目</Text>
+                  <RNView style={styles.matchingItems}>
                     {exercise.options.right.map((item: string, rightIndex: number) => (
                       <TouchableOpacity
                         key={rightIndex}
@@ -215,7 +216,7 @@ const Exercise = ({
                   </TouchableOpacity>
                 )}
                 
-                {isAnswered && (
+                {isAnswered && showAnswers && (
                   <RNView style={styles.matchingResultContainer}>
                     <Text style={styles.matchingResultTitle}>正确答案：</Text>
                     {Array.isArray(exercise.correctAnswer) && exercise.options.left.map((leftItem: string, index: number) => {
@@ -288,55 +289,80 @@ const Exercise = ({
                   请先点击左侧元素，然后点击右侧位置进行放置
                 </Text>
                 
-                <RNView style={styles.dragDropContent}>
-                  {/* 拖动项容器 */}
-                  <RNView style={styles.dragItemsContainer}>
-                    <Text style={styles.dragDropSectionTitle}>元素</Text>
-                    {exercise.options.elements.map((item: string, index: number) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={[
-                          styles.dragItem,
-                          selectedDragItem === item && styles.selectedDragItem,
-                          dropTargets.includes(item) && styles.placedDragItem
-                        ]}
-                        onPress={() => handleDragSelect(item)}
-                        disabled={isAnswered}
-                      >
-                        <Text style={styles.dragItemText}>{item}</Text>
-                      </TouchableOpacity>
-                    ))}
+                {/* 当前选中的元素 */}
+                {selectedDragItem && (
+                  <RNView style={styles.selectedItemContainer}>
+                    <Text style={styles.selectedItemLabel}>已选择：</Text>
+                    <Text style={styles.selectedItemText}>{selectedDragItem}</Text>
+                  </RNView>
+                )}
+                
+                {/* 垂直布局，更适合手机端 */}
+                <RNView style={styles.dragDropContentVertical}>
+                  {/* 元素列表 */}
+                  <RNView style={styles.dragDropSection}>
+                    <Text style={styles.dragDropSectionTitle}>可选元素</Text>
+                    <RNView style={styles.dragItemsList}>
+                      {exercise.options.elements.map((item: string, index: number) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={[
+                            styles.dragItem,
+                            selectedDragItem === item && styles.selectedDragItem,
+                            dropTargets.includes(item) && styles.placedDragItem
+                          ]}
+                          onPress={() => handleDragSelect(item)}
+                          disabled={isAnswered}
+                        >
+                          <Text style={styles.dragItemText}>{item}</Text>
+                          {dropTargets.includes(item) && (
+                            <RNView style={styles.dragItemBadge}>
+                              <Text style={styles.dragItemBadgeText}>已放置</Text>
+                            </RNView>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </RNView>
                   </RNView>
                   
-                  {/* 放置区容器 */}
-                  <RNView style={styles.dropTargetsContainer}>
-                    <Text style={styles.dragDropSectionTitle}>位置</Text>
-                    {exercise.options.positions.map((position: string, index: number) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={[
-                          styles.dropTarget,
-                          dropTargets[index] !== null && styles.filledDropTarget
-                        ]}
-                        onPress={() => handleDropSelect(index)}
-                        disabled={isAnswered || selectedDragItem === null}
-                      >
-                        <Text style={styles.dropTargetLabel}>{position}</Text>
-                        {dropTargets[index] && (
-                          <RNView style={styles.droppedItemContainer}>
-                            <Text style={styles.droppedItemText}>{dropTargets[index]}</Text>
-                          </RNView>
-                        )}
-                      </TouchableOpacity>
-                    ))}
+                  {/* 放置区 */}
+                  <RNView style={styles.dragDropSection}>
+                    <Text style={styles.dragDropSectionTitle}>放置区域</Text>
+                    <RNView style={styles.dropTargetsList}>
+                      {exercise.options.positions.map((position: string, index: number) => (
+                        <TouchableOpacity
+                          key={index}
+                          style={[
+                            styles.dropTarget,
+                            dropTargets[index] !== null && styles.filledDropTarget,
+                            selectedDragItem && styles.dropTargetHighlight
+                          ]}
+                          onPress={() => handleDropSelect(index)}
+                          disabled={isAnswered || selectedDragItem === null}
+                        >
+                          <Text style={styles.dropTargetLabel}>{position}</Text>
+                          {dropTargets[index] && (
+                            <RNView style={styles.droppedItemContainer}>
+                              <Text style={styles.droppedItemText}>{dropTargets[index]}</Text>
+                              {!isAnswered && (
+                                <TouchableOpacity
+                                  style={styles.removeItemButton}
+                                  onPress={() => {
+                                    const newTargets = [...dropTargets];
+                                    newTargets[index] = null;
+                                    setDropTargets(newTargets);
+                                  }}
+                                >
+                                  <Ionicons name="close-circle" size={16} color="white" />
+                                </TouchableOpacity>
+                              )}
+                            </RNView>
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </RNView>
                   </RNView>
                 </RNView>
-                
-                {!isAnswered && selectedDragItem && (
-                  <Text style={styles.dragDropPrompt}>
-                    请在右侧选择要放置"{selectedDragItem}"的位置
-                  </Text>
-                )}
                 
                 {!isAnswered && dropTargets.some(t => t !== null) && (
                   <TouchableOpacity 
@@ -350,7 +376,7 @@ const Exercise = ({
                   </TouchableOpacity>
                 )}
                 
-                {isAnswered && (
+                {isAnswered && showAnswers && (
                   <RNView style={styles.dragDropResultContainer}>
                     <Text style={styles.dragDropResultTitle}>正确答案：</Text>
                     {Array.isArray(exercise.correctAnswer) && exercise.options.positions.map((position: string, index: number) => {
@@ -403,7 +429,7 @@ const Exercise = ({
                       style={[
                         styles.fillBlankInput,
                         isAnswered && styles.fillBlankInputDisabled,
-                        isAnswered && 
+                        isAnswered && showAnswers && 
                           (blankAnswers[index] === exercise.correctAnswer[index] 
                             ? styles.fillBlankInputCorrect 
                             : styles.fillBlankInputIncorrect)
@@ -426,6 +452,10 @@ const Exercise = ({
                       }}
                       placeholder="填写答案"
                       editable={!isAnswered}
+                      keyboardType="default"
+                      returnKeyType="done"
+                      autoCapitalize="none"
+                      autoCorrect={false}
                     />
                   )}
                 </RNView>
@@ -436,9 +466,10 @@ const Exercise = ({
         
         return (
           <RNView style={styles.fillBlankContainer}>
+            <Text style={styles.fillBlankInstructions}>请在空白处填入正确的答案</Text>
             {renderFillBlankQuestion()}
             
-            {isAnswered && (
+            {isAnswered && showAnswers && (
               <RNView style={styles.fillBlankResultContainer}>
                 <Text style={styles.fillBlankResultTitle}>正确答案：</Text>
                 {Array.isArray(exercise.correctAnswer) && exercise.correctAnswer.map((answer, index) => (
@@ -483,7 +514,7 @@ const Exercise = ({
     <RNView style={styles.exerciseContainer}>
       <Text style={styles.questionText}>{exercise.question}</Text>
       {renderExerciseContent()}
-      {isAnswered && (
+      {isAnswered && showAnswers && (
         <Text style={[styles.feedbackText, isCorrect ? styles.correctText : styles.incorrectText]}>
           {isCorrect ? "回答正确！" : "回答错误，请再试一次。"}
         </Text>
@@ -613,6 +644,22 @@ const AllCompletedMessage = ({ onRetry }: { onRetry: () => void }) => {
   );
 };
 
+// 添加交卷按钮组件，添加日志输出
+const SubmitButton = ({ onSubmit, disabled }: { onSubmit: () => void, disabled: boolean }) => {
+  return (
+    <TouchableOpacity 
+      style={[styles.submitButton, disabled && styles.submitButtonDisabled]} 
+      onPress={() => {
+        console.log('交卷按钮被点击');
+        onSubmit();
+      }}
+      disabled={disabled}
+    >
+      <Text style={styles.submitButtonText}>交卷</Text>
+    </TouchableOpacity>
+  );
+};
+
 export default function StudyScreen() {
   const params = useLocalSearchParams();
   const { id, unitTitle, color } = params;
@@ -630,6 +677,8 @@ export default function StudyScreen() {
   const [correctCount, setCorrectCount] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const allAnswered = useRef(false);
+  const [showAnswers, setShowAnswers] = useState(false); // 控制是否显示答案
+  const scrollViewRef = useRef<ScrollView>(null); // 添加对ScrollView的引用
 
   // 检查是否所有题目都已回答
   const checkAllAnswered = (currentAnswers: Record<string, number | number[] | string[]>) => {
@@ -691,36 +740,112 @@ export default function StudyScreen() {
       setCorrectCount(correct);
       allAnswered.current = true;
 
-      // 延迟显示总结弹窗，给用户一点时间看到最后一题的结果
-      setTimeout(() => {
-        setShowSummary(true);
-      }, 1000);
+      // 注释掉自动显示总结弹窗的代码，改为等待用户点击交卷
+      // setTimeout(() => {
+      //   setShowSummary(true);
+      // }, 1000);
     }
   };
 
-  // 重新做题
-  const handleRetry = () => {
-    setShowSummary(false);
-    setUserAnswers({});
-    setCorrectCount(0);
-    allAnswered.current = false;
-
-    // 重新获取练习题
-    fetchExercises();
-  };
-
-  // 退出本单元
-  const handleExit = () => {
-    setShowSummary(false);
-    // 退出前强制刷新首页进度数据
-    router.replace({
-      pathname: "/(tabs)",
-      params: {
-        refresh: Date.now().toString() // 添加时间戳参数，强制组件刷新
+  // 添加交卷处理函数，添加日志输出
+  const handleSubmit = () => {
+    console.log('handleSubmit 执行开始');
+    console.log('当前答题状态:', userAnswers);
+    console.log('题目数量:', exercises.length);
+    
+    setShowAnswers(true); // 显示所有答案
+    console.log('setShowAnswers 设置为true');
+    
+    // 滚动到顶部
+    setTimeout(() => {
+      console.log('尝试滚动到顶部');
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: 0, animated: true });
+        console.log('滚动到顶部成功');
+      } else {
+        console.log('scrollViewRef.current 为 null');
+      }
+    }, 100);
+    
+    // 计算正确答案数量，与原来的checkAllAnswered逻辑类似
+    let correct = 0;
+    exercises.forEach(ex => {
+      // 如果该题已回答
+      if (userAnswers.hasOwnProperty(ex.id)) {
+        // 根据题型判断答案是否正确
+        switch (ex.type || 'choice') {
+          case 'choice':
+            if (userAnswers[ex.id] === ex.correctAnswer) {
+              correct++;
+            }
+            break;
+          case 'matching':
+            if (
+              Array.isArray(userAnswers[ex.id]) && 
+              Array.isArray(ex.correctAnswer) && 
+              JSON.stringify(userAnswers[ex.id]) === JSON.stringify(ex.correctAnswer)
+            ) {
+              correct++;
+            }
+            break;
+          case 'drag_drop':
+            if (
+              Array.isArray(userAnswers[ex.id]) && 
+              Array.isArray(ex.correctAnswer) && 
+              JSON.stringify(userAnswers[ex.id]) === JSON.stringify(ex.correctAnswer)
+            ) {
+              correct++;
+            }
+            break;
+          case 'fill_blank':
+            if (
+              Array.isArray(userAnswers[ex.id]) && 
+              Array.isArray(ex.correctAnswer) &&
+              (userAnswers[ex.id] as string[]).every(
+                (answer, index) => answer.trim() === ex.correctAnswer[index]
+              )
+            ) {
+              correct++;
+            }
+            break;
+          // ... other cases ...
+        }
       }
     });
+    
+    setCorrectCount(correct);
+    
+    // 如果所有题目都回答正确，更新进度
+    const allCorrect = correct === exercises.length && exercises.length > 0;
+    if (allCorrect) {
+      updateProgress();
+    }
+    
+    // 延迟显示总结弹窗
+    setTimeout(() => {
+      setShowSummary(true);
+    }, 3000); // 给用户3秒时间浏览答案后再显示总结
   };
-
+  
+  // 更新进度的函数，从原来的handleAnswer中提取
+  const updateProgress = async () => {
+    try {
+      const updateUrl = `${API_BASE_URL}/users/${USER_ID}/progress/${lessonId}/refresh`;
+      console.log('刷新进度URL:', updateUrl);
+      
+      const refreshResponse = await fetch(updateUrl, { method: "POST" });
+      if (!refreshResponse.ok) {
+        console.error(`刷新进度失败: HTTP ${refreshResponse.status}`);
+      } else {
+        const refreshResult = await refreshResponse.json();
+        console.log('进度刷新结果:', refreshResult);
+      }
+    } catch (updateErr) {
+      console.error("更新进度失败:", updateErr);
+    }
+  };
+  
+  // 修改handleAnswer函数，移除立即显示答案的逻辑
   const handleAnswer = async (exerciseId: string, optionIndex: number, matchingAnswers?: number[], fillBlankAnswers?: string[]) => {
     // 更新本地状态
     const newAnswers = {
@@ -773,7 +898,7 @@ export default function StudyScreen() {
         isCorrect = optionIndex === exercise.correctAnswer;
     }
 
-    // 检查是否所有题目都已回答
+    // 检查是否所有题目都已回答（但不自动显示总结）
     checkAllAnswered(newAnswers);
 
     // 提交答题结果到服务器
@@ -843,20 +968,7 @@ export default function StudyScreen() {
           if (allCorrect) {
             console.log("所有答案都正确，强制更新星星数量");
             // 额外API调用来强制更新进度
-            try {
-              const updateUrl = `${API_BASE_URL}/users/${USER_ID}/progress/${lessonId}/refresh`;
-              console.log('刷新进度URL:', updateUrl);
-              
-              const refreshResponse = await fetch(updateUrl, { method: "POST" });
-              if (!refreshResponse.ok) {
-                console.error(`刷新进度失败: HTTP ${refreshResponse.status}`);
-              } else {
-                const refreshResult = await refreshResponse.json();
-                console.log('进度刷新结果:', refreshResult);
-              }
-            } catch (updateErr) {
-              console.error("更新进度失败:", updateErr);
-            }
+            updateProgress();
           }
         }
       }
@@ -1037,6 +1149,31 @@ export default function StudyScreen() {
     });
   }, [lessonId, exerciseIdParam]);
 
+  // 添加之前删除的handleRetry函数
+  const handleRetry = () => {
+    setShowSummary(false);
+    setUserAnswers({});
+    setCorrectCount(0);
+    setShowAnswers(false); // 重置答案显示状态
+    allAnswered.current = false;
+
+    // 重新获取练习题
+    fetchExercises();
+  };
+
+  // 添加之前删除的handleExit函数
+  const handleExit = () => {
+    setShowSummary(false);
+    setShowAnswers(false); // 重置答案显示状态
+    // 退出前强制刷新首页进度数据
+    router.replace({
+      pathname: "/(tabs)",
+      params: {
+        refresh: Date.now().toString() // 添加时间戳参数，强制组件刷新
+      }
+    });
+  };
+
   return (
     <View style={styles.container}>
       {/* 隐藏默认的导航栏 */}
@@ -1065,7 +1202,10 @@ export default function StudyScreen() {
         <RNView style={styles.placeholder} />
       </RNView>
 
-      <ScrollView style={styles.scrollContent}>
+      <ScrollView 
+        style={styles.scrollContent}
+        ref={scrollViewRef} // 添加引用
+      >
         <RNView style={styles.videoContainer}>
           <Video
             source={{ uri: videoUrl }}
@@ -1104,9 +1244,30 @@ export default function StudyScreen() {
           ) : exercises.length === 0 ? (
             <AllCompletedMessage onRetry={fetchAllExercisesWithoutFilter} />
           ) : (
-            exercises.map((exercise) => (
-              <Exercise key={exercise.id} exercise={exercise} onAnswer={handleAnswer} userAnswers={userAnswers} />
-            ))
+            <>
+              {exercises.map((exercise) => (
+                <Exercise 
+                  key={exercise.id} 
+                  exercise={exercise} 
+                  onAnswer={handleAnswer} 
+                  userAnswers={userAnswers}
+                  showAnswers={showAnswers} // 传递showAnswers参数
+                />
+              ))}
+              
+              {/* 添加交卷按钮，增加调试输出 */}
+              {!showAnswers && exercises.length > 0 && (
+                <>
+                  <Text style={styles.debugText}>
+                    已回答: {Object.keys(userAnswers).length}/{exercises.length}题
+                  </Text>
+                  <SubmitButton 
+                    onSubmit={handleSubmit} 
+                    disabled={Object.keys(userAnswers).length < exercises.length} // 只有所有题目都回答了才能交卷
+                  />
+                </>
+              )}
+            </>
           )}
         </RNView>
       </ScrollView>
@@ -1133,7 +1294,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "white",
-    paddingTop: 16, // 减少顶部padding
+    paddingTop: 16, 
     paddingBottom: 10,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
@@ -1175,15 +1336,16 @@ const styles = StyleSheet.create({
   exerciseContainer: {
     backgroundColor: "#f9f9f9",
     borderRadius: 12,
-    padding: 16,
-    marginVertical: 10,
+    padding: 14,
+    marginVertical: 8,
     borderWidth: 1,
     borderColor: "#eaeaea",
   },
   questionText: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "600",
-    marginBottom: 16,
+    marginBottom: 14,
+    lineHeight: 22,
   },
   optionButton: {
     flexDirection: "row",
@@ -1195,6 +1357,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderWidth: 1,
     borderColor: "#dddddd",
+    minHeight: 50,
   },
   selectedOption: {
     borderColor: "#5EC0DE",
@@ -1206,8 +1369,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 255, 0, 0.05)",
   },
   optionText: {
-    fontSize: 16,
+    fontSize: 15,
     flex: 1,
+    lineHeight: 20,
   },
   icon: {
     marginLeft: 8,
@@ -1262,12 +1426,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 20,
+    padding: 16,
   },
   modalContent: {
     backgroundColor: "white",
     borderRadius: 16,
-    padding: 24,
+    padding: 20,
     width: "100%",
     maxWidth: 400,
     alignItems: "center",
@@ -1347,7 +1511,7 @@ const styles = StyleSheet.create({
   starsContainer: {
     flexDirection: "row",
     justifyContent: "center",
-    marginTop: 16,
+    marginTop: 14,
     marginBottom: 8,
   },
   unlockMessage: {
@@ -1355,13 +1519,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "rgba(88, 204, 2, 0.1)",
-    padding: 12,
+    padding: 10,
     borderRadius: 8,
     marginTop: 8,
   },
   unlockText: {
     marginLeft: 8,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "600",
     color: "#58CC02",
   },
@@ -1407,36 +1571,47 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   matchingOuterContainer: {
-    padding: 20,
+    padding: 12,
     backgroundColor: "#f9f9f9",
     borderRadius: 12,
-    marginVertical: 10,
+    marginVertical: 8,
     borderWidth: 1,
     borderColor: "#eaeaea",
   },
   matchingInstructions: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
-    marginBottom: 12,
+    marginBottom: 10,
+    color: "#555",
   },
-  matchingContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  matchingContainerVertical: {
+    width: '100%',
   },
-  matchingColumn: {
-    flex: 1,
+  matchingItems: {
+    width: '100%',
+  },
+  matchingConnector: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
   },
   columnHeader: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: "bold",
-    marginBottom: 12,
+    marginBottom: 8,
+    textAlign: "center",
   },
   matchingItem: {
-    padding: 8,
+    padding: 10,
     borderWidth: 1,
     borderColor: "#dddddd",
-    borderRadius: 4,
+    borderRadius: 8,
+    marginBottom: 8, 
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   selectedMatchingItem: {
     borderColor: "#5EC0DE",
@@ -1445,19 +1620,9 @@ const styles = StyleSheet.create({
   matchedItem: {
     backgroundColor: "rgba(0, 0, 0, 0.05)",
   },
-  matchingArrowsColumn: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  matchingArrow: {
-    width: 20,
-    height: 20,
-    justifyContent: "center",
-    alignItems: "center",
-  },
   matchingText: {
-    fontSize: 16,
+    fontSize: 14,
+    lineHeight: 18,
   },
   matchingNumberBadge: {
     backgroundColor: "#5EC0DE",
@@ -1471,9 +1636,11 @@ const styles = StyleSheet.create({
     color: "white",
   },
   matchingPrompt: {
-    marginTop: 12,
-    fontSize: 16,
+    marginTop: 10,
+    fontSize: 14,
     fontWeight: "600",
+    color: "#555",
+    textAlign: "center",
   },
   resetMatchingButton: {
     backgroundColor: "#5EC0DE",
@@ -1504,142 +1671,50 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   fillBlankContainer: {
-    padding: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  fillBlankText: {
-    fontSize: 16,
-    color: "#555",
-  },
-  otherTypeContainer: {
-    padding: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  otherTypeText: {
-    fontSize: 16,
-    color: "#555",
-  },
-  dragDropContainer: {
-    padding: 20,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    marginVertical: 10,
-    borderWidth: 1,
-    borderColor: "#eaeaea",
-  },
-  dragDropInstructions: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 12,
-  },
-  dragDropContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  dragItemsContainer: {
-    flex: 1,
-  },
-  dragDropSectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 12,
-  },
-  dragItem: {
-    padding: 8,
-    borderWidth: 1,
-    borderColor: "#dddddd",
-    borderRadius: 4,
-  },
-  selectedDragItem: {
-    borderColor: "#5EC0DE",
-    borderWidth: 2,
-  },
-  placedDragItem: {
-    backgroundColor: "rgba(0, 0, 0, 0.05)",
-  },
-  dropTargetsContainer: {
-    flex: 1,
-  },
-  dropTarget: {
-    padding: 8,
-    borderWidth: 1,
-    borderColor: "#dddddd",
-    borderRadius: 4,
-  },
-  filledDropTarget: {
-    backgroundColor: "rgba(0, 0, 0, 0.05)",
-  },
-  dropTargetLabel: {
-    fontSize: 16,
-  },
-  droppedItemContainer: {
-    backgroundColor: "#5EC0DE",
-    borderRadius: 4,
-    padding: 4,
-  },
-  droppedItemText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "white",
-  },
-  dragDropPrompt: {
-    marginTop: 12,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  resetDragDropButton: {
-    backgroundColor: "#5EC0DE",
     padding: 12,
-    borderRadius: 8,
-    marginTop: 12,
+    width: "100%",
   },
-  resetDragDropText: {
-    color: "white",
-    fontSize: 16,
+  fillBlankInstructions: {
+    fontSize: 14,
     fontWeight: "600",
-  },
-  dragDropResultContainer: {
-    marginTop: 12,
-    padding: 16,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#eaeaea",
-  },
-  dragDropResultTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 12,
-  },
-  dragDropResultItem: {
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  dragItemText: {
-    fontSize: 16,
+    marginBottom: 10,
+    color: "#555",
   },
   fillBlankQuestionContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    width: "100%",
+    backgroundColor: "white",
+    borderRadius: 8, 
+    padding: 10,
   },
   fillBlankPart: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
+    marginBottom: 8,
+    width: "100%",
   },
   fillBlankQuestion: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#333",
+    lineHeight: 22,
+  },
+  fillBlankText: {
+    fontSize: 15,
+    color: "#333",
+    lineHeight: 22,
   },
   fillBlankInput: {
-    flex: 1,
     padding: 8,
     borderWidth: 1,
     borderColor: "#dddddd",
-    borderRadius: 4,
+    borderRadius: 6,
+    marginHorizontal: 4,
+    marginTop: 4,
+    minWidth: 100,
+    fontSize: 15,
+    backgroundColor: "white",
   },
   fillBlankInputDisabled: {
     backgroundColor: "rgba(0, 0, 0, 0.05)",
@@ -1654,30 +1729,229 @@ const styles = StyleSheet.create({
   },
   fillBlankResultContainer: {
     marginTop: 12,
-    padding: 16,
+    padding: 10,
     backgroundColor: "#f9f9f9",
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#eaeaea",
   },
   fillBlankResultTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
-    marginBottom: 12,
+    marginBottom: 8,
   },
   fillBlankResultText: {
-    fontSize: 16,
-    marginBottom: 8,
+    fontSize: 14,
+    marginBottom: 6,
   },
   resetFillBlankButton: {
     backgroundColor: "#5EC0DE",
-    padding: 12,
+    padding: 8,
     borderRadius: 8,
-    marginTop: 12,
+    marginTop: 10,
+    alignSelf: "center",
   },
   resetFillBlankText: {
     color: "white",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
+  },
+  dragDropContainer: {
+    padding: 12,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 12,
+    marginVertical: 8,
+    borderWidth: 1,
+    borderColor: "#eaeaea",
+  },
+  dragDropInstructions: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 10,
+    color: "#555",
+    textAlign: "center",
+  },
+  selectedItemContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(94, 192, 222, 0.1)",
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 10,
+  },
+  selectedItemLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#555",
+    marginRight: 4,
+  },
+  selectedItemText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#5EC0DE",
+  },
+  dragDropContentVertical: {
+    width: "100%",
+  },
+  dragDropSection: {
+    marginBottom: 16,
+    width: "100%",
+  },
+  dragDropSectionTitle: {
+    fontSize: 15,
+    fontWeight: "bold",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  dragItemsList: {
+    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+  dragItem: {
+    width: "48%",
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#dddddd",
+    borderRadius: 8,
+    marginBottom: 8,
+    minHeight: 44,
+    backgroundColor: "white",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  selectedDragItem: {
+    borderColor: "#5EC0DE",
+    borderWidth: 2,
+    backgroundColor: "rgba(94, 192, 222, 0.1)",
+  },
+  placedDragItem: {
+    opacity: 0.6,
+  },
+  dragItemText: {
+    fontSize: 14,
+    textAlign: "center",
+    fontWeight: "500",
+  },
+  dragItemBadge: {
+    backgroundColor: "#999",
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginTop: 4,
+  },
+  dragItemBadgeText: {
+    color: "white",
+    fontSize: 10,
+    fontWeight: "bold",
+  },
+  dropTargetsList: {
+    width: "100%",
+  },
+  dropTarget: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "#dddddd",
+    borderRadius: 8,
+    marginBottom: 8,
+    minHeight: 50,
+    backgroundColor: "white",
+  },
+  dropTargetHighlight: {
+    borderColor: "#5EC0DE",
+    borderStyle: "dashed",
+    borderWidth: 2,
+  },
+  filledDropTarget: {
+    backgroundColor: "rgba(0, 0, 0, 0.03)",
+  },
+  dropTargetLabel: {
+    fontSize: 14,
+    marginBottom: 4,
+    color: "#444",
+  },
+  droppedItemContainer: {
+    backgroundColor: "#5EC0DE",
+    borderRadius: 6,
+    padding: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  droppedItemText: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "white",
+    flex: 1,
+  },
+  removeItemButton: {
+    padding: 2,
+  },
+  resetDragDropButton: {
+    backgroundColor: "#5EC0DE",
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 8,
+    alignSelf: "center",
+  },
+  resetDragDropText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  dragDropResultContainer: {
+    marginTop: 12,
+    padding: 10,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#eaeaea",
+  },
+  dragDropResultTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  dragDropResultItem: {
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  otherTypeContainer: {
+    padding: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  otherTypeText: {
+    fontSize: 16,
+    color: "#555",
+  },
+  // 添加交卷按钮样式
+  submitButton: {
+    backgroundColor: "#5EC0DE",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    marginTop: 20,
+    marginBottom: 30,
+    alignSelf: "center",
+    minWidth: 200,
+  },
+  submitButtonDisabled: {
+    backgroundColor: "#b0b0b0",
+  },
+  submitButtonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  // 添加调试文本样式
+  debugText: {
+    textAlign: 'center',
+    fontSize: 14,
+    color: '#555',
+    marginTop: 10,
   },
 });
