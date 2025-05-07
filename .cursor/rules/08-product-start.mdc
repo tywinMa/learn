@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+如果需要重启服务，请关闭当前终端的服务后，使用`./start-dev.sh`启动开发前端和后端服务器，确保正常运行
