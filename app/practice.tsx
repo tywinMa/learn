@@ -11,18 +11,24 @@ import {
 } from "react-native";
 import { Text, View } from "../components/Themed";
 import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
+// TypeScript暂时忽略 expo-router 导出错误
+// @ts-ignore
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { USER_ID } from "./services/progressService";
-import { addToErrorBook } from "./services/errorBookService";
+// 移除直接导入 addToErrorBook
+// import { addToErrorBook } from "./services/errorBookService";
+
+// 导入工具函数，添加新的 processAnswer 函数
+import { checkAnswerCorrect, addToErrorBook, calculateCorrectCount, processAnswer } from "./utils/exerciseUtils";
 
 // 使用与study.tsx相同的API基础URL配置
-const isDevelopment = process.env.NODE_ENV === 'development';
-const API_BASE_URL = isDevelopment 
-  ? "http://localhost:3000/api"  // 开发环境
-  : "/api";  // 生产环境，使用相对路径
+const isDevelopment = process.env.NODE_ENV === "development";
+const API_BASE_URL = isDevelopment
+  ? "http://localhost:3000/api" // 开发环境
+  : "/api"; // 生产环境，使用相对路径
 
 // 正确导入Exercise组件
-import { Exercise } from "./study";
+import { Exercise } from "./components/Exercise";
 
 // 总结弹窗组件
 const SummaryModal = ({
@@ -30,7 +36,7 @@ const SummaryModal = ({
   correctCount,
   totalCount,
   onRetry,
-  onExit
+  onExit,
 }: {
   visible: boolean;
   correctCount: number;
@@ -40,24 +46,17 @@ const SummaryModal = ({
 }) => {
   // 计算完成率和星星数
   const completionRate = totalCount > 0 ? correctCount / totalCount : 0;
-  const earnedStars = completionRate >= 1 ? 3 : (completionRate >= 0.7 ? 2 : (completionRate >= 0.3 ? 1 : 0));
+  const earnedStars = completionRate >= 1 ? 3 : completionRate >= 0.7 ? 2 : completionRate >= 0.3 ? 1 : 0;
   const isThreeStars = earnedStars === 3;
 
   return (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onExit}
-    >
+    <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onExit}>
       <RNView style={styles.modalOverlay}>
         <RNView style={styles.modalContent}>
           <Text style={styles.modalTitle}>练习完成！</Text>
 
           <RNView style={styles.summaryContainer}>
-            <Text style={styles.summaryText}>
-              本次练习总结：
-            </Text>
+            <Text style={styles.summaryText}>本次练习总结：</Text>
             <Text style={styles.summaryDetail}>
               总题数：<Text style={styles.summaryHighlight}>{totalCount}</Text> 题
             </Text>
@@ -68,9 +67,12 @@ const SummaryModal = ({
               答错：<Text style={styles.summaryHighlight}>{totalCount - correctCount}</Text> 题
             </Text>
             <Text style={styles.summaryDetail}>
-              正确率：<Text style={styles.summaryHighlight}>{totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0}%</Text>
+              正确率：
+              <Text style={styles.summaryHighlight}>
+                {totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0}%
+              </Text>
             </Text>
-            
+
             <RNView style={styles.starsContainer}>
               {[...Array(3)].map((_, i) => (
                 <FontAwesome5
@@ -83,7 +85,7 @@ const SummaryModal = ({
                 />
               ))}
             </RNView>
-            
+
             {isThreeStars && (
               <RNView style={styles.unlockMessage}>
                 <Ionicons name="lock-open" size={20} color="#58CC02" />
@@ -113,7 +115,7 @@ const ResultFeedback = ({
   explanation,
   onContinue,
   onSubmitAnswer,
-  hasSubmitted
+  hasSubmitted,
 }: {
   isCorrect: boolean;
   explanation?: string;
@@ -122,50 +124,48 @@ const ResultFeedback = ({
   hasSubmitted: boolean;
 }) => {
   return (
-    <RNView style={[
-      styles.feedbackContainer,
-      isCorrect ? styles.correctFeedbackContainer : styles.incorrectFeedbackContainer
-    ]}>
+    <RNView
+      style={[
+        styles.feedbackContainer,
+        isCorrect ? styles.correctFeedbackContainer : styles.incorrectFeedbackContainer,
+      ]}
+    >
       {hasSubmitted ? (
         // 已提交答案，显示结果反馈
         <>
           <RNView style={styles.feedbackHeader}>
-            <Ionicons 
-              name={isCorrect ? "checkmark-circle" : "close-circle"} 
-              size={32} 
-              color={isCorrect ? "#58CC02" : "#FF4B4B"} 
+            <Ionicons
+              name={isCorrect ? "checkmark-circle" : "close-circle"}
+              size={32}
+              color={isCorrect ? "#58CC02" : "#FF4B4B"}
             />
-            <Text style={[
-              styles.feedbackHeaderText,
-              isCorrect ? styles.correctFeedbackText : styles.incorrectFeedbackText
-            ]}>
+            <Text
+              style={[styles.feedbackHeaderText, isCorrect ? styles.correctFeedbackText : styles.incorrectFeedbackText]}
+            >
               {isCorrect ? "回答正确！" : "回答错误！"}
             </Text>
           </RNView>
-          
+
           {explanation && (
             <RNView style={styles.explanationContainer}>
               <Text style={styles.explanationTitle}>解析：</Text>
               <Text style={styles.explanationText}>{explanation}</Text>
             </RNView>
           )}
-          
-          <TouchableOpacity 
-            style={[styles.continueButton, isCorrect ? styles.correctContinueButton : styles.incorrectContinueButton]} 
+
+          <TouchableOpacity
+            style={[styles.continueButton, isCorrect ? styles.correctContinueButton : styles.incorrectContinueButton]}
             onPress={onContinue}
           >
             <Text style={styles.continueButtonText}>继续</Text>
-            <Ionicons name="arrow-forward" size={20} color="white" style={{marginLeft: 8}} />
+            <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
           </TouchableOpacity>
         </>
       ) : (
-        // 未提交答案，显示提交按钮
-        <TouchableOpacity 
-          style={styles.confirmSubmitButton} 
-          onPress={onSubmitAnswer}
-        >
+        // 未提交答案，始终显示提交按钮
+        <TouchableOpacity style={styles.confirmSubmitButton} onPress={onSubmitAnswer}>
           <Text style={styles.confirmSubmitButtonText}>提交答案</Text>
-          <Ionicons name="checkmark-circle" size={20} color="white" style={{marginLeft: 8}} />
+          <Ionicons name="checkmark-circle" size={20} color="white" style={{ marginLeft: 8 }} />
         </TouchableOpacity>
       )}
     </RNView>
@@ -182,7 +182,7 @@ export default function PracticeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [currentExerciseIndex, setCurrentExerciseIndex] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
-  const [showFeedback, setShowFeedback] = useState(false);
+  const [showFeedback, setShowFeedback] = useState(true); // 始终显示反馈区域
   const [isLastAnswerCorrect, setIsLastAnswerCorrect] = useState(false);
   const [answeredExercises, setAnsweredExercises] = useState<Record<string, boolean>>({});
   const [pendingAnswer, setPendingAnswer] = useState<{
@@ -203,17 +203,17 @@ export default function PracticeScreen() {
       setLoading(true);
       // 获取所有练习题，不过滤已完成的
       const apiUrl = `${API_BASE_URL}/exercises/${lessonId}`;
-      console.log('请求练习题URL:', apiUrl);
-      
+      console.log("请求练习题URL:", apiUrl);
+
       const response = await fetch(apiUrl);
-      
+
       if (!response.ok) {
         console.error(`HTTP错误: ${response.status}`);
         throw new Error(`获取练习题失败 (HTTP ${response.status})`);
       }
-      
+
       const result = await response.json();
-      
+
       if (result.success && result.data) {
         console.log(`获取到 ${result.data.length} 道练习题`);
         setExercises(result.data);
@@ -232,7 +232,7 @@ export default function PracticeScreen() {
           options: ["x = 2 或 x = 3", "x = -2 或 x = -3", "x = 2 或 x = -3", "x = -2 或 x = 3"],
           correctAnswer: 0,
           type: "choice",
-          explanation: "使用因式分解法：x² - 5x + 6 = (x-2)(x-3) = 0，所以x = 2或x = 3"
+          explanation: "使用因式分解法：x² - 5x + 6 = (x-2)(x-3) = 0，所以x = 2或x = 3",
         },
         {
           id: "2",
@@ -240,7 +240,8 @@ export default function PracticeScreen() {
           options: ["5", "√13", "√19", "7"],
           correctAnswer: 2,
           type: "choice",
-          explanation: "使用余弦定理：c² = a² + b² - 2ab·cosC = 3² + 4² - 2·3·4·cos(60°) = 9 + 16 - 24·0.5 = 25 - 12 = 13，所以c = √19"
+          explanation:
+            "使用余弦定理：c² = a² + b² - 2ab·cosC = 3² + 4² - 2·3·4·cos(60°) = 9 + 16 - 24·0.5 = 25 - 12 = 13，所以c = √19",
         },
       ]);
     } finally {
@@ -255,162 +256,79 @@ export default function PracticeScreen() {
 
   // 计算正确答题数
   const getCorrectCount = () => {
-    return Object.values(answeredExercises).filter(isCorrect => isCorrect).length;
+    return Object.values(answeredExercises).filter((isCorrect) => isCorrect).length;
   };
 
   // 处理答题
-  const handleAnswer = (exerciseId: string, optionIndex: number, matchingAnswers?: number[], fillBlankAnswers?: string[]) => {
+  const handleAnswer = (
+    exerciseId: string,
+    optionIndex: number,
+    matchingAnswers?: number[],
+    fillBlankAnswers?: string[]
+  ) => {
     // 保存临时答案，等待确认
     setPendingAnswer({
       exerciseId,
       optionIndex,
       matchingAnswers,
-      fillBlankAnswers
+      fillBlankAnswers,
     });
-    
-    // 显示提交确认
-    setShowFeedback(true);
-    setHasSubmittedAnswer(false);
   };
-  
+
   // 确认提交答案
-  const submitConfirmedAnswer = () => {
-    // 如果没有待处理的答案则退出
-    if (!pendingAnswer) return;
-    
-    const { exerciseId, optionIndex = 0, matchingAnswers, fillBlankAnswers } = pendingAnswer;
+  const submitConfirmedAnswer = async () => {
     const exercise = exercises[currentExerciseIndex];
     if (!exercise) return;
 
-    // 判断答案是否正确
-    let isCorrect = false;
-    
-    switch (exercise.type || 'choice') {
-      case 'choice':
-        isCorrect = optionIndex === exercise.correctAnswer;
-        
-        // 如果是选择题且答错了，添加到错题集
-        if (!isCorrect) {
-          console.log("单题模式：选择题答错，添加到错题集");
-          addToErrorBook(
-            exerciseId,
-            lessonId,
-            exercise.question,
-            exercise.options,
-            exercise.correctAnswer,
-            optionIndex,
-            'choice'
-          ).catch(error => {
-            console.error("添加错题失败:", error);
-          });
-        }
-        break;
-      case 'matching':
-        if (matchingAnswers && Array.isArray(exercise.correctAnswer)) {
-          isCorrect = JSON.stringify(matchingAnswers) === JSON.stringify(exercise.correctAnswer);
-          
-          // 匹配题答错加入错题集
-          if (!isCorrect) {
-            console.log("单题模式：匹配题答错，添加到错题集");
-            addToErrorBook(
-              exerciseId,
-              lessonId,
-              exercise.question,
-              exercise.options,
-              exercise.correctAnswer,
-              matchingAnswers,
-              'matching'
-            ).catch(error => {
-              console.error("添加错题失败:", error);
-            });
-          }
-        }
-        break;
-      case 'drag_drop':
-        if (matchingAnswers && Array.isArray(exercise.correctAnswer)) {
-          isCorrect = JSON.stringify(matchingAnswers) === JSON.stringify(exercise.correctAnswer);
-          
-          // 拖拽题答错加入错题集
-          if (!isCorrect) {
-            console.log("单题模式：拖拽题答错，添加到错题集");
-            addToErrorBook(
-              exerciseId,
-              lessonId,
-              exercise.question,
-              exercise.options,
-              exercise.correctAnswer,
-              matchingAnswers,
-              'drag_drop'
-            ).catch(error => {
-              console.error("添加错题失败:", error);
-            });
-          }
-        }
-        break;
-      case 'fill_blank':
-        if (fillBlankAnswers && Array.isArray(exercise.correctAnswer)) {
-          isCorrect = fillBlankAnswers.every(
-            (answer, index) => answer.trim() === exercise.correctAnswer[index]
-          );
-          
-          // 填空题答错加入错题集
-          if (!isCorrect) {
-            console.log("单题模式：填空题答错，添加到错题集");
-            addToErrorBook(
-              exerciseId,
-              lessonId,
-              exercise.question,
-              exercise.options,
-              exercise.correctAnswer,
-              fillBlankAnswers,
-              'fill_blank'
-            ).catch(error => {
-              console.error("添加错题失败:", error);
-            });
-          }
-        }
-        break;
-      default:
-        isCorrect = optionIndex === exercise.correctAnswer;
-        
-        // 其他题型也尝试记录错题
-        if (!isCorrect && exercise.type) {
-          console.log(`单题模式：${exercise.type}题型答错，添加到错题集`);
-          addToErrorBook(
-            exerciseId,
-            lessonId,
-            exercise.question,
-            exercise.options,
-            exercise.correctAnswer,
-            optionIndex,
-            exercise.type
-          ).catch(error => {
-            console.error("添加错题失败:", error);
-          });
-        }
+    // 如果没有待处理的答案，创建一个默认的空答案
+    // 这样即使用户没有做任何选择，也能提交答案（默认为错误）
+    const currentExerciseId = exercise.id;
+    let userAnswer: number | number[] | string[] = 0; // 默认选择第一个选项
+
+    if (pendingAnswer && pendingAnswer.exerciseId === currentExerciseId) {
+      // 如果有待处理的答案，使用用户的选择
+      userAnswer = pendingAnswer.fillBlankAnswers || pendingAnswer.matchingAnswers || pendingAnswer.optionIndex || 0;
+    } else {
+      // 如果用户没有做任何选择，使用默认答案
+      console.log("用户没有选择答案，使用默认答案");
+
+      // 根据题型创建默认的空答案
+      if (exercise.type === "matching" && Array.isArray(exercise.options?.left)) {
+        // 匹配题默认全部匹配为-1（未匹配）
+        userAnswer = Array(exercise.options.left.length).fill(-1);
+      } else if (exercise.type === "fill_blank" && Array.isArray(exercise.correctAnswer)) {
+        // 填空题默认全部为空字符串
+        userAnswer = Array(exercise.correctAnswer.length).fill("");
+      }
     }
 
+    // 使用统一处理函数判断答案正确性
+    const isCorrect = await processAnswer(currentExerciseId, lessonId, exercise, userAnswer);
+
     // 更新已答题记录
-    setAnsweredExercises(prev => ({
+    setAnsweredExercises((prev) => ({
       ...prev,
-      [exerciseId]: isCorrect
+      [currentExerciseId]: isCorrect,
     }));
 
     // 设置最后一次答题的结果
     setIsLastAnswerCorrect(isCorrect);
-    
+
     // 标记已提交答案
     setHasSubmittedAnswer(true);
-    
+
     // 提交答题结果到服务器
-    submitAnswerToServer(exerciseId, isCorrect);
+    submitAnswerToServer(currentExerciseId, isCorrect);
+
+    // 清空待处理答案
+    setPendingAnswer(null);
   };
 
   // 提交答题结果到服务器
   const submitAnswerToServer = async (exerciseId: string, isCorrect: boolean) => {
     try {
       const apiUrl = `${API_BASE_URL}/users/${USER_ID}/submit`;
-      
+
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
@@ -433,9 +351,9 @@ export default function PracticeScreen() {
 
   // 处理继续按钮点击
   const handleContinue = () => {
-    // 隐藏反馈
-    setShowFeedback(false);
-    
+    // 隐藏反馈内容，但保持反馈区域可见
+    setHasSubmittedAnswer(false);
+
     // 如果有下一题，前进到下一题
     if (currentExerciseIndex < exercises.length - 1) {
       setCurrentExerciseIndex(currentExerciseIndex + 1);
@@ -443,7 +361,7 @@ export default function PracticeScreen() {
       // 如果是最后一题，显示总结
       setShowSummary(true);
     }
-    
+
     // 滚动到顶部
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollTo({ y: 0, animated: true });
@@ -455,6 +373,7 @@ export default function PracticeScreen() {
     setShowSummary(false);
     setAnsweredExercises({});
     setCurrentExerciseIndex(0);
+    setHasSubmittedAnswer(false);
   };
 
   // 退出练习返回学习页面
@@ -463,19 +382,17 @@ export default function PracticeScreen() {
       pathname: "/study",
       params: {
         id: lessonId,
-        unitTitle: unitTitle || '',
-        color: color || '#5EC0DE'
-      }
+        unitTitle: unitTitle || "",
+        color: color || "#5EC0DE",
+      },
     });
   };
 
   // 当前练习题
   const currentExercise = exercises[currentExerciseIndex];
-  
+
   // 计算进度
-  const progress = exercises.length > 0 
-    ? ((currentExerciseIndex + 1) / exercises.length) 
-    : 0;
+  const progress = exercises.length > 0 ? (currentExerciseIndex + 1) / exercises.length : 0;
 
   return (
     <View style={styles.container}>
@@ -484,10 +401,7 @@ export default function PracticeScreen() {
 
       {/* 自定义header */}
       <RNView style={styles.header}>
-        <TouchableOpacity
-          onPress={handleExit}
-          style={styles.backButton}
-        >
+        <TouchableOpacity onPress={handleExit} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{unitTitle || "课后练习"}</Text>
@@ -497,11 +411,11 @@ export default function PracticeScreen() {
       {/* 进度条 */}
       <RNView style={styles.progressContainer}>
         <RNView style={styles.progressBarBackground}>
-          <RNView 
+          <RNView
             style={[
               styles.progressBarFill,
-              { width: `${progress * 100}%`, backgroundColor: typeof color === 'string' ? color : '#5EC0DE' }
-            ]} 
+              { width: `${progress * 100}%`, backgroundColor: typeof color === "string" ? color : "#5EC0DE" },
+            ]}
           />
         </RNView>
         <Text style={styles.progressText}>
@@ -510,7 +424,7 @@ export default function PracticeScreen() {
       </RNView>
 
       {/* 内容区域 */}
-      <ScrollView 
+      <ScrollView
         style={styles.scrollContent}
         ref={scrollViewRef}
         contentContainerStyle={styles.scrollContentContainer}
@@ -531,19 +445,23 @@ export default function PracticeScreen() {
         ) : currentExercise ? (
           <RNView style={styles.exerciseWrapper}>
             {/* 当前练习题 */}
-            <Exercise 
+            <Exercise
               exercise={currentExercise}
               onAnswer={handleAnswer}
-              userAnswers={answeredExercises.hasOwnProperty(currentExercise.id) ? { 
-                [currentExercise.id]: answeredExercises[currentExercise.id] ? 1 : 0 
-              } : {}}
+              userAnswers={
+                answeredExercises.hasOwnProperty(currentExercise.id)
+                  ? {
+                      [currentExercise.id]: answeredExercises[currentExercise.id],
+                    }
+                  : {}
+              }
               showAnswers={showFeedback && hasSubmittedAnswer}
               isSingleMode={true}
             />
-            
+
             {/* 答题反馈 */}
             {showFeedback && (
-              <ResultFeedback 
+              <ResultFeedback
                 isCorrect={isLastAnswerCorrect}
                 explanation={currentExercise.explanation}
                 onContinue={handleContinue}
@@ -585,7 +503,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "white",
-    paddingTop: 16, 
+    paddingTop: 16,
     paddingBottom: 10,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
