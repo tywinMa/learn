@@ -26,4 +26,4 @@ alwaysApply: true
 - @constants/ - 常量定义
 - @assets/ - 静态资源
 - @hooks/ - 自定义React钩子
-- @server/ - 服务端内容
+- @server/ - 服务端内容和数据库内容
