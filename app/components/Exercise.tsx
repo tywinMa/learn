@@ -80,6 +80,10 @@ export const Exercise = ({
   const [blankAnswers, setBlankAnswers] = useState<string[]>(
     Array.isArray(exercise.correctAnswer) ? Array(exercise.correctAnswer.length).fill("") : []
   );
+  
+  // 应用题状态
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   // 清理副作用 - 确保组件重新渲染时重置匹配题状态
   useEffect(() => {
@@ -93,6 +97,10 @@ export const Exercise = ({
 
     // 重置填空题状态 - 修复跨题目数据残留的bug
     setBlankAnswers(Array.isArray(exercise.correctAnswer) ? Array(exercise.correctAnswer.length).fill("") : []);
+    
+    // 重置应用题状态
+    setPhoto(null);
+    setUploading(false);
 
     // 重置本地答题状态
     setIsAnsweredLocally(isAnswered);
@@ -376,9 +384,6 @@ export const Exercise = ({
     if (!exercise.options?.allowPhoto) {
       return <Text style={styles.errorText}>应用题配置错误</Text>;
     }
-
-    const [photo, setPhoto] = useState<string | null>(null);
-    const [uploading, setUploading] = useState(false);
 
     // 请求相机权限
     const requestCameraPermission = async () => {

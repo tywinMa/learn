@@ -41,11 +41,22 @@ router.get('/:unitId', async (req, res) => {
     
     // 支持获取子单元习题 (如1-1-1开头的应用题)
     if (unitId.split('-').length === 3) {
-      // 如果是子单元ID (如1-1-1)，使用startsWith查询
+      // 如果是子单元ID (如1-1-1)，使用前缀匹配查询
       console.log(`检测到子单元ID: ${unitId}，使用前缀匹配查询`);
-      whereClause.id = {
-        [Op.like]: `${unitId}-%` // 匹配如1-1-1-1, 1-1-1-2等ID
-      };
+      // 使用OR条件，同时获取直接属于该单元的题目和前缀匹配的题目
+      whereClause[Op.or] = [
+        { unitId }, // 精确匹配unitId
+        { id: { [Op.like]: `${unitId}-%` } } // ID前缀匹配
+      ];
+      delete whereClause.unitId; // 删除原始条件，避免冲突
+    } else if (unitId.split('-').length === 2) {
+      // 如果是主单元ID (如1-1)，也需要获取其子单元的题目
+      console.log(`主单元ID: ${unitId}，同时获取子单元题目`);
+      whereClause[Op.or] = [
+        { unitId }, // 精确匹配unitId
+        { unitId: { [Op.like]: `${unitId}-%` } } // unitId前缀匹配（获取子单元的题目）
+      ];
+      delete whereClause.unitId; // 删除原始条件，避免冲突
     }
 
     // 根据题型筛选
