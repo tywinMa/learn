@@ -304,7 +304,7 @@ export default function HomeScreen() {
         }).catch(error => {
           console.error('获取积分出错:', error);
         });
-        
+
         // 按阶段获取进度数据
         await fetchProgressByStage(0); // 立即获取第一阶段数据
         

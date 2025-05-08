@@ -43,22 +43,22 @@ export async function getUserUnitProgress(unitId: string, timeoutMs: number = 50
     let error;
 
     while (retries <= MAX_RETRIES) {
-      try {
-        const response = await fetch(`${API_BASE_URL}/users/${USER_ID}/progress/${unitId}`);
+  try {
+    const response = await fetch(`${API_BASE_URL}/users/${USER_ID}/progress/${unitId}`);
 
-        if (!response.ok) {
+    if (!response.ok) {
           // 记录HTTP错误状态
           console.warn(`获取进度失败 (${response.status}): ${unitId}, 重试: ${retries}`);
           throw new Error(`获取用户进度失败 (HTTP ${response.status})`);
-        }
+    }
 
-        const result = await response.json();
+    const result = await response.json();
 
-        if (result.success && result.data) {
-          return result.data;
-        } else {
+    if (result.success && result.data) {
+      return result.data;
+    } else {
           throw new Error(result.message || "获取用户进度失败：服务器未返回数据");
-        }
+    }
       } catch (e) {
         error = e;
         retries++;

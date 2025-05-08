@@ -195,7 +195,7 @@ router.delete('/:userId/wrong-exercises/:exerciseId', async (req, res) => {
 router.get('/:userId/progress/:unitId', async (req, res) => {
   try {
     const { userId, unitId } = req.params;
-    
+
     console.log(`获取用户 ${userId} 在单元 ${unitId} 的进度`);
 
     // 获取该单元的所有练习题
