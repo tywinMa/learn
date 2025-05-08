@@ -4,9 +4,7 @@
 // 根据环境选择不同的API基础URL
 const isDevelopment = process.env.NODE_ENV === 'development';
 // API基础URL - 本地开发使用IP地址，生产环境使用相对路径
-const API_BASE_URL = isDevelopment 
-  ? "http://localhost:3000/api"  // 开发环境
-  : "/api";  // 生产环境，使用相对路径
+const API_BASE_URL = "http://localhost:3000";  // 使用固定URL
 
 // 临时用户ID，实际应用中应该从认证系统获取
 export const USER_ID = "user1";
@@ -43,22 +41,22 @@ export async function getUserUnitProgress(unitId: string, timeoutMs: number = 50
     let error;
 
     while (retries <= MAX_RETRIES) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/users/${USER_ID}/progress/${unitId}`);
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/users/${USER_ID}/progress/${unitId}`);
 
-    if (!response.ok) {
+        if (!response.ok) {
           // 记录HTTP错误状态
           console.warn(`获取进度失败 (${response.status}): ${unitId}, 重试: ${retries}`);
           throw new Error(`获取用户进度失败 (HTTP ${response.status})`);
-    }
+        }
 
-    const result = await response.json();
+        const result = await response.json();
 
-    if (result.success && result.data) {
-      return result.data;
-    } else {
+        if (result.success && result.data) {
+          return result.data;
+        } else {
           throw new Error(result.message || "获取用户进度失败：服务器未返回数据");
-    }
+        }
       } catch (e) {
         error = e;
         retries++;

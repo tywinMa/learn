@@ -109,33 +109,83 @@ const addUnit1_1Exercises = async () => {
       }
     ];
     
-    // 要添加的拖拽题
-    const dragDropExercises = [
+    // 添加应用题
+    const applicationExercises = [
       {
-        id: '1-1-8',
-        unitId,
-        question: '将下列数学概念拖拽到对应的描述上',
-        type: 'drag_drop',
+        id: '1-1-1-1',
+        unitId: '1-1-1', // 指定为1-1-1单元
+        question: '小明有100元钱，他想买3个价格相同的笔记本和2支价格相同的钢笔，已知每个笔记本的价格是每支钢笔价格的2倍。如果刚好用完100元，请计算每个笔记本和每支钢笔的价格。请写出完整的解题过程并拍照上传。',
+        type: 'application',
         options: {
-          elements: ['函数', '方程', '不等式', '向量'],
-          positions: ['表示两个变量之间的对应关系', '含有未知数的等式', '用于比较两个表达式的大小关系', '既有大小又有方向的量']
+          allowPhoto: true,
+          hint: '设钢笔单价为x元，则可列方程求解'
         },
-        correctAnswer: [0, 1, 2, 3],
-        difficulty: 1,
-        explanation: '函数表示两个变量之间的对应关系；方程是含有未知数的等式；不等式用于比较两个表达式的大小关系；向量是既有大小又有方向的量'
+        correctAnswer: {
+          notebook: 20,
+          pen: 10,
+          steps: [
+            '设钢笔的价格为x元，则笔记本的价格为2x元',
+            '根据题意，3个笔记本和2支钢笔的总价为100元',
+            '可列方程：3(2x) + 2x = 100',
+            '化简得：6x + 2x = 100',
+            '8x = 100',
+            'x = 12.5',
+            '所以钢笔价格为12.5元，笔记本价格为25元'
+          ]
+        },
+        difficulty: 3,
+        explanation: '这是一个简单的方程应用题。设钢笔单价为x元，笔记本单价为2x元，则3个笔记本和2支钢笔的总价为3(2x) + 2x = 100，解得x = 10，因此笔记本单价为20元，钢笔单价为10元。'
       },
       {
-        id: '1-1-9',
-        unitId,
-        question: '将代数运算法则与对应的公式对应起来',
-        type: 'drag_drop',
+        id: '1-1-1-2',
+        unitId: '1-1-1', // 指定为1-1-1单元
+        question: '一个长方形花坛，长是宽的1.5倍，花坛的周长是50米。请计算这个花坛的面积，并画出示意图。完成后拍照上传你的解答。',
+        type: 'application',
         options: {
-          elements: ['分配律', '平方差公式', '完全平方公式', '立方和公式'],
-          positions: ['a(b+c) = ab+ac', 'a² - b² = (a-b)(a+b)', '(a+b)² = a²+2ab+b²', 'a³ + b³ = (a+b)(a²-ab+b²)']
+          allowPhoto: true,
+          hint: '周长 = 2(长+宽)，面积 = 长×宽'
         },
-        correctAnswer: [0, 1, 2, 3],
+        correctAnswer: {
+          length: 15,
+          width: 10,
+          area: 150,
+          steps: [
+            '设宽为x米，则长为1.5x米',
+            '根据周长公式：2(长+宽) = 50',
+            '代入：2(1.5x + x) = 50',
+            '2 × 2.5x = 50',
+            '5x = 50',
+            'x = 10',
+            '长 = 1.5 × 10 = 15米',
+            '面积 = 15 × 10 = 150平方米'
+          ]
+        },
         difficulty: 2,
-        explanation: '分配律：a(b+c) = ab+ac；平方差公式：a² - b² = (a-b)(a+b)；完全平方公式：(a+b)² = a²+2ab+b²；立方和公式：a³ + b³ = (a+b)(a²-ab+b²)'
+        explanation: '利用周长公式和长宽关系，设宽为x，则长为1.5x，周长为2(1.5x + x) = 50，解得x = 10，长为15，面积为150平方米。'
+      },
+      {
+        id: '1-1-1-3',
+        unitId: '1-1-1', // 指定为1-1-1单元
+        question: '某商店促销活动：购买两件商品可享8折优惠，购买三件商品可享7折优惠。小红买了两件单价分别为120元和80元的商品，小明买了三件单价分别为100元、90元和70元的商品。请计算谁付的钱更多，以及多多少钱？请写出计算过程并拍照上传。',
+        type: 'application',
+        options: {
+          allowPhoto: true,
+          hint: '计算各自的折后总价并比较'
+        },
+        correctAnswer: {
+          xiaohong: 160,
+          xiaoming: 182,
+          difference: 22,
+          steps: [
+            '小红购买的商品原价总和：120 + 80 = 200元',
+            '小红享受8折优惠，实付金额：200 × 0.8 = 160元',
+            '小明购买的商品原价总和：100 + 90 + 70 = 260元',
+            '小明享受7折优惠，实付金额：260 × 0.7 = 182元',
+            '比较可知，小明付的钱更多，多付：182 - 160 = 22元'
+          ]
+        },
+        difficulty: 2,
+        explanation: '这题考查了打折计算和比较。小红购买两件商品享8折，实付160元；小明购买三件商品享7折，实付182元；两人相差22元，小明付的更多。'
       }
     ];
     
@@ -144,7 +194,7 @@ const addUnit1_1Exercises = async () => {
       ...choiceExercises,
       ...fillBlankExercises,
       ...matchingExercises,
-      ...dragDropExercises
+      ...applicationExercises
     ];
     
     // 检查并添加每道题
@@ -160,6 +210,16 @@ const addUnit1_1Exercises = async () => {
         // 更新已有题目
         await Exercise.update(exercise, { where: { id: exercise.id } });
         console.log(`更新${exercise.type}类型习题: ${exercise.id}`);
+      }
+    }
+    
+    // 删除旧的拖拽题/已转换的匹配题
+    const dragDropIdsToRemove = ['1-1-8', '1-1-9', '1-1-10', '1-1-11'];
+    for (const id of dragDropIdsToRemove) {
+      const exists = await Exercise.findOne({ where: { id } });
+      if (exists) {
+        await Exercise.destroy({ where: { id } });
+        console.log(`删除题目: ${id}`);
       }
     }
     

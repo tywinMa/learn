@@ -32,7 +32,7 @@ const Exercise = sequelize.define('Exercise', {
     type: DataTypes.STRING,
     allowNull: false,
     defaultValue: 'choice', // 选择题
-    // 可能的值: 'choice', 'matching', 'fill_blank', 'drag_drop', 'sort', 'math'
+    // 可能的值: 'choice', 'matching', 'fill_blank', 'application', 'sort', 'math'
   },
   difficulty: {
     type: DataTypes.INTEGER,

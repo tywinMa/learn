@@ -23,9 +23,7 @@ import { checkAnswerCorrect, addToErrorBook, calculateCorrectCount, processAnswe
 
 // 使用与study.tsx相同的API基础URL配置
 const isDevelopment = process.env.NODE_ENV === "development";
-const API_BASE_URL = isDevelopment
-  ? "http://localhost:3000/api" // 开发环境
-  : "/api"; // 生产环境，使用相对路径
+const API_BASE_URL = "http://localhost:3000"; // 直接使用绝对URL，不依赖环境判断
 
 // 正确导入Exercise组件
 import { Exercise } from "./components/Exercise";
@@ -202,7 +200,7 @@ export default function PracticeScreen() {
     try {
       setLoading(true);
       // 获取所有练习题，不过滤已完成的
-      const apiUrl = `${API_BASE_URL}/exercises/${lessonId}`;
+      const apiUrl = `${API_BASE_URL}/api/exercises/${lessonId}`;
       console.log("请求练习题URL:", apiUrl);
 
       const response = await fetch(apiUrl);
@@ -266,6 +264,8 @@ export default function PracticeScreen() {
     matchingAnswers?: number[],
     fillBlankAnswers?: string[]
   ) => {
+    console.log(`接收到用户答案: exerciseId=${exerciseId}, optionIndex=${optionIndex}`);
+    
     // 保存临时答案，等待确认
     setPendingAnswer({
       exerciseId,
@@ -283,14 +283,35 @@ export default function PracticeScreen() {
     // 如果没有待处理的答案，创建一个默认的空答案
     // 这样即使用户没有做任何选择，也能提交答案（默认为错误）
     const currentExerciseId = exercise.id;
-    let userAnswer: number | number[] | string[] = 0; // 默认选择第一个选项
+    let userAnswer: number | number[] | string[] = -1; // 默认使用-1，确保不会与任何选项索引匹配
+    let hasUserSelection = false; // 标记是否有用户选择
 
     if (pendingAnswer && pendingAnswer.exerciseId === currentExerciseId) {
       // 如果有待处理的答案，使用用户的选择
-      userAnswer = pendingAnswer.fillBlankAnswers || pendingAnswer.matchingAnswers || pendingAnswer.optionIndex || 0;
+      // 修复bug：当用户选择索引为0的选项时，由于0在逻辑或中会被视为false，导致使用后面的默认值0
+      // 需要分别处理不同类型的答案，避免使用 || 运算符
+      if (exercise.type === "choice") {
+        // 选择题：直接使用optionIndex，即使是0也可以正确处理
+        if (pendingAnswer.optionIndex !== undefined) {
+          userAnswer = pendingAnswer.optionIndex;
+          hasUserSelection = true;
+        } else {
+          // 用户未选择，使用一个肯定错误的答案
+          userAnswer = exercise.correctAnswer !== -1 ? -1 : -2; // 确保与正确答案不同
+        }
+      } else if (exercise.type === "fill_blank" && pendingAnswer.fillBlankAnswers) {
+        // 填空题：明确处理填空题答案
+        userAnswer = pendingAnswer.fillBlankAnswers;
+        hasUserSelection = true;
+        console.log("提交填空题答案:", userAnswer);
+      } else if (pendingAnswer.matchingAnswers) {
+        // 匹配题
+        userAnswer = pendingAnswer.matchingAnswers;
+        hasUserSelection = true;
+      }
     } else {
       // 如果用户没有做任何选择，使用默认答案
-      console.log("用户没有选择答案，使用默认答案");
+      console.log("用户没有选择答案，使用默认错误答案");
 
       // 根据题型创建默认的空答案
       if (exercise.type === "matching" && Array.isArray(exercise.options?.left)) {
@@ -299,8 +320,19 @@ export default function PracticeScreen() {
       } else if (exercise.type === "fill_blank" && Array.isArray(exercise.correctAnswer)) {
         // 填空题默认全部为空字符串
         userAnswer = Array(exercise.correctAnswer.length).fill("");
+      } else if (exercise.type === "choice") {
+        // 选择题默认使用一个肯定错误的答案
+        userAnswer = exercise.correctAnswer !== -1 ? -1 : -2; // 确保与正确答案不同
       }
     }
+
+    console.log("提交答案：", {
+      exerciseId: currentExerciseId,
+      exerciseType: exercise.type,
+      correctAnswer: exercise.correctAnswer,
+      userAnswer: userAnswer,
+      hasUserSelection: hasUserSelection
+    });
 
     // 使用统一处理函数判断答案正确性
     const isCorrect = await processAnswer(currentExerciseId, lessonId, exercise, userAnswer);
@@ -327,7 +359,7 @@ export default function PracticeScreen() {
   // 提交答题结果到服务器
   const submitAnswerToServer = async (exerciseId: string, isCorrect: boolean) => {
     try {
-      const apiUrl = `${API_BASE_URL}/users/${USER_ID}/submit`;
+      const apiUrl = `${API_BASE_URL}/api/users/${USER_ID}/submit`;
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -457,6 +489,7 @@ export default function PracticeScreen() {
               }
               showAnswers={showFeedback && hasSubmittedAnswer}
               isSingleMode={true}
+              hideSubmitButton={true}
             />
 
             {/* 答题反馈 */}

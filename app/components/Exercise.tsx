@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View as RNView, TouchableOpacity, TextInput } from "react-native";
+import { StyleSheet, View as RNView, TouchableOpacity, TextInput, Image, Platform, Alert } from "react-native";
 import { Text } from "../components/Themed";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from 'expo-image-picker';
 
 // 练习题组件
 export const Exercise = ({
@@ -10,6 +11,7 @@ export const Exercise = ({
   userAnswers,
   showAnswers,
   isSingleMode = false,
+  hideSubmitButton = false,
 }: {
   exercise: {
     id: string;
@@ -23,6 +25,7 @@ export const Exercise = ({
   userAnswers: Record<string, number | number[] | string[] | boolean>;
   showAnswers: boolean;
   isSingleMode?: boolean;
+  hideSubmitButton?: boolean;
 }) => {
   const isAnswered = userAnswers.hasOwnProperty(exercise.id);
 
@@ -103,8 +106,12 @@ export const Exercise = ({
   // 创建选择题答案处理函数
   const handleChoiceSelection = (index: number) => {
     // 选择选项时，只更新本地选择，而不立即提交
+    console.log(`选择了选项索引: ${index}`);
     setLocalSelection(index);
     setPendingSubmission(true);
+    
+    // 立即调用onAnswer将选择传递给父组件，确保选择被记录
+    onAnswer(exercise.id, index);
   };
 
   // 添加确认按钮处理函数
@@ -112,8 +119,9 @@ export const Exercise = ({
     if (isAnswered) return;
 
     if (exerciseType === "choice") {
-      // 提交选择题答案，如果用户没有选择，默认选择第一个选项
-      onAnswer(exercise.id, localSelection !== null ? localSelection : 0);
+      // 提交选择题答案，如果用户没有选择，使用-1表示未选择（将导致判断为错误）
+      console.log(`确认选择题答案，当前选择: ${localSelection}`);
+      onAnswer(exercise.id, localSelection !== null ? localSelection : -1);
     } else if (exerciseType === "matching") {
       // 提交匹配题答案，如果用户没有完成匹配，提交当前匹配状态
       onAnswer(exercise.id, 0, matchingPairs);
@@ -181,6 +189,11 @@ export const Exercise = ({
     newAnswers[index] = text;
     setBlankAnswers(newAnswers);
     setPendingSubmission(true);
+    
+    console.log(`填空题输入: index=${index}, text="${text}", 完整答案:`, newAnswers);
+    
+    // 立即提交答案，与选择题行为一致
+    onAnswer(exercise.id, 0, undefined, newAnswers);
   };
 
   // 填空题渲染函数
@@ -209,11 +222,6 @@ export const Exercise = ({
                 style={[
                   styles.fillBlankInput,
                   isAnsweredLocally && styles.fillBlankInputDisabled,
-                  isAnswered &&
-                    showAnswers &&
-                    (blankAnswers[index] === exercise.correctAnswer[index]
-                      ? styles.fillBlankInputCorrect
-                      : styles.fillBlankInputIncorrect),
                 ]}
                 value={blankAnswers[index]}
                 onChangeText={(text) => handleBlankInput(text, index)}
@@ -239,29 +247,68 @@ export const Exercise = ({
 
     return (
       <RNView style={styles.matchingContainer}>
-        <Text style={styles.matchingInstructions}>请将左侧选项与右侧选项匹配</Text>
+        <Text style={styles.matchingInstructions}>请先选择左侧选项，再选择右侧选项进行匹配</Text>
 
         <RNView style={styles.matchingContent}>
           {/* 左侧选项 */}
           <RNView style={styles.matchingColumn}>
+            <Text style={styles.matchingColumnTitle}>选择项</Text>
             {exercise.options.left.map((item: string, index: number) => (
               <TouchableOpacity
                 key={`left-${index}`}
-                style={[styles.matchingItem, selectedLeftIndex === index && styles.matchingItemSelected]}
+                style={[
+                  styles.matchingItem, 
+                  selectedLeftIndex === index && styles.matchingItemSelected,
+                  matchingPairs[index] !== -1 && styles.matchingItemMatched
+                ]}
                 onPress={() => setSelectedLeftIndex(index)}
                 disabled={isAnsweredLocally || isAnswered}
               >
-                <Text style={styles.matchingItemText}>{item}</Text>
+                <Text 
+                  style={[
+                    styles.matchingItemText,
+                    selectedLeftIndex === index && styles.matchingItemTextSelected,
+                    matchingPairs[index] !== -1 && styles.matchingItemTextMatched
+                  ]}
+                >
+                  {item}
+                </Text>
+                {matchingPairs[index] !== -1 && (
+                  <Ionicons name="checkmark-circle" size={18} color="#FF9600" style={styles.matchingItemIcon} />
+                )}
               </TouchableOpacity>
+            ))}
+          </RNView>
+
+          {/* 中间箭头区域 */}
+          <RNView style={styles.matchingArrowColumn}>
+            {exercise.options.left.map((_: string, index: number) => (
+              <RNView 
+                key={`arrow-${index}`} 
+                style={styles.matchingArrowContainer}
+              >
+                {selectedLeftIndex === index ? (
+                  <Ionicons name="arrow-forward" size={24} color="#5EC0DE" />
+                ) : matchingPairs[index] !== -1 ? (
+                  <Ionicons name="arrow-forward" size={24} color="#FF9600" />
+                ) : (
+                  <RNView style={styles.matchingArrowPlaceholder} />
+                )}
+              </RNView>
             ))}
           </RNView>
 
           {/* 右侧选项 */}
           <RNView style={styles.matchingColumn}>
+            <Text style={styles.matchingColumnTitle}>匹配项</Text>
             {exercise.options.right.map((item: string, index: number) => (
               <TouchableOpacity
                 key={`right-${index}`}
-                style={[styles.matchingItem, matchingPairs.includes(index) && styles.matchingItemMatched]}
+                style={[
+                  styles.matchingItem, 
+                  matchingPairs.includes(index) && styles.matchingItemMatched,
+                  selectedLeftIndex !== null && styles.matchingItemSelectable,
+                ]}
                 onPress={() => {
                   if (selectedLeftIndex !== null) {
                     handleMatchingSelection(selectedLeftIndex, index);
@@ -270,7 +317,18 @@ export const Exercise = ({
                 }}
                 disabled={isAnsweredLocally || isAnswered || selectedLeftIndex === null}
               >
-                <Text style={styles.matchingItemText}>{item}</Text>
+                <Text 
+                  style={[
+                    styles.matchingItemText,
+                    matchingPairs.includes(index) && styles.matchingItemTextMatched,
+                    selectedLeftIndex !== null && styles.matchingItemTextSelectable,
+                  ]}
+                >
+                  {item}
+                </Text>
+                {matchingPairs.includes(index) && (
+                  <Ionicons name="checkmark-circle" size={18} color="#FF9600" style={styles.matchingItemIcon} />
+                )}
               </TouchableOpacity>
             ))}
           </RNView>
@@ -279,27 +337,184 @@ export const Exercise = ({
         {/* 当前匹配结果 */}
         {matchingPairs.some((pair) => pair !== -1) && (
           <RNView style={styles.matchingResultsContainer}>
-            <Text style={styles.matchingResultsTitle}>当前匹配:</Text>
+            <Text style={styles.matchingResultsTitle}>当前匹配结果:</Text>
             {matchingPairs.map((rightIndex, leftIndex) => {
               if (rightIndex === -1) return null;
               return (
-                <Text key={`match-${leftIndex}`} style={styles.matchingResultText}>
-                  {exercise.options.left[leftIndex]} → {exercise.options.right[rightIndex]}
-                </Text>
+                <RNView key={`match-${leftIndex}`} style={styles.matchingResultRow}>
+                  <Text style={styles.matchingResultText}>
+                    {exercise.options.left[leftIndex]} 
+                  </Text>
+                  <Ionicons name="arrow-forward" size={14} color="#666" style={{marginHorizontal: 4}} />
+                  <Text style={styles.matchingResultText}>
+                    {exercise.options.right[rightIndex]}
+                  </Text>
+                  <TouchableOpacity 
+                    style={styles.matchingDeleteButton}
+                    onPress={() => {
+                      if (isAnsweredLocally || isAnswered) return;
+                      const newMatchingPairs = [...matchingPairs];
+                      newMatchingPairs[leftIndex] = -1;
+                      setMatchingPairs(newMatchingPairs);
+                      setPendingSubmission(true);
+                    }}
+                    disabled={isAnsweredLocally || isAnswered}
+                  >
+                    <Ionicons name="close-circle" size={18} color="#FF4B4B" />
+                  </TouchableOpacity>
+                </RNView>
               );
             })}
           </RNView>
         )}
+      </RNView>
+    );
+  };
 
-        {isAnswered && showAnswers && (
-          <RNView style={styles.matchingCorrectContainer}>
-            <Text style={styles.matchingCorrectTitle}>正确答案:</Text>
-            {Array.isArray(exercise.correctAnswer) &&
-              exercise.correctAnswer.map((rightIndex: number, leftIndex: number) => (
-                <Text key={`correct-${leftIndex}`} style={styles.matchingCorrectText}>
-                  {exercise.options.left[leftIndex]} → {exercise.options.right[rightIndex]}
-                </Text>
-              ))}
+  // 添加应用题渲染函数
+  const renderApplicationQuestion = () => {
+    if (!exercise.options?.allowPhoto) {
+      return <Text style={styles.errorText}>应用题配置错误</Text>;
+    }
+
+    const [photo, setPhoto] = useState<string | null>(null);
+    const [uploading, setUploading] = useState(false);
+
+    // 请求相机权限
+    const requestCameraPermission = async () => {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('权限不足', '需要相机权限才能拍照上传答案');
+        return false;
+      }
+      return true;
+    };
+
+    // 请求相册权限
+    const requestMediaLibraryPermission = async () => {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('权限不足', '需要相册权限才能选择图片');
+        return false;
+      }
+      return true;
+    };
+
+    // 从相机拍照
+    const takePhoto = async () => {
+      const hasPermission = await requestCameraPermission();
+      if (!hasPermission) return;
+
+      try {
+        const result = await ImagePicker.launchCameraAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          setPhoto(result.assets[0].uri);
+          setPendingSubmission(true); // 已有照片，可以提交
+          onAnswer(exercise.id, 0, undefined, [result.assets[0].uri]); // 将URI作为答案
+        }
+      } catch (error) {
+        console.error('拍照出错:', error);
+        Alert.alert('错误', '拍照失败，请重试');
+      }
+    };
+
+    // 从相册选择
+    const pickImage = async () => {
+      const hasPermission = await requestMediaLibraryPermission();
+      if (!hasPermission) return;
+
+      try {
+        const result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [4, 3],
+          quality: 0.8,
+        });
+
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          setPhoto(result.assets[0].uri);
+          setPendingSubmission(true); // 已有照片，可以提交
+          onAnswer(exercise.id, 0, undefined, [result.assets[0].uri]); // 将URI作为答案
+        }
+      } catch (error) {
+        console.error('选择图片出错:', error);
+        Alert.alert('错误', '选择图片失败，请重试');
+      }
+    };
+
+    return (
+      <RNView style={styles.applicationContainer}>
+        <Text style={styles.applicationInstructions}>
+          解答以下问题，拍照上传你的答案
+        </Text>
+
+        {/* 提示信息 */}
+        {exercise.options.hint && (
+          <RNView style={styles.applicationHintContainer}>
+            <Text style={styles.applicationHintTitle}>提示：</Text>
+            <Text style={styles.applicationHintText}>{exercise.options.hint}</Text>
+          </RNView>
+        )}
+
+        {/* 图片预览 */}
+        {photo ? (
+          <RNView style={styles.photoPreviewContainer}>
+            <Image source={{ uri: photo }} style={styles.photoPreview} />
+            <TouchableOpacity 
+              style={styles.removePhotoButton}
+              onPress={() => {
+                setPhoto(null);
+                setPendingSubmission(false);
+              }}
+              disabled={isAnsweredLocally || isAnswered}
+            >
+              <Ionicons name="close-circle" size={24} color="#FF4B4B" />
+              <Text style={styles.removePhotoText}>移除</Text>
+            </TouchableOpacity>
+          </RNView>
+        ) : (
+          <RNView style={styles.photoPlaceholder}>
+            <Ionicons name="image-outline" size={48} color="#ccc" />
+            <Text style={styles.photoPlaceholderText}>
+              {isAnsweredLocally || isAnswered ? "已提交答案" : "请上传解答图片"}
+            </Text>
+          </RNView>
+        )}
+
+        {/* 操作按钮 */}
+        {!isAnsweredLocally && !isAnswered && (
+          <RNView style={styles.photoButtonsContainer}>
+            <TouchableOpacity 
+              style={styles.photoButton}
+              onPress={takePhoto}
+            >
+              <Ionicons name="camera" size={24} color="white" />
+              <Text style={styles.photoButtonText}>拍照</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.photoButton}
+              onPress={pickImage}
+            >
+              <Ionicons name="images" size={24} color="white" />
+              <Text style={styles.photoButtonText}>从相册选择</Text>
+            </TouchableOpacity>
+          </RNView>
+        )}
+
+        {/* 状态信息 */}
+        {isAnsweredLocally && (
+          <RNView style={styles.applicationStatusContainer}>
+            <Ionicons name="checkmark-circle" size={24} color="#58CC02" />
+            <Text style={styles.applicationStatusText}>
+              答案已提交，等待评分
+            </Text>
           </RNView>
         )}
       </RNView>
@@ -319,13 +534,16 @@ export const Exercise = ({
                   key={index}
                   style={[
                     styles.optionButton,
-                    (isAnsweredLocally || isAnswered) && localSelection === index && styles.selectedOption,
+                    localSelection === index && styles.selectedOption,
                     isAnswered && showAnswers && index === exercise.correctAnswer && styles.correctOption,
                   ]}
                   onPress={() => handleChoiceSelection(index)}
                   disabled={isAnsweredLocally || isAnswered} // 使用本地状态禁用选项
                 >
                   <Text style={styles.optionText}>{option}</Text>
+                  {localSelection === index && !isAnswered && (
+                    <Ionicons name="radio-button-on" size={20} color="#5EC0DE" style={styles.icon} />
+                  )}
                   {isAnswered && showAnswers && index === exercise.correctAnswer && (
                     <Ionicons name="checkmark-circle" size={24} color="green" style={styles.icon} />
                   )}
@@ -350,18 +568,6 @@ export const Exercise = ({
             <Text style={styles.fillBlankInstructions}>请在空白处填入正确的答案</Text>
             {renderFillBlankQuestion()}
 
-            {isAnswered && showAnswers && (
-              <RNView style={styles.fillBlankResultContainer}>
-                <Text style={styles.fillBlankResultTitle}>正确答案：</Text>
-                {Array.isArray(exercise.correctAnswer) &&
-                  exercise.correctAnswer.map((answer, index) => (
-                    <Text key={index} style={styles.fillBlankResultText}>
-                      空白{index + 1}: {answer}
-                    </Text>
-                  ))}
-              </RNView>
-            )}
-
             {!isAnswered && blankAnswers.some((ans) => ans !== "") && (
               <TouchableOpacity
                 style={styles.resetFillBlankButton}
@@ -379,14 +585,17 @@ export const Exercise = ({
         // 匹配题
         return renderMatchingQuestion();
 
-      case "drag_drop":
+      case "application":
+        // 应用题，使用专门的渲染函数
+        return renderApplicationQuestion();
+
       case "sort":
       case "math":
         // 其他题型，如果需要还可以继续拆分
         return (
           <RNView style={styles.otherTypeContainer}>
             <Text style={styles.otherTypeText}>
-              {exerciseType === "drag_drop" ? "拖拽题" : exerciseType === "sort" ? "排序题" : "数学计算题"}-
+              {exerciseType === "sort" ? "排序题" : "数学计算题"}-
               功能已实现但界面已简化
             </Text>
           </RNView>
@@ -397,13 +606,32 @@ export const Exercise = ({
     }
   };
 
-  // 始终显示提交按钮，除非已经回答了问题
+  // 渲染提交按钮
   const renderSubmitButton = () => {
+    // 如果hideSubmitButton为true，不显示提交按钮
+    if (hideSubmitButton) return null;
+
+    // 如果已经回答过，不显示提交按钮
     if (isAnsweredLocally || isAnswered) return null;
 
     return (
-      <TouchableOpacity style={styles.submitButton} onPress={handleConfirmAnswer}>
-        <Text style={styles.submitButtonText}>提交答案</Text>
+      <TouchableOpacity
+        style={[
+          styles.submitButton,
+          pendingSubmission ? styles.submitButtonActive : styles.submitButtonDisabled,
+        ]}
+        onPress={handleConfirmAnswer}
+        disabled={!pendingSubmission}
+      >
+        <Text style={[styles.submitButtonText, !pendingSubmission && styles.submitButtonTextDisabled]}>
+          提交答案
+        </Text>
+        <Ionicons
+          name="arrow-forward-circle"
+          size={24}
+          color={pendingSubmission ? "white" : "#ccc"}
+          style={{ marginLeft: 8 }}
+        />
       </TouchableOpacity>
     );
   };
@@ -415,12 +643,6 @@ export const Exercise = ({
 
       {/* 始终显示提交按钮，除非已回答 */}
       {renderSubmitButton()}
-
-      {isAnswered && showAnswers && (
-        <Text style={[styles.feedbackText, isCorrect ? styles.correctText : styles.incorrectText]}>
-          {isCorrect ? "回答正确！" : "回答错误，请再试一次。"}
-        </Text>
-      )}
     </RNView>
   );
 };
@@ -455,6 +677,7 @@ const styles = StyleSheet.create({
   selectedOption: {
     borderColor: "#5EC0DE",
     borderWidth: 2,
+    backgroundColor: "rgba(94, 192, 222, 0.05)",
   },
   correctOption: {
     borderColor: "green",
@@ -537,31 +760,7 @@ const styles = StyleSheet.create({
   fillBlankInputDisabled: {
     backgroundColor: "rgba(0, 0, 0, 0.05)",
   },
-  fillBlankInputCorrect: {
-    borderColor: "green",
-    borderWidth: 2,
-  },
-  fillBlankInputIncorrect: {
-    borderColor: "red",
-    borderWidth: 2,
-  },
-  fillBlankResultContainer: {
-    marginTop: 12,
-    padding: 10,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#eaeaea",
-  },
-  fillBlankResultTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  fillBlankResultText: {
-    fontSize: 14,
-    marginBottom: 6,
-  },
+  // 恢复删除的填空题重置按钮样式
   resetFillBlankButton: {
     backgroundColor: "#5EC0DE",
     padding: 8,
@@ -584,15 +783,42 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 10,
     color: "#555",
+    textAlign: "center",
   },
   matchingContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 16,
+    alignItems: "stretch",
   },
   matchingColumn: {
+    flex: 5,
+    marginHorizontal: 2,
+  },
+  matchingColumnTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#444",
+    textAlign: "center",
+    marginBottom: 8,
+    backgroundColor: "#f0f0f0",
+    padding: 4,
+    borderRadius: 4,
+  },
+  matchingArrowColumn: {
     flex: 1,
-    marginHorizontal: 4,
+    justifyContent: "space-around",
+    alignItems: "center",
+  },
+  matchingArrowContainer: {
+    height: 40,
+    marginBottom: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  matchingArrowPlaceholder: {
+    height: 24,
+    width: 24,
   },
   matchingItem: {
     backgroundColor: "white",
@@ -602,6 +828,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#dddddd",
     minHeight: 40,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   matchingItemSelected: {
     borderColor: "#5EC0DE",
@@ -613,9 +842,29 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     backgroundColor: "rgba(255, 150, 0, 0.1)",
   },
+  matchingItemSelectable: {
+    borderColor: "#5EC0DE",
+    borderWidth: 1,
+    backgroundColor: "rgba(94, 192, 222, 0.05)",
+  },
   matchingItemText: {
     fontSize: 14,
-    textAlign: "center",
+    color: "#333",
+    flex: 1,
+  },
+  matchingItemTextSelected: {
+    fontWeight: "600",
+    color: "#5EC0DE",
+  },
+  matchingItemTextMatched: {
+    fontWeight: "600",
+    color: "#FF9600",
+  },
+  matchingItemTextSelectable: {
+    color: "#5EC0DE",
+  },
+  matchingItemIcon: {
+    marginLeft: 8,
   },
   matchingResultsContainer: {
     padding: 10,
@@ -629,28 +878,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "bold",
     marginBottom: 6,
+    color: "#444",
+  },
+  matchingResultRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: "#f9f9f9",
+    borderRadius: 4,
   },
   matchingResultText: {
     fontSize: 13,
-    marginBottom: 4,
+    color: "#333",
+    flex: 1,
   },
-  matchingCorrectContainer: {
-    padding: 10,
-    backgroundColor: "rgba(88, 204, 2, 0.1)",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#58CC02",
-  },
-  matchingCorrectTitle: {
-    fontSize: 14,
-    fontWeight: "bold",
-    marginBottom: 6,
-    color: "#446A22",
-  },
-  matchingCorrectText: {
-    fontSize: 13,
-    marginBottom: 4,
-    color: "#446A22",
+  matchingDeleteButton: {
+    padding: 4,
   },
   otherTypeContainer: {
     padding: 20,
@@ -672,6 +917,124 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: "white",
     fontSize: 16,
+    fontWeight: "600",
+  },
+  submitButtonActive: {
+    backgroundColor: "#FF9600",
+  },
+  submitButtonDisabled: {
+    backgroundColor: "#ccc",
+  },
+  submitButtonTextDisabled: {
+    color: "#999",
+  },
+  // 应用题样式
+  applicationContainer: {
+    padding: 12,
+    width: "100%",
+  },
+  applicationInstructions: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 12,
+    color: "#555",
+    textAlign: "center",
+  },
+  applicationHintContainer: {
+    backgroundColor: "rgba(94, 192, 222, 0.1)",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#5EC0DE",
+  },
+  applicationHintTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    marginBottom: 4,
+    color: "#5EC0DE",
+  },
+  applicationHintText: {
+    fontSize: 14,
+    color: "#333",
+  },
+  photoPlaceholder: {
+    width: "100%",
+    height: 200,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderStyle: "dashed",
+  },
+  photoPlaceholderText: {
+    color: "#999",
+    marginTop: 8,
+  },
+  photoPreviewContainer: {
+    width: "100%",
+    marginBottom: 16,
+    borderRadius: 8,
+    overflow: "hidden",
+    position: "relative",
+  },
+  photoPreview: {
+    width: "100%",
+    height: 200,
+    borderRadius: 8,
+  },
+  removePhotoButton: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    borderRadius: 20,
+    padding: 4,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  removePhotoText: {
+    color: "#FF4B4B",
+    marginLeft: 4,
+    fontSize: 12,
+    fontWeight: "bold",
+  },
+  photoButtonsContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  photoButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#5EC0DE",
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 8,
+  },
+  photoButtonText: {
+    color: "white",
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  applicationStatusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(88, 204, 2, 0.1)",
+    padding: 12,
+    borderRadius: 8,
+  },
+  applicationStatusText: {
+    color: "#58CC02",
+    marginLeft: 8,
+    fontSize: 14,
     fontWeight: "600",
   },
 });

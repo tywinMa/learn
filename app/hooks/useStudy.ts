@@ -6,9 +6,7 @@ import { USER_ID } from "../services/progressService";
 
 // API基础URL - 根据环境选择不同的URL
 const isDevelopment = process.env.NODE_ENV === "development";
-const API_BASE_URL = isDevelopment
-  ? "http://localhost:3000/api" // 开发环境
-  : "/api"; // 生产环境
+const API_BASE_URL = "http://localhost:3000"; // 直接使用固定URL
 
 /**
  * 学习页面业务逻辑Hook
@@ -34,7 +32,7 @@ export function useStudy(lessonId: string) {
         console.log(`开始加载${lessonId}单元的练习题列表`);
 
         // 构建API URL
-        const apiUrl = `${API_BASE_URL}/units/${lessonId}/exercises`;
+        const apiUrl = `${API_BASE_URL}/api/exercises/${lessonId}`;
         console.log(`API URL: ${apiUrl}`);
 
         const response = await fetch(apiUrl);
@@ -119,7 +117,7 @@ export function useStudy(lessonId: string) {
 
     // 提交答题结果到服务器
     try {
-      const apiUrl = `${API_BASE_URL}/users/${USER_ID}/submit`;
+      const apiUrl = `${API_BASE_URL}/api/users/${USER_ID}/submit`;
       console.log("提交答题结果:", {
         exerciseId,
         unitId: lessonId,
@@ -164,7 +162,7 @@ export function useStudy(lessonId: string) {
   // 更新学习进度
   const updateProgress = async () => {
     try {
-      const apiUrl = `${API_BASE_URL}/users/${USER_ID}/progress`;
+      const apiUrl = `${API_BASE_URL}/api/users/${USER_ID}/progress`;
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
@@ -191,7 +189,7 @@ export function useStudy(lessonId: string) {
   // 刷新用户星星数
   const refreshUserPoints = async () => {
     try {
-      const points = await fetch(`${API_BASE_URL}/users/${USER_ID}/points`).then((res) => res.json());
+      const points = await fetch(`${API_BASE_URL}/api/users/${USER_ID}/points`).then((res) => res.json());
       setUserPoints(points.total || 0);
     } catch (err) {
       console.error("获取用户积分失败:", err);

@@ -2,9 +2,7 @@ import { USER_ID } from "./progressService";
 
 // API基础URL - 根据环境选择不同的URL
 const isDevelopment = process.env.NODE_ENV === 'development';
-const API_BASE_URL = isDevelopment 
-  ? "http://localhost:3000/api"  // 开发环境
-  : "/api";  // 生产环境，使用相对路径
+const API_BASE_URL = "http://localhost:3000";  // 使用固定URL
 
 // 本地存储的键名
 const ERROR_BOOK_STORAGE_KEY = 'user_error_book';
@@ -97,7 +95,7 @@ export const getErrorBook = async (): Promise<ErrorBookItem[]> => {
   try {
     // 从后端获取错题集
     try {
-      const apiUrl = `${API_BASE_URL}/users/${USER_ID}/wrong-exercises`;
+      const apiUrl = `${API_BASE_URL}/api/users/${USER_ID}/wrong-exercises`;
       const response = await fetch(apiUrl);
       
       if (response.ok) {
@@ -154,7 +152,7 @@ export const removeFromErrorBook = async (errorItemId: string): Promise<boolean>
     
     // 从后端删除错题
     try {
-      const apiUrl = `${API_BASE_URL}/users/${USER_ID}/wrong-exercises/${exerciseId}`;
+      const apiUrl = `${API_BASE_URL}/api/users/${USER_ID}/wrong-exercises/${exerciseId}`;
       const response = await fetch(apiUrl, {
         method: "DELETE"
       });

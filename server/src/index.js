@@ -30,6 +30,9 @@ app.use('/api/exercises', exercisesRoutes);
 app.use('/api/users', userRecordsRoutes);
 app.use('/api/users', userPointsRoutes);
 
+// 添加额外的练习题根路径路由，将/exercises请求也映射到/api/exercises处理程序
+app.use('/exercises', exercisesRoutes);
+
 // 根路由
 app.get('/', (req, res) => {
   res.json({ message: '学习应用API服务器运行中' });

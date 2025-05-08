@@ -38,6 +38,15 @@ router.get('/:unitId', async (req, res) => {
 
     // 查询条件
     const whereClause = { unitId };
+    
+    // 支持获取子单元习题 (如1-1-1开头的应用题)
+    if (unitId.split('-').length === 3) {
+      // 如果是子单元ID (如1-1-1)，使用startsWith查询
+      console.log(`检测到子单元ID: ${unitId}，使用前缀匹配查询`);
+      whereClause.id = {
+        [Op.like]: `${unitId}-%` // 匹配如1-1-1-1, 1-1-1-2等ID
+      };
+    }
 
     // 根据题型筛选
     if (types) {
@@ -95,12 +104,14 @@ router.get('/:unitId', async (req, res) => {
       // 处理不同题型的特殊格式化
       switch (exercise.type) {
         case 'matching':
-        case 'drag_drop':
-        case 'sort':
-          // 这些题型需要在前端才能看到正确答案
+          // 匹配题需要在前端才能看到正确答案
           if (!exercise.completed) {
             exercise.correctAnswer = null;
           }
+          break;
+        case 'application':
+          // 应用题总是隐藏正确答案，因为需要老师批改
+          exercise.correctAnswer = null;
           break;
         case 'math':
           // 数学题型保留正确答案的值，但隐藏解题步骤

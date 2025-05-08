@@ -13,13 +13,26 @@ export const checkAnswerCorrect = (
 ): boolean => {
   if (!exercise) return false;
 
-  console.log("判断答案正确性:", exercise.id, userAnswer);
+  console.log("判断答案正确性:", exercise.id, 
+    "用户答案:", userAnswer, 
+    "正确答案:", exercise.correctAnswer,
+    "类型:", typeof userAnswer, typeof exercise.correctAnswer,
+    "严格相等:", userAnswer === exercise.correctAnswer
+  );
 
   // 根据题型判断答案是否正确
   switch (exercise.type || "choice") {
     case "choice":
-      // 选择题 - 直接比较索引
-      return userAnswer === exercise.correctAnswer;
+      // 选择题 - 直接比较索引，确保进行严格比较
+      // 特殊处理：如果用户答案是负数，表示用户未选择，应该直接判定为错误
+      if (typeof userAnswer === "number" && userAnswer < 0) {
+        console.log(`选择题答案为负数 ${userAnswer}，用户未选择，判定为错误`);
+        return false;
+      }
+      
+      const isChoiceCorrect = userAnswer === exercise.correctAnswer;
+      console.log(`选择题答案比较: ${userAnswer} === ${exercise.correctAnswer} => ${isChoiceCorrect}`);
+      return isChoiceCorrect;
 
     case "matching":
       // 匹配题 - 比较数组
@@ -28,17 +41,30 @@ export const checkAnswerCorrect = (
       }
       return false;
 
-    case "drag_drop":
-      // 拖拽题 - 比较数组
-      if (Array.isArray(userAnswer) && Array.isArray(exercise.correctAnswer)) {
-        return JSON.stringify(userAnswer) === JSON.stringify(exercise.correctAnswer);
-      }
-      return false;
+    case "application":
+      // 应用题 - 需要老师批改，默认为待批改状态
+      return false; // 应用题需要老师批改，自动判断为待批改
 
     case "fill_blank":
       // 填空题 - 逐个比较填入的答案
       if (Array.isArray(userAnswer) && Array.isArray(exercise.correctAnswer)) {
-        return (userAnswer as string[]).every((answer, index) => answer.trim() === exercise.correctAnswer[index]);
+        const result = (userAnswer as string[]).every((answer, index) => {
+          // 规范化比较：去除首尾空格，转为小写
+          const normalizedUserAnswer = answer.trim();
+          const normalizedCorrectAnswer = exercise.correctAnswer[index].trim();
+          const isMatch = normalizedUserAnswer === normalizedCorrectAnswer;
+          
+          console.log(`填空题第${index+1}空比较:`, {
+            用户答案: normalizedUserAnswer,
+            正确答案: normalizedCorrectAnswer,
+            匹配结果: isMatch
+          });
+          
+          return isMatch;
+        });
+        
+        console.log(`填空题整体结果: ${result ? '正确' : '错误'}`);
+        return result;
       }
       return false;
 
@@ -72,6 +98,12 @@ export const processAnswer = async (
   },
   userAnswer: number | number[] | string[]
 ): Promise<boolean> => {
+  // 应用题特殊处理 - 返回待批改状态
+  if (exercise.type === "application") {
+    console.log("应用题提交成功，等待批改");
+    return false; // 返回false表示未通过，但前端可特殊处理
+  }
+
   // 只在这一个地方判断答案正确性
   const isCorrect = checkAnswerCorrect(exercise, userAnswer);
 
