@@ -71,6 +71,14 @@ export default function StudyScreen() {
             backgroundColor: Array.isArray(color) ? color[0] : color || "#5EC0DE",
           },
           headerTintColor: "#fff",
+          headerLeft: () => (
+            <TouchableOpacity
+              style={{ marginLeft: 10 }}
+              onPress={() => router.replace("/")}
+            >
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+          ),
           headerRight: () => (
             <RNView style={{ flexDirection: "row", alignItems: "center", marginRight: 16 }}>
               <Ionicons name="star" size={20} color="#FFD900" />

@@ -23,9 +23,25 @@ if [ ! -d "./node_modules" ]; then
   npm install
 fi
 
-# 执行初始化脚本
-echo -e "${YELLOW}开始执行初始化脚本...${NC}"
+# 执行数据库初始化
+echo -e "${YELLOW}开始执行数据库初始化...${NC}"
+node -e "require('./src/database/init')().then(() => console.log('数据库初始化完成')).catch(err => { console.error(err); process.exit(1); })"
+
+# 执行初始化脚本 - 添加基础练习题
+echo -e "${YELLOW}开始添加基础练习题...${NC}"
 node src/utils/initData.js
+
+# 添加缺失的练习题
+echo -e "${YELLOW}开始添加缺失的练习题...${NC}"
+node src/utils/runAddMissingExercises.js
+
+# 添加新类型的多样化练习题
+echo -e "${YELLOW}开始添加多样化练习题...${NC}"
+node src/utils/addNewExerciseTypes.js
+
+# 添加单元1-1的多样化练习题
+echo -e "${YELLOW}开始添加单元1-1练习题...${NC}"
+node src/utils/runAddUnit1_1Exercises.js
 
 # 检查执行结果
 if [ $? -eq 0 ]; then

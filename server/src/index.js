@@ -2,13 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const { testConnection } = require('./config/database');
-const initDatabase = require('./database/init');
 const exercisesRoutes = require('./routes/exercises');
 const userRecordsRoutes = require('./routes/userRecords');
 const userPointsRoutes = require('./routes/userPoints');
-const addMissingExercises = require('./utils/addMissingExercises');
-const addNewExerciseTypes = require('./utils/addNewExerciseTypes');
-const addUnit1_1Exercises = require('./utils/addUnit1_1Exercises');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -48,24 +44,14 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 初始化数据库并启动服务器
+// 启动服务器
 const startServer = async () => {
   try {
     // 测试数据库连接
     await testConnection();
 
-    // 初始化数据库并导入数据
-    await initDatabase();
-
-    // 添加可能缺失的练习题
-    await addMissingExercises();
+    // 移除所有数据初始化调用
     
-    // 添加新类型的多样化练习题
-    await addNewExerciseTypes();
-    
-    // 添加单元1-1的多样化练习题
-    await addUnit1_1Exercises();
-
     // 尝试启动服务器，如果端口被占用则尝试杀掉占用进程
     const server = app.listen(PORT, () => {
       console.log(`服务器运行在 http://localhost:${PORT}`);

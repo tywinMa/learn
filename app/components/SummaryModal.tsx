@@ -19,7 +19,7 @@ export const SummaryModal = ({
 }) => {
   // 计算完成率和星星数
   const completionRate = totalCount > 0 ? correctCount / totalCount : 0;
-  const earnedStars = completionRate >= 1 ? 3 : completionRate >= 0.7 ? 2 : completionRate >= 0.3 ? 1 : 0;
+  const earnedStars = completionRate >= 0.8 ? 3 : completionRate >= 0.6 ? 2 : completionRate > 0 ? 1 : 0;
   const isThreeStars = earnedStars === 3;
 
   return (

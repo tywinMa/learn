@@ -233,12 +233,12 @@ router.get('/:userId/progress/:unitId', async (req, res) => {
 
     // 根据完成率计算星星数
     let stars = 0;
-    if (completionRate >= 1) {
-      stars = 3; // 全部完成，3颗星
-    } else if (completionRate >= 0.7) {
-      stars = 2; // 完成70%以上，2颗星
-    } else if (completionRate >= 0.3) {
-      stars = 1; // 完成30%以上，1颗星
+    if (completionRate >= 0.8) {
+      stars = 3; // 完成80%以上，3颗星
+    } else if (completionRate >= 0.6) {
+      stars = 2; // 完成60%以上，2颗星
+    } else if (completionRate > 0) {
+      stars = 1; // 只要完成了题目，至少1颗星
     }
 
     // 判断是否解锁下一个单元

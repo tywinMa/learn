@@ -31,7 +31,14 @@ export default function RootLayout() {
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="study" options={{ headerShown: true }} />
+        <Stack.Screen 
+          name="study" 
+          options={{ 
+            headerShown: true,
+            headerBackTitle: "返回" 
+          }} 
+        />
+        <Stack.Screen name="practice" options={{ headerShown: true }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
