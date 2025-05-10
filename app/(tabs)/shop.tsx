@@ -131,6 +131,47 @@ const ItemDetailModal = ({
   );
 };
 
+// 兑换成功弹窗组件
+const ExchangeSuccessModal = ({
+  visible,
+  item,
+  onClose
+}: {
+  visible: boolean;
+  item: any;
+  onClose: () => void;
+}) => {
+  return (
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <RNView style={styles.modalOverlay}>
+        <RNView style={[styles.modalContent, styles.successModal]}>
+          <RNView style={styles.successIconContainer}>
+            <Ionicons name="checkmark-circle" size={60} color="#4CAF50" />
+          </RNView>
+          <Text style={styles.successTitle}>兑换成功</Text>
+          <Text style={styles.successMessage}>
+            您已成功兑换 {item?.name}
+          </Text>
+          <Text style={styles.successSubMessage}>
+            客服将尽快联系您安排发货
+          </Text>
+          <TouchableOpacity 
+            style={styles.successButton}
+            onPress={onClose}
+          >
+            <Text style={styles.successButtonText}>确定</Text>
+          </TouchableOpacity>
+        </RNView>
+      </RNView>
+    </Modal>
+  );
+};
+
 export default function ShopScreen() {
   const colorScheme = useColorScheme() ?? "light";
   const [userPoints, setUserPoints] = useState(0);
@@ -138,6 +179,7 @@ export default function ShopScreen() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [exchanging, setExchanging] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
   
   // 获取用户积分
   const fetchUserPoints = async () => {
@@ -180,11 +222,8 @@ export default function ShopScreen() {
         const data = await response.json();
         if (data.success) {
           setUserPoints(data.data.points);
-          Alert.alert(
-            "兑换成功", 
-            `您已成功兑换 ${item.name}，客服将联系您安排发货。`,
-            [{ text: "确定", onPress: () => setModalVisible(false) }]
-          );
+          setModalVisible(false);
+          setSuccessModalVisible(true);
         } else {
           Alert.alert("兑换失败", data.message);
         }
@@ -263,6 +302,13 @@ export default function ShopScreen() {
         onClose={() => setModalVisible(false)}
         onExchange={() => exchangeItem(selectedItem)}
         userPoints={userPoints}
+      />
+      
+      {/* 兑换成功弹窗 */}
+      <ExchangeSuccessModal
+        visible={successModalVisible}
+        item={selectedItem}
+        onClose={() => setSuccessModalVisible(false)}
       />
     </View>
   );
@@ -454,5 +500,41 @@ const styles = StyleSheet.create({
     marginTop: 10,
     fontSize: 14,
     color: "#FF6B6B",
+  },
+  successModal: {
+    alignItems: 'center',
+    padding: 20,
+    maxWidth: 300,
+  },
+  successIconContainer: {
+    marginBottom: 20,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#4CAF50',
+  },
+  successMessage: {
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  successSubMessage: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  successButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  successButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
