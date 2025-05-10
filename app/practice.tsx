@@ -46,59 +46,100 @@ const SummaryModal = ({
   const completionRate = totalCount > 0 ? correctCount / totalCount : 0;
   const earnedStars = completionRate >= 0.8 ? 3 : completionRate >= 0.6 ? 2 : completionRate > 0 ? 1 : 0;
   const isThreeStars = earnedStars === 3;
+  
+  // 计算奖励积分
+  // 基础积分：每题1分
+  const basePoints = correctCount;
+  
+  // 额外奖励：全部答对额外2分，80%以上额外1分
+  let bonusPoints = 0;
+  if (correctCount === totalCount && totalCount > 0) {
+    bonusPoints = 2;
+  } else if (correctCount >= totalCount * 0.8 && totalCount > 0) {
+    bonusPoints = 1;
+  }
+  
+  // 总积分
+  const totalPoints = basePoints + bonusPoints;
+
+  // 渲染星星图标
+  const renderStars = () => {
+    const stars = [];
+    for (let i = 0; i < 3; i++) {
+      const iconName = i < earnedStars ? "star" : "star-outline";
+      const iconColor = i < earnedStars ? "#FFD700" : "#C0C0C0";
+      stars.push(
+        <Ionicons
+          key={i}
+          name={iconName as any}
+          size={36}
+          color={iconColor}
+          style={{ marginHorizontal: 8 }}
+        />
+      );
+    }
+    return stars;
+  };
 
   return (
-    <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onExit}>
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onExit}
+    >
       <RNView style={styles.modalOverlay}>
         <RNView style={styles.modalContent}>
           <Text style={styles.modalTitle}>练习完成！</Text>
 
           <RNView style={styles.summaryContainer}>
-            <Text style={styles.summaryText}>本次练习总结：</Text>
+            <Text style={styles.summaryText}>本次练习总结</Text>
             <Text style={styles.summaryDetail}>
-              总题数：<Text style={styles.summaryHighlight}>{totalCount}</Text> 题
+              总题数：<Text style={styles.summaryHighlight}>{totalCount}</Text>
             </Text>
             <Text style={styles.summaryDetail}>
-              答对：<Text style={styles.summaryHighlight}>{correctCount}</Text> 题
+              答对题数：<Text style={styles.summaryHighlight}>{correctCount}</Text>
             </Text>
             <Text style={styles.summaryDetail}>
-              答错：<Text style={styles.summaryHighlight}>{totalCount - correctCount}</Text> 题
+              正确率：<Text style={styles.summaryHighlight}>{Math.round(completionRate * 100)}%</Text>
             </Text>
-            <Text style={styles.summaryDetail}>
-              正确率：
-              <Text style={styles.summaryHighlight}>
-                {totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0}%
-              </Text>
-            </Text>
-
-            <RNView style={styles.starsContainer}>
-              {[...Array(3)].map((_, i) => (
-                <FontAwesome5
-                  key={i}
-                  name="star"
-                  size={30}
-                  solid={i < earnedStars}
-                  color={i < earnedStars ? "#FFD900" : "#E0E0E0"}
-                  style={{ marginHorizontal: 8 }}
-                />
-              ))}
-            </RNView>
-
-            {isThreeStars && (
-              <RNView style={styles.unlockMessage}>
-                <Ionicons name="lock-open" size={20} color="#58CC02" />
-                <Text style={styles.unlockText}>恭喜！您已完成三星挑战，下一关已解锁</Text>
+            
+            {totalPoints > 0 && (
+              <RNView style={styles.bonusPointsContainer}>
+                <FontAwesome5 name="gem" size={16} color="#1CB0F6" solid />
+                <RNView style={styles.pointsDetailContainer}>
+                  <Text style={styles.bonusPointsText}>
+                    获得积分：<Text style={styles.bonusPointsValue}>{totalPoints}</Text>
+                  </Text>
+                  <Text style={styles.pointsBreakdown}>
+                    基础积分：{basePoints} {bonusPoints > 0 ? `+ 额外奖励：${bonusPoints}` : ""}
+                  </Text>
+                </RNView>
               </RNView>
             )}
           </RNView>
 
-          <RNView style={styles.modalButtons}>
-            <TouchableOpacity style={[styles.modalButton, styles.retryButton]} onPress={onRetry}>
-              <Text style={styles.modalButtonText}>重新做一遍</Text>
-            </TouchableOpacity>
+          <RNView style={styles.starsContainer}>{renderStars()}</RNView>
 
-            <TouchableOpacity style={[styles.modalButton, styles.exitButton]} onPress={onExit}>
-              <Text style={styles.modalButtonText}>返回学习</Text>
+          {isThreeStars && (
+            <RNView style={styles.unlockMessage}>
+              <Ionicons name="checkmark-circle" size={18} color="#58CC02" />
+              <Text style={styles.unlockText}>恭喜！您已解锁下一单元</Text>
+            </RNView>
+          )}
+
+          <RNView style={styles.modalButtons}>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.retryButton]}
+              onPress={onRetry}
+            >
+              <Text style={styles.modalButtonText}>重新练习</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.exitButton]}
+              onPress={onExit}
+            >
+              <Text style={styles.modalButtonText}>完成</Text>
             </TouchableOpacity>
           </RNView>
         </RNView>
@@ -199,8 +240,8 @@ export default function PracticeScreen() {
   const fetchExercises = async () => {
     try {
       setLoading(true);
-      // 获取所有练习题，不过滤已完成的
-      const apiUrl = `${API_BASE_URL}/api/exercises/${lessonId}`;
+      // 修改API调用，添加参数过滤已完成的题目，只保留错题和未做过的题
+      const apiUrl = `${API_BASE_URL}/api/exercises/${lessonId}?userId=${USER_ID}&filterCompleted=true`;
       console.log("请求练习题URL:", apiUrl);
 
       const response = await fetch(apiUrl);
@@ -214,8 +255,14 @@ export default function PracticeScreen() {
 
       if (result.success && result.data) {
         console.log(`获取到 ${result.data.length} 道练习题`);
-        setExercises(result.data);
-        setError(null);
+        
+        if (result.data.length === 0 && result.allCompleted) {
+          // 所有题目都已完成
+          setError("您已经完成了所有练习题！");
+        } else {
+          setExercises(result.data);
+          setError(null);
+        }
       } else {
         throw new Error(result.message || "获取练习题失败: 服务器未返回数据");
       }
@@ -410,6 +457,8 @@ export default function PracticeScreen() {
 
   // 退出练习返回学习页面
   const handleExit = () => {
+    // 移除重复增加积分的代码，依赖服务器端的自动积分增加
+    
     router.replace({
       pathname: "/study",
       params: {
@@ -418,6 +467,31 @@ export default function PracticeScreen() {
         color: color || "#5EC0DE",
       },
     });
+  };
+
+  // 保留这个函数以备后用，但在handleExit中不再调用它
+  const awardPoints = async (points: number) => {
+    try {
+      const apiUrl = `${API_BASE_URL}/api/users/${USER_ID}/points/add`;
+      
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          points
+        }),
+      });
+
+      if (response.ok) {
+        console.log(`成功奖励 ${points} 积分`);
+      } else {
+        console.error(`奖励积分失败: HTTP ${response.status}`);
+      }
+    } catch (err) {
+      console.error("奖励积分出错:", err);
+    }
   };
 
   // 当前练习题
@@ -468,10 +542,24 @@ export default function PracticeScreen() {
           </RNView>
         ) : error ? (
           <RNView style={styles.errorContainer}>
-            <Ionicons name="alert-circle" size={24} color="red" />
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={fetchExercises}>
-              <Text style={styles.modalButtonText}>重试</Text>
+            <Ionicons name={error.includes("完成了所有练习题") ? "checkmark-circle" : "alert-circle"} 
+                    size={24} 
+                    color={error.includes("完成了所有练习题") ? "#58CC02" : "red"} />
+            <Text style={[
+              styles.errorText, 
+              error.includes("完成了所有练习题") && styles.successText
+            ]}>
+              {error}
+            </Text>
+            <TouchableOpacity 
+              style={[
+                styles.retryButton, 
+                error.includes("完成了所有练习题") && styles.successButton
+              ]} 
+              onPress={error.includes("完成了所有练习题") ? handleExit : fetchExercises}>
+              <Text style={styles.modalButtonText}>
+                {error.includes("完成了所有练习题") ? "返回课程" : "重试"}
+              </Text>
             </TouchableOpacity>
           </RNView>
         ) : currentExercise ? (
@@ -609,6 +697,14 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "red",
     textAlign: "center",
+  },
+  successText: {
+    color: "#58CC02",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  successButton: {
+    backgroundColor: "#58CC02",
   },
   noExerciseContainer: {
     padding: 32,
@@ -794,5 +890,33 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  bonusPointsContainer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#E6F7FF",
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  bonusPointsText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginLeft: 8,
+  },
+  bonusPointsValue: {
+    fontWeight: "bold",
+    color: "#1CB0F6",
+  },
+  pointsDetailContainer: {
+    flex: 1,
+    flexDirection: "column",
+    marginLeft: 8,
+  },
+  pointsBreakdown: {
+    fontSize: 13,
+    color: "#555",
+    marginTop: 4,
   },
 });

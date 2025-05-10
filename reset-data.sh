@@ -43,6 +43,10 @@ node src/utils/addNewExerciseTypes.js
 echo -e "${YELLOW}开始添加单元1-1练习题...${NC}"
 node src/utils/runAddUnit1_1Exercises.js
 
+# 添加学习内容
+echo -e "${YELLOW}开始添加学习内容...${NC}"
+node -e "const initLearningContent = require('./src/utils/initLearningContent'); initLearningContent().then(() => console.log('学习内容初始化完成')).catch(err => { console.error(err); process.exit(1); })"
+
 # 检查执行结果
 if [ $? -eq 0 ]; then
   echo -e "${GREEN}数据初始化成功！${NC}"

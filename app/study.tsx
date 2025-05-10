@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   StyleSheet,
   ScrollView,
@@ -7,6 +7,8 @@ import {
   Dimensions,
   StatusBar,
   ActivityIndicator,
+  FlatList,
+  Image,
 } from "react-native";
 import { Text, View } from "../components/Themed";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,6 +18,10 @@ import { Video, ResizeMode } from "expo-av";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { getUserPoints } from "../app/services/pointsService";
 import { USER_ID } from "../app/services/progressService";
+import RenderHtml from 'react-native-render-html';
+
+// API基础URL
+const API_BASE_URL = "http://localhost:3000";
 
 // 视频资源映射
 const VIDEO_RESOURCES = {
@@ -38,8 +44,41 @@ export default function StudyScreen() {
   const router = useRouter();
   const [videoStatus, setVideoStatus] = React.useState<any>({});
   const [userPoints, setUserPoints] = React.useState(0);
-  const [loading, setLoading] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+  const [learningContents, setLearningContents] = React.useState<any[]>([]);
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const screenWidth = Dimensions.get("window").width;
+  const flatListRef = useRef<FlatList>(null);
+
+  // 加载学习内容
+  useEffect(() => {
+    const fetchLearningContents = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/learning/${lessonId}`);
+        if (!response.ok) {
+          throw new Error('获取学习内容失败');
+        }
+        
+        const data = await response.json();
+        console.log('获取到学习内容:', data);
+        
+        if (data.success) {
+          // 按order字段排序
+          const sortedContents = data.data.sort((a: any, b: any) => a.order - b.order);
+          setLearningContents(sortedContents);
+        } else {
+          console.error('获取学习内容失败:', data.message);
+        }
+      } catch (error) {
+        console.error('获取学习内容出错:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLearningContents();
+  }, [lessonId]);
 
   // 加载用户积分
   useEffect(() => {
@@ -59,6 +98,45 @@ export default function StudyScreen() {
   const handleVideoStatusUpdate = (status: any) => {
     setVideoStatus(status);
   };
+
+  // 切换到下一个视频
+  const handleNextVideo = () => {
+    if (currentVideoIndex < learningContents.length - 1) {
+      setCurrentVideoIndex(currentVideoIndex + 1);
+      flatListRef.current?.scrollToIndex({
+        index: currentVideoIndex + 1,
+        animated: true
+      });
+    }
+  };
+
+  // 切换到上一个视频
+  const handlePrevVideo = () => {
+    if (currentVideoIndex > 0) {
+      setCurrentVideoIndex(currentVideoIndex - 1);
+      flatListRef.current?.scrollToIndex({
+        index: currentVideoIndex - 1,
+        animated: true
+      });
+    }
+  };
+
+  // 渲染视频项
+  const renderVideoItem = ({ item, index }: { item: any; index: number }) => (
+    <RNView style={styles.videoContainer}>
+      <Video
+        source={{ uri: item.mediaUrl }}
+        style={{ width: screenWidth, height: screenWidth * 0.56 }}
+        useNativeControls
+        resizeMode={ResizeMode.CONTAIN}
+        onPlaybackStatusUpdate={handleVideoStatusUpdate}
+      />
+      <Text style={styles.videoTitle}>{item.title}</Text>
+    </RNView>
+  );
+
+  // 获取视频内容
+  const videoContents = learningContents.filter(content => content.type === 'video');
 
   return (
     <View style={styles.container}>
@@ -95,21 +173,75 @@ export default function StudyScreen() {
         </View>
       ) : (
         <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 30 }}>
-          <View style={styles.videoContainer}>
-            <Video
-              source={{ uri: VIDEO_RESOURCES[lessonId as keyof typeof VIDEO_RESOURCES] || VIDEO_RESOURCES["1-1"] }}
-              style={{ width: screenWidth, height: screenWidth * 0.56 }}
-              useNativeControls
-              resizeMode={ResizeMode.CONTAIN}
-              onPlaybackStatusUpdate={handleVideoStatusUpdate}
-            />
-          </View>
+          {videoContents.length > 0 ? (
+            <>
+              <FlatList
+                ref={flatListRef}
+                data={videoContents}
+                renderItem={renderVideoItem}
+                keyExtractor={(item) => item.id.toString()}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={(event) => {
+                  const newIndex = Math.round(event.nativeEvent.contentOffset.x / screenWidth);
+                  setCurrentVideoIndex(newIndex);
+                }}
+              />
+              
+              <RNView style={styles.videoControls}>
+                <TouchableOpacity 
+                  style={[styles.videoControlButton, currentVideoIndex === 0 && styles.disabledButton]} 
+                  onPress={handlePrevVideo}
+                  disabled={currentVideoIndex === 0}
+                >
+                  <Ionicons name="chevron-back" size={24} color={currentVideoIndex === 0 ? "#ccc" : "#333"} />
+                </TouchableOpacity>
+                
+                <Text style={styles.videoCounter}>
+                  {currentVideoIndex + 1} / {videoContents.length}
+                </Text>
+                
+                <TouchableOpacity 
+                  style={[styles.videoControlButton, currentVideoIndex === videoContents.length - 1 && styles.disabledButton]} 
+                  onPress={handleNextVideo}
+                  disabled={currentVideoIndex === videoContents.length - 1}
+                >
+                  <Ionicons name="chevron-forward" size={24} color={currentVideoIndex === videoContents.length - 1 ? "#ccc" : "#333"} />
+                </TouchableOpacity>
+              </RNView>
+            </>
+          ) : (
+            <Text style={styles.noContentText}>暂无视频内容</Text>
+          )}
 
           <RNView style={styles.contentContainer}>
             <Text style={styles.sectionTitle}>本节内容</Text>
-            <Text style={styles.lessonContent}>
-              本单元讲解了React Native的基础知识，包括组件、状态管理和样式设置。通过学习，你将能够构建跨平台移动应用。
-            </Text>
+            
+            {learningContents.length > 0 ? (
+              learningContents.map((content) => (
+                <RNView key={content.id} style={styles.contentItem}>
+                  <Text style={styles.contentTitle}>{content.title}</Text>
+                  {content.type === 'text' && (
+                    <RenderHtml
+                      contentWidth={screenWidth - 40}
+                      source={{ html: content.content }}
+                    />
+                  )}
+                  {content.type === 'image' && content.mediaUrl && (
+                    <Image
+                      source={{ uri: content.mediaUrl }}
+                      style={styles.contentImage}
+                      resizeMode="contain"
+                    />
+                  )}
+                </RNView>
+              ))
+            ) : (
+              <Text style={styles.lessonContent}>
+                暂无学习内容，请联系管理员添加。
+              </Text>
+            )}
 
             <TouchableOpacity
               style={styles.practiceButton}
@@ -144,7 +276,34 @@ const styles = StyleSheet.create({
   },
   videoContainer: {
     backgroundColor: "black",
-    width: "100%",
+    width: Dimensions.get("window").width,
+  },
+  videoTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    padding: 12,
+    backgroundColor: "#fff",
+    color: "#333",
+  },
+  videoControls: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 12,
+    backgroundColor: "#fff",
+  },
+  videoControlButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "#f0f0f0",
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  videoCounter: {
+    marginHorizontal: 16,
+    fontSize: 14,
+    color: "#666",
   },
   contentContainer: {
     padding: 20,
@@ -154,6 +313,15 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 12,
     marginTop: 20,
+    color: "#333",
+  },
+  contentItem: {
+    marginBottom: 20,
+  },
+  contentTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
     color: "#333",
   },
   lessonContent: {
@@ -185,5 +353,15 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: "#666",
-  }
+  },
+  noContentText: {
+    textAlign: "center",
+    padding: 20,
+    fontSize: 16,
+    color: "#666",
+  },
+  contentImage: {
+    width: Dimensions.get("window").width - 40,
+    height: Dimensions.get("window").width * 0.56,
+  },
 });

@@ -5,6 +5,7 @@ const { testConnection } = require('./config/database');
 const exercisesRoutes = require('./routes/exercises');
 const userRecordsRoutes = require('./routes/userRecords');
 const userPointsRoutes = require('./routes/userPoints');
+const learningContentRoutes = require('./routes/learningContent');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,9 +26,11 @@ app.options('*', cors());
 app.use('/api/exercises', exercisesRoutes);
 app.use('/api/users', userRecordsRoutes);
 app.use('/api/users', userPointsRoutes);
+app.use('/api/learning', learningContentRoutes);
 
 // 添加额外的练习题根路径路由，将/exercises请求也映射到/api/exercises处理程序
 app.use('/exercises', exercisesRoutes);
+app.use('/learning', learningContentRoutes);
 
 // 根路由
 app.get('/', (req, res) => {

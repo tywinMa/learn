@@ -352,7 +352,7 @@ export const Exercise = ({
                 <RNView key={`match-${leftIndex}`} style={styles.matchingResultRow}>
                   <Text style={styles.matchingResultText}>
                     {exercise.options.left[leftIndex]} 
-                  </Text>
+                </Text>
                   <Ionicons name="arrow-forward" size={14} color="#666" style={{marginHorizontal: 4}} />
                   <Text style={styles.matchingResultText}>
                     {exercise.options.right[rightIndex]}
@@ -457,7 +457,7 @@ export const Exercise = ({
       <RNView style={styles.applicationContainer}>
         <Text style={styles.applicationInstructions}>
           解答以下问题，拍照上传你的答案
-        </Text>
+                </Text>
 
         {/* 提示信息 */}
         {exercise.options.hint && (

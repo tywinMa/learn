@@ -38,7 +38,7 @@ router.get('/:unitId', async (req, res) => {
 
     // 查询条件
     const whereClause = { unitId };
-    
+
     // 支持获取子单元习题 (如1-1-1开头的应用题)
     if (unitId.split('-').length === 3) {
       // 如果是子单元ID (如1-1-1)，使用前缀匹配查询
