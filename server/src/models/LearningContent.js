@@ -9,10 +9,15 @@ const LearningContent = sequelize.define('LearningContent', {
     autoIncrement: true,
     allowNull: false
   },
+  subjectId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    comment: '所属学科ID'
+  },
   unitId: {
     type: DataTypes.STRING,
     allowNull: false,
-    comment: '对应的单元ID，如"1-1"'
+    comment: '对应的单元ID，如"math-1-1"'
   },
   title: {
     type: DataTypes.STRING,

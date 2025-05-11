@@ -27,6 +27,10 @@ fi
 echo -e "${YELLOW}开始执行数据库初始化...${NC}"
 node -e "require('./src/database/init')().then(() => console.log('数据库初始化完成')).catch(err => { console.error(err); process.exit(1); })"
 
+# 执行初始化学科和单元
+echo -e "${YELLOW}开始初始化学科和单元...${NC}"
+node -e "const initSubjectsAndUnits = require('./src/utils/initSubjectsAndUnits'); initSubjectsAndUnits().then(() => console.log('学科和单元初始化完成')).catch(err => { console.error(err); process.exit(1); })"
+
 # 执行初始化脚本 - 添加基础练习题
 echo -e "${YELLOW}开始添加基础练习题...${NC}"
 node src/utils/initData.js

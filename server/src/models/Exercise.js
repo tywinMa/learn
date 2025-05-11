@@ -8,6 +8,11 @@ const Exercise = sequelize.define('Exercise', {
     primaryKey: true,
     allowNull: false
   },
+  subjectId: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    comment: '所属学科ID'
+  },
   unitId: {
     type: DataTypes.STRING,
     allowNull: false

@@ -3,9 +3,29 @@ const UserRecord = require('./UserRecord');
 const WrongExercise = require('./WrongExercise');
 const UserPoints = require('./UserPoints');
 const LearningContent = require('./LearningContent');
+const Subject = require('./Subject');
+const Unit = require('./Unit');
 const { sequelize } = require('../config/database');
 
 // 定义模型之间的关系
+// 学科与单元之间的关系
+Subject.hasMany(Unit, { foreignKey: 'subjectId', sourceKey: 'id' });
+Unit.belongsTo(Subject, { foreignKey: 'subjectId', targetKey: 'id' });
+
+// 学科与练习题、学习内容之间的关系
+Subject.hasMany(Exercise, { foreignKey: 'subjectId', sourceKey: 'id' });
+Exercise.belongsTo(Subject, { foreignKey: 'subjectId', targetKey: 'id' });
+
+Subject.hasMany(LearningContent, { foreignKey: 'subjectId', sourceKey: 'id' });
+LearningContent.belongsTo(Subject, { foreignKey: 'subjectId', targetKey: 'id' });
+
+// 单元与练习题、学习内容之间的关系
+Unit.hasMany(Exercise, { foreignKey: 'unitId', sourceKey: 'id' });
+Exercise.belongsTo(Unit, { foreignKey: 'unitId', targetKey: 'id' });
+
+Unit.hasMany(LearningContent, { foreignKey: 'unitId', sourceKey: 'id' });
+LearningContent.belongsTo(Unit, { foreignKey: 'unitId', targetKey: 'id' });
+
 // Exercise 和 UserRecord 之间的关系
 Exercise.hasMany(UserRecord, { foreignKey: 'exerciseId', sourceKey: 'id' });
 UserRecord.belongsTo(Exercise, { foreignKey: 'exerciseId', targetKey: 'id' });
@@ -22,8 +42,10 @@ const syncDatabase = async () => {
     await sequelize.sync({ alter: true });
     console.log('所有模型已同步到数据库');
     
-    // 检查WrongExercises和UserRecords表是否存在
+    // 检查表是否存在
     try {
+      await sequelize.query('SELECT 1 FROM Subjects LIMIT 1');
+      await sequelize.query('SELECT 1 FROM Units LIMIT 1');
       await sequelize.query('SELECT 1 FROM WrongExercises LIMIT 1');
       await sequelize.query('SELECT 1 FROM UserRecords LIMIT 1');
       console.log('数据库表结构完整');
@@ -53,6 +75,8 @@ module.exports = {
   WrongExercise,
   UserPoints,
   LearningContent,
+  Subject,
+  Unit,
   sequelize,
   syncDatabase
 };
