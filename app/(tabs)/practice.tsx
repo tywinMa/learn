@@ -119,14 +119,6 @@ export default function PracticeScreen() {
             </View>
           </View>
         ))}
-
-        {/* 底部提示框 */}
-        <View style={styles.mascotContainer}>
-          <Image source={{ uri: "https://i.imgur.com/F9zS3OT.png" }} style={styles.mascotImage} />
-          <View style={styles.mascotBubble}>
-            <Text style={styles.mascotText}>继续练习数学题！你已经完成了今天目标的 40%，加油！</Text>
-          </View>
-        </View>
       </ScrollView>
     </View>
   );

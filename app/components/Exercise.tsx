@@ -29,30 +29,19 @@ export const Exercise = ({
 }) => {
   const isAnswered = userAnswers.hasOwnProperty(exercise.id);
 
-  // 由于在外部已经判断过答案正确性并存储在 userAnswers 中，
-  // isCorrect 只需要检查该状态而不再自行判断
   let isCorrect = false;
   if (isAnswered && showAnswers) {
     if (typeof userAnswers[exercise.id] === "boolean") {
-      // 如果是布尔值，直接使用
       isCorrect = userAnswers[exercise.id] as boolean;
     }
-    // 这里不再需要复杂的转换逻辑
   }
 
-  const exerciseType = exercise.type || "choice"; // 默认为选择题类型
+  const exerciseType = exercise.type || "choice";
 
-  // 添加本地状态，标记题目是否已在本地回答
   const [isAnsweredLocally, setIsAnsweredLocally] = useState(isAnswered);
-  // 添加本地选择状态，记录用户选择了哪个选项
   const [localSelection, setLocalSelection] = useState<number | null>(null);
-  // 添加匹配和拖拽题的本地状态
   const [pendingSubmission, setPendingSubmission] = useState(false);
-  const [temporaryMatching, setTemporaryMatching] = useState<number[] | null>(null);
-  const [temporaryDragDrop, setTemporaryDragDrop] = useState<number[] | null>(null);
-  const [temporaryFillBlank, setTemporaryFillBlank] = useState<string[] | null>(null);
 
-  // 当外部userAnswers变化时，更新本地状态
   useEffect(() => {
     setIsAnsweredLocally(isAnswered);
     if (isAnswered && exerciseType === "choice") {
@@ -60,21 +49,11 @@ export const Exercise = ({
     }
   }, [isAnswered, exercise.id, exerciseType, userAnswers]);
 
-  // 将所有useState调用移到组件顶层，确保每次渲染时调用顺序一致
   // 匹配题状态
   const [selectedLeftIndex, setSelectedLeftIndex] = useState<number | null>(null);
   const [matchingPairs, setMatchingPairs] = useState<number[]>(() =>
     Array(exercise.options?.left?.length || 0).fill(-1)
   );
-
-  // 拖拽题状态
-  const [dragItems, setDragItems] = useState<string[]>(
-    exercise.options?.elements ? [...exercise.options.elements] : []
-  );
-  const [dropTargets, setDropTargets] = useState<(string | null)[]>(
-    exercise.options?.positions ? exercise.options.positions.map(() => null) : []
-  );
-  const [selectedDragItem, setSelectedDragItem] = useState<string | null>(null);
 
   // 填空题状态
   const [blankAnswers, setBlankAnswers] = useState<string[]>(
@@ -85,40 +64,23 @@ export const Exercise = ({
   const [photo, setPhoto] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  // 清理副作用 - 确保组件重新渲染时重置匹配题状态
+  // 清理副作用
   useEffect(() => {
-    // 重置匹配题的状态
     setSelectedLeftIndex(null);
     setMatchingPairs(Array(exercise.options?.left?.length || 0).fill(-1));
-
-    // 重置拖拽题状态
-    setSelectedDragItem(null);
-    setDropTargets(exercise.options?.positions ? exercise.options.positions.map(() => null) : []);
-
-    // 重置填空题状态 - 修复跨题目数据残留的bug
     setBlankAnswers(Array.isArray(exercise.correctAnswer) ? Array(exercise.correctAnswer.length).fill("") : []);
-    
-    // 重置应用题状态
     setPhoto(null);
     setUploading(false);
-
-    // 重置本地答题状态
     setIsAnsweredLocally(isAnswered);
     setLocalSelection(null);
     setPendingSubmission(false);
-    setTemporaryMatching(null);
-    setTemporaryDragDrop(null);
-    setTemporaryFillBlank(null);
-  }, [exercise.id]); // 当题目ID变化时重置状态
+  }, [exercise.id]);
 
   // 创建选择题答案处理函数
   const handleChoiceSelection = (index: number) => {
-    // 选择选项时，只更新本地选择，而不立即提交
     console.log(`选择了选项索引: ${index}`);
     setLocalSelection(index);
     setPendingSubmission(true);
-    
-    // 立即调用onAnswer将选择传递给父组件，确保选择被记录
     onAnswer(exercise.id, index);
   };
 
@@ -127,20 +89,11 @@ export const Exercise = ({
     if (isAnswered) return;
 
     if (exerciseType === "choice") {
-      // 提交选择题答案，如果用户没有选择，使用-1表示未选择（将导致判断为错误）
       console.log(`确认选择题答案，当前选择: ${localSelection}`);
       onAnswer(exercise.id, localSelection !== null ? localSelection : -1);
     } else if (exerciseType === "matching") {
-      // 提交匹配题答案，如果用户没有完成匹配，提交当前匹配状态
       onAnswer(exercise.id, 0, matchingPairs);
-    } else if (exerciseType === "drag_drop") {
-      // 提交拖拽题答案
-      const dragDropAnswers = dropTargets.map((target) => {
-        return target ? exercise.options.elements.findIndex((el: string) => el === target) : 0;
-      });
-      onAnswer(exercise.id, 0, dragDropAnswers);
     } else if (exerciseType === "fill_blank") {
-      // 提交填空题答案
       onAnswer(exercise.id, 0, undefined, blankAnswers);
     }
 
@@ -153,39 +106,9 @@ export const Exercise = ({
   const handleMatchingSelection = (leftIndex: number, rightIndex: number) => {
     if (isAnsweredLocally || isAnswered) return;
 
-    // 更新匹配状态
     const newMatchingPairs = [...matchingPairs];
     newMatchingPairs[leftIndex] = rightIndex;
     setMatchingPairs(newMatchingPairs);
-    setPendingSubmission(true);
-  };
-
-  // 拖拽题处理函数
-  const handleDragSelect = (item: string) => {
-    if (isAnsweredLocally || isAnswered) return;
-    // 选择一个元素进行拖放，使用简化的点选方式代替真实拖放
-    // 如果已经在某个位置上，先移除
-    const existingIndex = dropTargets.findIndex((t) => t === item);
-    if (existingIndex !== -1) {
-      const newTargets = [...dropTargets];
-      newTargets[existingIndex] = null;
-      setDropTargets(newTargets);
-      return;
-    }
-
-    // 记录当前选中的元素
-    setSelectedDragItem(item);
-    setPendingSubmission(true);
-  };
-
-  const handleDropSelect = (targetIndex: number) => {
-    if (isAnsweredLocally || isAnswered || !selectedDragItem) return;
-
-    // 放置选中元素到目标位置
-    const newTargets = [...dropTargets];
-    newTargets[targetIndex] = selectedDragItem;
-    setDropTargets(newTargets);
-    setSelectedDragItem(null);
     setPendingSubmission(true);
   };
 
@@ -200,7 +123,6 @@ export const Exercise = ({
     
     console.log(`填空题输入: index=${index}, text="${text}", 完整答案:`, newAnswers);
     
-    // 立即提交答案，与选择题行为一致
     onAnswer(exercise.id, 0, undefined, newAnswers);
   };
 
@@ -543,7 +465,7 @@ export const Exercise = ({
                     isAnswered && showAnswers && index === exercise.correctAnswer && styles.correctOption,
                   ]}
                   onPress={() => handleChoiceSelection(index)}
-                  disabled={isAnsweredLocally || isAnswered} // 使用本地状态禁用选项
+                  disabled={isAnsweredLocally || isAnswered}
                 >
                   <Text style={styles.optionText}>{option}</Text>
                   {localSelection === index && !isAnswered && (
@@ -591,12 +513,12 @@ export const Exercise = ({
         return renderMatchingQuestion();
 
       case "application":
-        // 应用题，使用专门的渲染函数
+        // 应用题
         return renderApplicationQuestion();
 
       case "sort":
       case "math":
-        // 其他题型，如果需要还可以继续拆分
+        // 其他题型
         return (
           <RNView style={styles.otherTypeContainer}>
             <Text style={styles.otherTypeText}>
@@ -697,18 +619,6 @@ const styles = StyleSheet.create({
   icon: {
     marginLeft: 8,
   },
-  feedbackText: {
-    marginTop: 12,
-    fontSize: 16,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  correctText: {
-    color: "green",
-  },
-  incorrectText: {
-    color: "red",
-  },
   errorText: {
     color: "red",
     fontSize: 16,
@@ -765,7 +675,6 @@ const styles = StyleSheet.create({
   fillBlankInputDisabled: {
     backgroundColor: "rgba(0, 0, 0, 0.05)",
   },
-  // 恢复删除的填空题重置按钮样式
   resetFillBlankButton: {
     backgroundColor: "#5EC0DE",
     padding: 8,
