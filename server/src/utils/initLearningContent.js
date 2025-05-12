@@ -1,4 +1,4 @@
-const { LearningContent } = require('../models');
+const { LearningContent, Subject } = require('../models');
 
 /**
  * 初始化学习内容
@@ -6,19 +6,35 @@ const { LearningContent } = require('../models');
 const initLearningContent = async () => {
   try {
     console.log('开始初始化学习内容...');
-    
+
     // 检查是否已有数据
     const existingContent = await LearningContent.count();
     if (existingContent > 0) {
       console.log(`已存在 ${existingContent} 条学习内容记录，跳过初始化`);
       return;
     }
-    
+
+    // 获取数学学科ID
+    const mathSubject = await Subject.findOne({ where: { code: 'math' } });
+    if (!mathSubject) {
+      throw new Error('找不到数学学科，请先初始化学科数据');
+    }
+    const mathSubjectId = mathSubject.id;
+
+    // 获取英语学科ID
+    const englishSubject = await Subject.findOne({ where: { code: 'english' } });
+    const englishSubjectId = englishSubject ? englishSubject.id : null;
+
+    // 获取物理学科ID
+    const physicsSubject = await Subject.findOne({ where: { code: 'physics' } });
+    const physicsSubjectId = physicsSubject ? physicsSubject.id : null;
+
     // 初始化数据
     const learningContents = [
-      // 1-1 单元（数与代数 - 一元二次方程）
+      // 数学一元二次方程单元
       {
-        unitId: '1-1',
+        unitId: 'math-1-1',
+        subjectId: mathSubjectId,
         title: '一元二次方程的基本概念',
         content: `<h1>一元二次方程的基本概念</h1>
 <p>一元二次方程是指含有一个未知数，并且未知数的最高次数是2的方程。其一般形式为：</p>
@@ -35,7 +51,8 @@ const initLearningContent = async () => {
         mediaUrl: null
       },
       {
-        unitId: '1-1',
+        unitId: 'math-1-1',
+        subjectId: mathSubjectId,
         title: '一元二次方程简介视频',
         content: `<h1>一元二次方程视频讲解</h1>
 <p>请观看视频了解一元二次方程的基本概念和解法。</p>`,
@@ -45,7 +62,8 @@ const initLearningContent = async () => {
         metadata: { duration: '9:56', resolution: '720p' }
       },
       {
-        unitId: '1-1',
+        unitId: 'math-1-1',
+        subjectId: mathSubjectId,
         title: '一元二次方程的解法 - 因式分解法',
         content: `<h1>因式分解法</h1>
 <p>因式分解法是解一元二次方程的最基本方法，适用于容易分解因式的方程。</p>
@@ -65,7 +83,8 @@ const initLearningContent = async () => {
         mediaUrl: null
       },
       {
-        unitId: '1-1',
+        unitId: 'math-1-1',
+        subjectId: mathSubjectId,
         title: '因式分解法图解',
         content: `<h1>因式分解法图解</h1>
 <p>以下图片展示了因式分解法的关键步骤。</p>`,
@@ -75,7 +94,8 @@ const initLearningContent = async () => {
         metadata: { width: 800, height: 600, format: 'jpg' }
       },
       {
-        unitId: '1-1',
+        unitId: 'math-1-1',
+        subjectId: mathSubjectId,
         title: '一元二次方程的解法 - 公式法',
         content: `<h1>公式法</h1>
 <p>公式法是解一元二次方程的通用方法，适用于所有一元二次方程。</p>
@@ -99,7 +119,8 @@ const initLearningContent = async () => {
         mediaUrl: null
       },
       {
-        unitId: '1-1',
+        unitId: 'math-1-1',
+        subjectId: mathSubjectId,
         title: '公式法视频讲解',
         content: `<h1>公式法视频讲解</h1>
 <p>观看以下视频，了解如何使用公式法解一元二次方程。</p>`,
@@ -110,7 +131,8 @@ const initLearningContent = async () => {
       },
       // 1-1 子单元（应用题专题）
       {
-        unitId: '1-1',
+        unitId: 'math-1-1',
+        subjectId: mathSubjectId,
         title: '一元二次方程的应用',
         content: `<h1>一元二次方程的应用</h1>
 <p>一元二次方程在实际生活中有广泛的应用，例如：</p>
@@ -132,7 +154,8 @@ const initLearningContent = async () => {
         mediaUrl: null
       },
       {
-        unitId: '1-1',
+        unitId: 'math-1-1',
+        subjectId: mathSubjectId,
         title: '应用题解析视频',
         content: `<h1>一元二次方程应用题解析</h1>
 <p>通过视频讲解理解应用题的解题思路和方法。</p>`,
@@ -142,7 +165,8 @@ const initLearningContent = async () => {
         metadata: { duration: '10:15', resolution: '720p' }
       },
       {
-        unitId: '1-1',
+        unitId: 'math-1-1',
+        subjectId: mathSubjectId,
         title: '一元二次方程的应用 - 面积问题',
         content: `<h1>一元二次方程的应用 - 面积问题</h1>
 <p>例题：一个长方形的周长是24米，面积是35平方米，求这个长方形的长和宽。</p>
@@ -168,7 +192,8 @@ const initLearningContent = async () => {
         mediaUrl: null
       },
       {
-        unitId: '1-1',
+        unitId: 'math-1-1',
+        subjectId: mathSubjectId,
         title: '面积问题图解',
         content: `<h1>面积问题图解</h1>
 <p>这张图片展示了长方形面积与周长问题的图形表示。</p>`,
@@ -178,7 +203,8 @@ const initLearningContent = async () => {
         metadata: { width: 1024, height: 768, format: 'jpg' }
       },
       {
-        unitId: '1-1',
+        unitId: 'math-1-1',
+        subjectId: mathSubjectId,
         title: '一元二次方程的应用 - 行程问题',
         content: `<h1>一元二次方程的应用 - 行程问题</h1>
 <p>例题：某人骑自行车从家到学校，速度为15千米/小时，用时40分钟。回家时，因为逆风，速度降低了3千米/小时，回家的用时比去学校多用了10分钟。求家到学校的距离。</p>
@@ -195,7 +221,8 @@ const initLearningContent = async () => {
         mediaUrl: null
       },
       {
-        unitId: '1-1',
+        unitId: 'math-1-1',
+        subjectId: mathSubjectId,
         title: '行程问题动画演示',
         content: `<h1>行程问题动画演示</h1>
 <p>通过动画演示理解行程问题的解法。</p>`,
@@ -205,10 +232,10 @@ const initLearningContent = async () => {
         metadata: { duration: '6:42', resolution: '1080p' }
       }
     ];
-    
+
     // 批量创建学习内容
     await LearningContent.bulkCreate(learningContents);
-    
+
     console.log(`成功初始化 ${learningContents.length} 条学习内容记录`);
   } catch (error) {
     console.error('初始化学习内容出错:', error);

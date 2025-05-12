@@ -25,7 +25,7 @@ sleep 1
 
 # 启动后端服务器
 echo -e "${GREEN}启动后端服务器...${NC}"
-cd server && npm install && npm run dev &
+cd server && npm run dev &
 SERVER_PID=$!
 
 # 等待几秒钟让服务器启动
@@ -44,7 +44,7 @@ cd "${0%/*}"
 
 # 启动前端应用
 echo -e "${GREEN}启动前端应用...${NC}"
-npm start
+npm run web
 
 # 当前端应用关闭时，也关闭后端服务器
 echo -e "${YELLOW}关闭服务器...${NC}"

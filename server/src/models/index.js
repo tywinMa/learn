@@ -41,7 +41,7 @@ const syncDatabase = async () => {
     // alter模式会尝试修改表结构以匹配模型，同时保留数据
     await sequelize.sync({ alter: true });
     console.log('所有模型已同步到数据库');
-    
+
     // 检查表是否存在
     try {
       await sequelize.query('SELECT 1 FROM Subjects LIMIT 1');
@@ -55,7 +55,7 @@ const syncDatabase = async () => {
     }
   } catch (error) {
     console.error('同步模型到数据库时出错:', error);
-    
+
     // 如果出现严重错误，尝试使用force模式重建表
     // 这是最后的解决方案，会删除所有数据
     console.log('尝试使用force模式重建表...');

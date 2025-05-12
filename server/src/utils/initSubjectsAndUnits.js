@@ -6,14 +6,7 @@ const { Subject, Unit } = require('../models');
 const initSubjectsAndUnits = async () => {
   try {
     console.log('开始初始化学科和单元...');
-    
-    // 检查是否已有学科数据
-    const existingSubjects = await Subject.count();
-    if (existingSubjects > 0) {
-      console.log(`已存在 ${existingSubjects} 条学科记录，跳过初始化`);
-      return;
-    }
-    
+
     // 初始化学科数据
     const subjects = [
       {
@@ -49,14 +42,14 @@ const initSubjectsAndUnits = async () => {
         order: 4
       }
     ];
-    
+
     // 创建学科
     const createdSubjects = await Subject.bulkCreate(subjects);
     console.log(`成功创建 ${createdSubjects.length} 条学科记录`);
-    
+
     // 为每个学科创建单元
     const units = [];
-    
+
     // 数学单元
     const mathSubject = createdSubjects.find(s => s.code === 'math');
     if (mathSubject) {
@@ -69,7 +62,7 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 1
       });
-      
+
       // 小节：一元二次方程
       units.push({
         id: 'math-1-1',
@@ -80,7 +73,62 @@ const initSubjectsAndUnits = async () => {
         level: 2,
         order: 1
       });
-      
+
+      // 小节：因式分解
+      units.push({
+        id: 'math-1-2',
+        subjectId: mathSubject.id,
+        title: '因式分解',
+        description: '多项式的因式分解方法',
+        parentId: 'math-1',
+        level: 2,
+        order: 2
+      });
+
+      // 小节：配方法
+      units.push({
+        id: 'math-1-3',
+        subjectId: mathSubject.id,
+        title: '配方法',
+        description: '使用配方法解一元二次方程',
+        parentId: 'math-1',
+        level: 2,
+        order: 3
+      });
+
+      // 小节：公式法
+      units.push({
+        id: 'math-1-4',
+        subjectId: mathSubject.id,
+        title: '公式法',
+        description: '使用公式法解一元二次方程',
+        parentId: 'math-1',
+        level: 2,
+        order: 4
+      });
+
+      // 小节：二次函数
+      units.push({
+        id: 'math-1-5',
+        subjectId: mathSubject.id,
+        title: '二次函数',
+        description: '二次函数的性质和图像',
+        parentId: 'math-1',
+        level: 2,
+        order: 5
+      });
+
+      // 小节：二次函数应用
+      units.push({
+        id: 'math-1-6',
+        subjectId: mathSubject.id,
+        title: '二次函数应用',
+        description: '二次函数在实际问题中的应用',
+        parentId: 'math-1',
+        level: 2,
+        order: 6
+      });
+
       // 大章节：几何
       units.push({
         id: 'math-2',
@@ -90,7 +138,7 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 2
       });
-      
+
       // 小节：三角形
       units.push({
         id: 'math-2-1',
@@ -101,8 +149,84 @@ const initSubjectsAndUnits = async () => {
         level: 2,
         order: 1
       });
+
+      // 小节：直角三角形
+      units.push({
+        id: 'math-2-2',
+        subjectId: mathSubject.id,
+        title: '直角三角形',
+        description: '直角三角形的性质和勾股定理',
+        parentId: 'math-2',
+        level: 2,
+        order: 2
+      });
+
+      // 小节：四边形
+      units.push({
+        id: 'math-2-3',
+        subjectId: mathSubject.id,
+        title: '四边形',
+        description: '平行四边形、矩形、正方形等四边形的性质',
+        parentId: 'math-2',
+        level: 2,
+        order: 3
+      });
+
+      // 小节：圆
+      units.push({
+        id: 'math-2-4',
+        subjectId: mathSubject.id,
+        title: '圆',
+        description: '圆的性质和计算',
+        parentId: 'math-2',
+        level: 2,
+        order: 4
+      });
+
+      // 大章节：统计与概率
+      units.push({
+        id: 'math-3',
+        subjectId: mathSubject.id,
+        title: '统计与概率',
+        description: '包含统计学基础和概率论',
+        level: 1,
+        order: 3
+      });
+
+      // 小节：数据分析
+      units.push({
+        id: 'math-3-1',
+        subjectId: mathSubject.id,
+        title: '数据分析',
+        description: '数据的收集、整理和分析',
+        parentId: 'math-3',
+        level: 2,
+        order: 1
+      });
+
+      // 小节：概率基础
+      units.push({
+        id: 'math-3-2',
+        subjectId: mathSubject.id,
+        title: '概率基础',
+        description: '随机事件与概率',
+        parentId: 'math-3',
+        level: 2,
+        order: 2
+      });
+
+      // 小节：概率论基础
+      units.push({
+        id: 'math-3-3',
+        subjectId: mathSubject.id,
+        title: '概率论基础',
+        description: '随机事件、条件概率、独立性等概念',
+        parentId: 'math-3',
+        level: 2,
+        order: 3
+      });
     }
-    
+
     // 物理单元
     const physicsSubject = createdSubjects.find(s => s.code === 'physics');
     if (physicsSubject) {
@@ -115,7 +239,7 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 1
       });
-      
+
       // 小节：牛顿运动定律
       units.push({
         id: 'physics-1-1',
@@ -126,7 +250,7 @@ const initSubjectsAndUnits = async () => {
         level: 2,
         order: 1
       });
-      
+
       // 大章节：电磁学
       units.push({
         id: 'physics-2',
@@ -136,7 +260,7 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 2
       });
-      
+
       // 小节：电场
       units.push({
         id: 'physics-2-1',
@@ -148,7 +272,7 @@ const initSubjectsAndUnits = async () => {
         order: 1
       });
     }
-    
+
     // 化学单元
     const chemistrySubject = createdSubjects.find(s => s.code === 'chemistry');
     if (chemistrySubject) {
@@ -161,7 +285,7 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 1
       });
-      
+
       // 小节：元素周期表
       units.push({
         id: 'chemistry-1-1',
@@ -173,7 +297,7 @@ const initSubjectsAndUnits = async () => {
         order: 1
       });
     }
-    
+
     // 生物单元
     const biologySubject = createdSubjects.find(s => s.code === 'biology');
     if (biologySubject) {
@@ -186,7 +310,7 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 1
       });
-      
+
       // 小节：细胞结构
       units.push({
         id: 'biology-1-1',
@@ -198,11 +322,11 @@ const initSubjectsAndUnits = async () => {
         order: 1
       });
     }
-    
+
     // 创建单元
     const createdUnits = await Unit.bulkCreate(units);
     console.log(`成功创建 ${createdUnits.length} 条单元记录`);
-    
+
   } catch (error) {
     console.error('初始化学科和单元出错:', error);
     throw error;

@@ -1,17 +1,25 @@
-const { Exercise, syncDatabase } = require('../models');
+const { Exercise, Subject, Unit } = require('../models');
 
 /**
- * 添加新类型的习题到数据库
+ * 添加新类型的练习题
  */
 const addNewExerciseTypes = async () => {
   try {
     console.log('开始添加多样化习题...');
-    
+
+    // 获取数学学科
+    const mathSubject = await Subject.findOne({ where: { code: 'math' } });
+    if (!mathSubject) {
+      throw new Error('找不到数学学科，请先初始化学科数据');
+    }
+    const mathSubjectId = mathSubject.id;
+
     // 匹配题
     const matchingExercises = [
       {
         id: '1-2-4',
-        unitId: '1-2',
+        unitId: 'math-1-2',
+        subjectId: mathSubjectId,
         question: '将左侧的因式分解式与右侧的表达式进行匹配',
         type: 'matching',
         options: {
@@ -24,7 +32,8 @@ const addNewExerciseTypes = async () => {
       },
       {
         id: '1-5-5',
-        unitId: '1-5',
+        unitId: 'math-1-5',
+        subjectId: mathSubjectId,
         question: '匹配函数与其图像特征',
         type: 'matching',
         options: {
@@ -36,12 +45,13 @@ const addNewExerciseTypes = async () => {
         difficulty: 2
       }
     ];
-    
+
     // 填空题
     const fillBlankExercises = [
       {
         id: '1-3-3',
-        unitId: '1-3',
+        unitId: 'math-1-3',
+        subjectId: mathSubjectId,
         question: '使用配方法解一元二次方程 x² + 6x + 8 = 0。\n第一步，移项：x² + 6x = -8\n第二步，配方：x² + 6x + ____ = -8 + ____\n第三步，因式分解：(x + ____)² = ____\n第四步，求解：x + 3 = ±____，即x = ____ 或 x = ____',
         type: 'fill_blank',
         options: null,
@@ -51,7 +61,8 @@ const addNewExerciseTypes = async () => {
       },
       {
         id: '2-2-3',
-        unitId: '2-2',
+        unitId: 'math-2-2',
+        subjectId: mathSubjectId,
         question: '已知直角三角形的斜边长为10，一条直角边长为6，则另一条直角边长为____。',
         type: 'fill_blank',
         options: null,
@@ -60,12 +71,13 @@ const addNewExerciseTypes = async () => {
         difficulty: 2
       }
     ];
-    
+
     // 排序题
     const sortExercises = [
       {
         id: '1-4-4',
-        unitId: '1-4',
+        unitId: 'math-1-4',
+        subjectId: mathSubjectId,
         question: '按照解一元二次方程的正确步骤排序',
         type: 'sort',
         options: [
@@ -79,12 +91,13 @@ const addNewExerciseTypes = async () => {
         difficulty: 2
       }
     ];
-    
+
     // 拖拽题
     const dragDropExercises = [
       {
         id: '1-5-6',
-        unitId: '1-5',
+        unitId: 'math-1-5',
+        subjectId: mathSubjectId,
         question: '将函数图像的各个部分拖放到正确的位置',
         type: 'drag_drop',
         options: {
@@ -100,12 +113,13 @@ const addNewExerciseTypes = async () => {
         }
       }
     ];
-    
+
     // 数学计算题
     const mathExercises = [
       {
         id: '3-3-5',
-        unitId: '3-3',
+        unitId: 'math-3-3',
+        subjectId: mathSubjectId,
         question: '有一袋10个球，其中3个红球、4个蓝球和3个绿球。随机抽取2个球，求抽到的球颜色相同的概率。',
         type: 'math',
         options: null,
@@ -130,7 +144,8 @@ const addNewExerciseTypes = async () => {
       },
       {
         id: '1-6-4',
-        unitId: '1-6',
+        unitId: 'math-1-6',
+        subjectId: mathSubjectId,
         question: '有一个长方形，周长固定为20米。如果要使面积最大，请计算长和宽各是多少？并证明这是最大值。',
         type: 'math',
         options: null,
@@ -157,7 +172,7 @@ const addNewExerciseTypes = async () => {
         ]
       }
     ];
-    
+
     // 综合所有新类型习题
     const allNewExercises = [
       ...matchingExercises,
@@ -166,22 +181,42 @@ const addNewExerciseTypes = async () => {
       ...dragDropExercises,
       ...mathExercises
     ];
-    
-    // 检查这些习题是否已存在
-    for (const exercise of allNewExercises) {
+
+    // 检查每个习题对应的单元是否存在
+    for (let i = 0; i < allNewExercises.length; i++) {
+      const exercise = allNewExercises[i];
+      const unitExists = await Unit.findOne({ where: { id: exercise.unitId } });
+      if (!unitExists) {
+        console.log(`单元 ${exercise.unitId} 不存在，跳过添加习题 ${exercise.id}`);
+        // 从数组中移除这个习题
+        allNewExercises.splice(i, 1);
+        i--; // 调整索引，因为数组长度变小了
+        continue;
+      }
+
+      // 检查这些习题是否已存在
       const exists = await Exercise.findOne({ where: { id: exercise.id } });
       if (!exists) {
-        await Exercise.create(exercise);
-        console.log(`成功添加${exercise.type}类型习题: ${exercise.id}`);
+        try {
+          await Exercise.create(exercise);
+          console.log(`成功添加${exercise.type}类型习题: ${exercise.id}`);
+        } catch (err) {
+          console.error(`添加习题${exercise.id}失败:`, err.message);
+        }
       } else {
         console.log(`习题${exercise.id}已存在，更新内容...`);
-        await Exercise.update(exercise, { where: { id: exercise.id } });
+        try {
+          await Exercise.update(exercise, { where: { id: exercise.id } });
+        } catch (err) {
+          console.error(`更新习题${exercise.id}失败:`, err.message);
+        }
       }
     }
-    
-    console.log(`成功添加/更新${allNewExercises.length}道多样化习题`);
+
+    console.log(`多样化习题处理完成`);
   } catch (error) {
     console.error('添加多样化习题出错:', error);
+    throw error;
   }
 };
 

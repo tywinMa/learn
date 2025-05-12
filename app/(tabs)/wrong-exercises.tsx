@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { StyleSheet, ScrollView, View as RNView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { Text, View } from "../../components/Themed";
 import { Ionicons } from "@expo/vector-icons";
+// TypeScript暂时忽略 expo-router 导出错误
+// @ts-ignore
 import { useRouter } from "expo-router";
 
 // 临时用户ID，实际应用中应该从认证系统获取

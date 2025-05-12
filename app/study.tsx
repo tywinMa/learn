@@ -18,7 +18,7 @@ import { Video, ResizeMode } from "expo-av";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { getUserPoints } from "../app/services/pointsService";
 import { USER_ID } from "../app/services/progressService";
-import RenderHtml from 'react-native-render-html';
+import RenderHtml from "react-native-render-html";
 
 // API基础URL
 const API_BASE_URL = "http://localhost:3000";
@@ -38,14 +38,16 @@ const VIDEO_RESOURCES = {
 
 export default function StudyScreen() {
   const params = useLocalSearchParams();
-  const { id, unitTitle, color } = params;
+  const { id, unitTitle, color, subject } = params;
   const lessonId = Array.isArray(id) ? id[0] : id || "";
+  const subjectCode = Array.isArray(subject) ? subject[0] : subject || ""; // 获取学科代码
 
   const router = useRouter();
   const [videoStatus, setVideoStatus] = React.useState<any>({});
   const [userPoints, setUserPoints] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [learningContents, setLearningContents] = React.useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const screenWidth = Dimensions.get("window").width;
   const flatListRef = useRef<FlatList>(null);
@@ -55,30 +57,49 @@ export default function StudyScreen() {
     const fetchLearningContents = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`${API_BASE_URL}/api/learning/${lessonId}`);
-        if (!response.ok) {
-          throw new Error('获取学习内容失败');
+        // 检查lessonId是否有效
+        if (!lessonId || lessonId === "undefined" || lessonId === "null") {
+          setError("无效的课程ID，请返回主页重新选择课程");
+          setLoading(false);
+          return;
         }
-        
+
+        // 根据是否有学科代码选择合适的API路径
+        let apiUrl = "";
+        if (subjectCode) {
+          // 使用新的API格式
+          apiUrl = `${API_BASE_URL}/api/learning/${subjectCode}/${lessonId}`;
+        } else {
+          // 兼容旧API格式
+          apiUrl = `${API_BASE_URL}/api/learning/${lessonId}`;
+        }
+
+        console.log("调用API:", apiUrl);
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          throw new Error(`获取学习内容失败 (HTTP ${response.status})`);
+        }
+
         const data = await response.json();
-        console.log('获取到学习内容:', data);
-        
+        console.log("获取到学习内容:", data);
+
         if (data.success) {
           // 按order字段排序
           const sortedContents = data.data.sort((a: any, b: any) => a.order - b.order);
           setLearningContents(sortedContents);
         } else {
-          console.error('获取学习内容失败:', data.message);
+          setError(data.message || "获取学习内容失败");
         }
-      } catch (error) {
-        console.error('获取学习内容出错:', error);
+      } catch (error: any) {
+        console.error("获取学习内容出错:", error);
+        setError(error.message || "获取学习内容时出现错误");
       } finally {
         setLoading(false);
       }
     };
 
     fetchLearningContents();
-  }, [lessonId]);
+  }, [lessonId, subjectCode]);
 
   // 加载用户积分
   useEffect(() => {
@@ -105,7 +126,7 @@ export default function StudyScreen() {
       setCurrentVideoIndex(currentVideoIndex + 1);
       flatListRef.current?.scrollToIndex({
         index: currentVideoIndex + 1,
-        animated: true
+        animated: true,
       });
     }
   };
@@ -116,7 +137,7 @@ export default function StudyScreen() {
       setCurrentVideoIndex(currentVideoIndex - 1);
       flatListRef.current?.scrollToIndex({
         index: currentVideoIndex - 1,
-        animated: true
+        animated: true,
       });
     }
   };
@@ -136,7 +157,7 @@ export default function StudyScreen() {
   );
 
   // 获取视频内容
-  const videoContents = learningContents.filter(content => content.type === 'video');
+  const videoContents = learningContents.filter((content) => content.type === "video");
 
   return (
     <View style={styles.container}>
@@ -152,7 +173,15 @@ export default function StudyScreen() {
           headerLeft: () => (
             <TouchableOpacity
               style={{ marginLeft: 10 }}
-              onPress={() => router.replace("/")}
+              onPress={() =>
+                router.replace({
+                  pathname: "/",
+                  params: {
+                    refresh: Date.now().toString(), // 添加时间戳参数，强制组件刷新
+                    currentSubject: subjectCode, // 传递当前学科
+                  },
+                })
+              }
             >
               <Ionicons name="arrow-back" size={24} color="#fff" />
             </TouchableOpacity>
@@ -171,6 +200,25 @@ export default function StudyScreen() {
           <ActivityIndicator size="large" color="#5EC0DE" />
           <Text style={styles.loadingText}>正在加载内容...</Text>
         </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={64} color="#FF9600" />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() =>
+              router.replace({
+                pathname: "/",
+                params: {
+                  refresh: Date.now().toString(),
+                  currentSubject: subjectCode,
+                },
+              })
+            }
+          >
+            <Text style={styles.backButtonText}>返回首页</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 30 }}>
           {videoContents.length > 0 ? (
@@ -188,26 +236,33 @@ export default function StudyScreen() {
                   setCurrentVideoIndex(newIndex);
                 }}
               />
-              
+
               <RNView style={styles.videoControls}>
-                <TouchableOpacity 
-                  style={[styles.videoControlButton, currentVideoIndex === 0 && styles.disabledButton]} 
+                <TouchableOpacity
+                  style={[styles.videoControlButton, currentVideoIndex === 0 && styles.disabledButton]}
                   onPress={handlePrevVideo}
                   disabled={currentVideoIndex === 0}
                 >
                   <Ionicons name="chevron-back" size={24} color={currentVideoIndex === 0 ? "#ccc" : "#333"} />
                 </TouchableOpacity>
-                
+
                 <Text style={styles.videoCounter}>
                   {currentVideoIndex + 1} / {videoContents.length}
                 </Text>
-                
-                <TouchableOpacity 
-                  style={[styles.videoControlButton, currentVideoIndex === videoContents.length - 1 && styles.disabledButton]} 
+
+                <TouchableOpacity
+                  style={[
+                    styles.videoControlButton,
+                    currentVideoIndex === videoContents.length - 1 && styles.disabledButton,
+                  ]}
                   onPress={handleNextVideo}
                   disabled={currentVideoIndex === videoContents.length - 1}
                 >
-                  <Ionicons name="chevron-forward" size={24} color={currentVideoIndex === videoContents.length - 1 ? "#ccc" : "#333"} />
+                  <Ionicons
+                    name="chevron-forward"
+                    size={24}
+                    color={currentVideoIndex === videoContents.length - 1 ? "#ccc" : "#333"}
+                  />
                 </TouchableOpacity>
               </RNView>
             </>
@@ -217,30 +272,21 @@ export default function StudyScreen() {
 
           <RNView style={styles.contentContainer}>
             <Text style={styles.sectionTitle}>本节内容</Text>
-            
+
             {learningContents.length > 0 ? (
               learningContents.map((content) => (
                 <RNView key={content.id} style={styles.contentItem}>
                   <Text style={styles.contentTitle}>{content.title}</Text>
-                  {content.type === 'text' && (
-                    <RenderHtml
-                      contentWidth={screenWidth - 40}
-                      source={{ html: content.content }}
-                    />
+                  {content.type === "text" && (
+                    <RenderHtml contentWidth={screenWidth - 40} source={{ html: content.content }} />
                   )}
-                  {content.type === 'image' && content.mediaUrl && (
-                    <Image
-                      source={{ uri: content.mediaUrl }}
-                      style={styles.contentImage}
-                      resizeMode="contain"
-                    />
+                  {content.type === "image" && content.mediaUrl && (
+                    <Image source={{ uri: content.mediaUrl }} style={styles.contentImage} resizeMode="contain" />
                   )}
                 </RNView>
               ))
             ) : (
-              <Text style={styles.lessonContent}>
-                暂无学习内容，请联系管理员添加。
-              </Text>
+              <Text style={styles.lessonContent}>暂无学习内容，请联系管理员添加。</Text>
             )}
 
             <TouchableOpacity
@@ -363,5 +409,30 @@ const styles = StyleSheet.create({
   contentImage: {
     width: Dimensions.get("window").width - 40,
     height: Dimensions.get("window").width * 0.56,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#666",
+    marginBottom: 20,
+    textAlign: "center",
+    maxWidth: "80%",
+  },
+  backButton: {
+    backgroundColor: "#FF9600",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  backButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

@@ -198,9 +198,31 @@ router.get('/:userId/progress/:unitId', async (req, res) => {
 
     console.log(`获取用户 ${userId} 在单元 ${unitId} 的进度`);
 
+    // 构建灵活的查询条件以支持不同格式的unitId
+    let whereClause = {};
+    const parts = unitId.split('-');
+
+    // 处理不同格式的单元ID
+    if (parts.length === 2) {
+      // 格式为 "1-1"，需要匹配可能的所有格式：精确匹配和带主题前缀的 "math-1-1" 等
+      console.log(`检测到简短单元ID格式: ${unitId}，尝试匹配所有可能的单元格式`);
+      whereClause[Op.or] = [
+        { unitId }, // 精确匹配 "1-1"
+        { unitId: { [Op.like]: `%-${unitId}` } }, // 匹配 "math-1-1" 等带前缀的格式
+        { unitId: { [Op.like]: `%-${parts[0]}-%` } } // 匹配相同章节的其他单元，如 "math-1-x"
+      ];
+    } else if (parts.length === 3) {
+      // 格式为 "math-1-1"，直接使用精确匹配
+      console.log(`检测到完整单元ID格式: ${unitId}，使用精确匹配`);
+      whereClause.unitId = unitId;
+    } else {
+      // 其他格式直接使用精确匹配
+      whereClause.unitId = unitId;
+    }
+
     // 获取该单元的所有练习题
     const exercises = await Exercise.findAll({
-      where: { unitId },
+      where: whereClause,
       attributes: ['id']
     });
 
@@ -215,7 +237,7 @@ router.get('/:userId/progress/:unitId', async (req, res) => {
     // 获取用户在该单元的所有答题记录
     const exerciseIds = exercises.map(ex => ex.id);
     console.log(`单元 ${unitId} 包含 ${exerciseIds.length} 道练习题: ${exerciseIds.join(', ')}`);
-    
+
     const userRecords = await UserRecord.findAll({
       where: {
         userId,
@@ -223,7 +245,7 @@ router.get('/:userId/progress/:unitId', async (req, res) => {
         isCorrect: true // 只计算正确的答题记录
       }
     });
-    
+
     console.log(`用户 ${userId} 完成了 ${userRecords.length} 道练习题`);
 
     // 计算完成率和星星数
@@ -269,12 +291,34 @@ router.get('/:userId/progress/:unitId', async (req, res) => {
 router.post('/:userId/progress/:unitId/refresh', async (req, res) => {
   try {
     const { userId, unitId } = req.params;
-    
+
     console.log(`强制刷新用户 ${userId} 在单元 ${unitId} 的进度`);
+
+    // 构建灵活的查询条件以支持不同格式的unitId
+    let whereClause = {};
+    const parts = unitId.split('-');
+
+    // 处理不同格式的单元ID
+    if (parts.length === 2) {
+      // 格式为 "1-1"，需要匹配可能的所有格式：精确匹配和带主题前缀的 "math-1-1" 等
+      console.log(`检测到简短单元ID格式: ${unitId}，尝试匹配所有可能的单元格式`);
+      whereClause[Op.or] = [
+        { unitId }, // 精确匹配 "1-1"
+        { unitId: { [Op.like]: `%-${unitId}` } }, // 匹配 "math-1-1" 等带前缀的格式
+        { unitId: { [Op.like]: `%-${parts[0]}-%` } } // 匹配相同章节的其他单元，如 "math-1-x"
+      ];
+    } else if (parts.length === 3) {
+      // 格式为 "math-1-1"，直接使用精确匹配
+      console.log(`检测到完整单元ID格式: ${unitId}，使用精确匹配`);
+      whereClause.unitId = unitId;
+    } else {
+      // 其他格式直接使用精确匹配
+      whereClause.unitId = unitId;
+    }
 
     // 获取该单元的所有练习题
     const exercises = await Exercise.findAll({
-      where: { unitId },
+      where: whereClause,
       attributes: ['id']
     });
 
@@ -288,7 +332,7 @@ router.post('/:userId/progress/:unitId/refresh', async (req, res) => {
 
     // 获取用户在该单元的所有答题记录
     const exerciseIds = exercises.map(ex => ex.id);
-    
+
     // 查询用户已完成的练习题
     const userRecords = await UserRecord.findAll({
       where: {
@@ -296,13 +340,13 @@ router.post('/:userId/progress/:unitId/refresh', async (req, res) => {
         exerciseId: { [Op.in]: exerciseIds }
       }
     });
-    
+
     // 对于没有记录的题目，创建正确的记录
     const completedExerciseIds = userRecords.map(record => record.exerciseId);
     const missingExerciseIds = exerciseIds.filter(id => !completedExerciseIds.includes(id));
-    
+
     console.log(`单元 ${unitId} 需要补充 ${missingExerciseIds.length} 道练习题记录`);
-    
+
     // 添加缺失的记录
     if (missingExerciseIds.length > 0) {
       const recordsToCreate = missingExerciseIds.map(exerciseId => ({
@@ -312,11 +356,11 @@ router.post('/:userId/progress/:unitId/refresh', async (req, res) => {
         isCorrect: true,
         attemptCount: 1
       }));
-      
+
       await UserRecord.bulkCreate(recordsToCreate);
       console.log(`为用户 ${userId} 创建了 ${recordsToCreate.length} 条答题记录`);
     }
-    
+
     // 确保所有记录都标记为正确
     for (const record of userRecords) {
       if (!record.isCorrect) {
@@ -350,6 +394,73 @@ router.post('/:userId/progress/:unitId/refresh', async (req, res) => {
       success: false,
       message: '刷新用户进度失败',
       error: error.message
+    });
+  }
+});
+
+// 获取用户在特定学科的所有单元进度
+router.get('/:userId/subject/:subject/progress', async (req, res) => {
+  try {
+    const { userId, subject } = req.params;
+
+    console.log(`获取用户 ${userId} 在学科 ${subject} 的所有单元进度`);
+
+    // 查询用户完成的练习题记录
+    const userRecords = await UserRecord.findAll({
+      where: {
+        userId,
+        unitId: { [Op.like]: `${subject}-%` } // 只获取指定学科的记录
+      },
+      include: [{ model: Exercise }],
+      order: [['updatedAt', 'DESC']]
+    });
+
+    // 按单元ID分组
+    const unitProgress = {};
+    userRecords.forEach(record => {
+      const { unitId, exerciseId, isCorrect } = record;
+
+      if (!unitProgress[unitId]) {
+        unitProgress[unitId] = {
+          unitId,
+          totalExercises: 0,
+          completedExercises: 0,
+          correctExercises: 0,
+          stars: 0
+        };
+      }
+
+      unitProgress[unitId].totalExercises += 1;
+      if (isCorrect) {
+        unitProgress[unitId].correctExercises += 1;
+      }
+      unitProgress[unitId].completedExercises += 1;
+    });
+
+    // 计算每个单元的星星数
+    Object.keys(unitProgress).forEach(unitId => {
+      const progress = unitProgress[unitId];
+      const percentCorrect = (progress.correctExercises / progress.totalExercises) * 100;
+
+      // 根据正确率计算星星
+      if (percentCorrect >= 90) {
+        progress.stars = 3;
+      } else if (percentCorrect >= 70) {
+        progress.stars = 2;
+      } else if (percentCorrect >= 50) {
+        progress.stars = 1;
+      }
+    });
+
+    res.json({
+      success: true,
+      data: Object.values(unitProgress)
+    });
+  } catch (error) {
+    console.error(`获取学科 ${req.params.subject} 进度出错:`, error);
+    res.status(500).json({
+      success: false,
+      message: '服务器错误'
     });
   }
 });

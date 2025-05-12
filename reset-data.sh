@@ -1,64 +1,52 @@
 #!/bin/bash
 
-# 输出颜色
+# 颜色定义
 GREEN='\033[0;32m'
-RED='\033[0;31m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-echo -e "${YELLOW}准备初始化数据...${NC}"
+echo -e "${GREEN}开始重置数据...${NC}"
 
-# 确保服务端代码目录存在
-if [ ! -d "./server" ]; then
-  echo -e "${RED}错误: 找不到服务端代码目录${NC}"
-  exit 1
-fi
-
-# 进入服务端目录
+# 转到服务器目录
 cd server
 
-# 确保node_modules存在
-if [ ! -d "./node_modules" ]; then
-  echo -e "${YELLOW}正在安装服务端依赖...${NC}"
-  npm install
+# 检查服务器是否正在运行
+if pgrep -f "node.*server/src/index.js" > /dev/null; then
+  echo -e "${YELLOW}检测到服务器正在运行，将会先停止服务器...${NC}"
+  # 尝试优雅地结束服务器进程
+  pkill -15 -f "node.*server/src/index.js"
+  # 等待服务器关闭
+  sleep 2
+  # 如果仍在运行，强制终止
+  if pgrep -f "node.*server/src/index.js" > /dev/null; then
+    echo -e "${YELLOW}服务器未能优雅关闭，将强制终止...${NC}"
+    pkill -9 -f "node.*server/src/index.js"
+  fi
+  echo -e "${YELLOW}服务器已停止${NC}"
 fi
 
-# 执行数据库初始化
-echo -e "${YELLOW}开始执行数据库初始化...${NC}"
-node -e "require('./src/database/init')().then(() => console.log('数据库初始化完成')).catch(err => { console.error(err); process.exit(1); })"
+# 确认数据库连接
+echo -e "${YELLOW}检查数据库连接...${NC}"
+node -e "require('./src/config/database').testConnection().then(() => console.log('数据库连接正常')).catch(err => { console.error('数据库连接错误:', err); process.exit(1); })"
 
-# 执行初始化学科和单元
-echo -e "${YELLOW}开始初始化学科和单元...${NC}"
-node -e "const initSubjectsAndUnits = require('./src/utils/initSubjectsAndUnits'); initSubjectsAndUnits().then(() => console.log('学科和单元初始化完成')).catch(err => { console.error(err); process.exit(1); })"
-
-# 执行初始化脚本 - 添加基础练习题
-echo -e "${YELLOW}开始添加基础练习题...${NC}"
-node src/utils/initData.js
-
-# 添加缺失的练习题
-echo -e "${YELLOW}开始添加缺失的练习题...${NC}"
-node src/utils/runAddMissingExercises.js
-
-# 添加新类型的多样化练习题
-echo -e "${YELLOW}开始添加多样化练习题...${NC}"
-node src/utils/addNewExerciseTypes.js
-
-# 添加单元1-1的多样化练习题
-echo -e "${YELLOW}开始添加单元1-1练习题...${NC}"
-node src/utils/runAddUnit1_1Exercises.js
-
-# 添加学习内容
-echo -e "${YELLOW}开始添加学习内容...${NC}"
-node -e "const initLearningContent = require('./src/utils/initLearningContent'); initLearningContent().then(() => console.log('学习内容初始化完成')).catch(err => { console.error(err); process.exit(1); })"
-
-# 检查执行结果
-if [ $? -eq 0 ]; then
-  echo -e "${GREEN}数据初始化成功！${NC}"
-  echo -e "${YELLOW}现在可以启动服务端: npm start${NC}"
-else
-  echo -e "${RED}数据初始化失败，请检查错误日志${NC}"
+if [ $? -ne 0 ]; then
+  echo -e "${RED}数据库连接失败，无法重置数据！${NC}"
   exit 1
 fi
 
-cd ..
-echo -e "${GREEN}完成！${NC}" 
+echo -e "${YELLOW}运行数据初始化脚本...${NC}"
+# 运行服务器端的初始化脚本
+node src/utils/initData.js
+
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}数据重置完成！${NC}"
+  
+  # 返回项目根目录
+  cd "${0%/*}"
+  
+  echo -e "${YELLOW}建议: 您可以运行 ${GREEN}./start-dev.sh${YELLOW} 重启开发服务器${NC}"
+else
+  echo -e "${RED}数据重置失败！${NC}"
+  exit 1
+fi 

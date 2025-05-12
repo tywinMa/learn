@@ -17,6 +17,9 @@ alwaysApply: true
 # 项目概述
 这是一个基于React Native和Expo的跨平台移动应用脚手架，支持iOS和Android平台。并且有服务端的代码
 
+# 数据重置
+使用`./reset-data.sh`重置数据
+
 # 项目启动
 如果需要重启服务，请关闭当前终端的服务后，使用`./start-dev.sh`启动开发前端和后端服务器，确保正常运行
 
