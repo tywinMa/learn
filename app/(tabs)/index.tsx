@@ -852,25 +852,7 @@ export default function HomeScreen() {
                   />
                 );
               })}
-
-              {/* 单元底部的宝箱图标 */}
-              {courseIndex === 0 && (
-                <RNView style={styles.unitEnd}>
-                  <Image source={{ uri: "https://i.imgur.com/h3pFJG3.png" }} style={styles.chestImage} />
-                </RNView>
-              )}
             </RNView>
-
-            {/* 界面底部的成就托盘 */}
-            {courseIndex === courses.length - 1 && (
-              <RNView style={styles.achievementContainer}>
-                <RNView style={styles.leagueContainer}>
-                  <Image source={{ uri: "https://i.imgur.com/NhBFjc6.png" }} style={styles.leagueImage} />
-                  <Text style={styles.leagueText}>1</Text>
-                </RNView>
-                <Text style={styles.achievementText}>{currentSubject.name}基础</Text>
-              </RNView>
-            )}
           </RNView>
         ))}
       </ScrollView>
