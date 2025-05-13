@@ -12,9 +12,7 @@ import { Text, View } from "./Themed";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { useSubject, Subject } from "@/hooks/useSubject";
-
-// API基础URL
-const API_BASE_URL = "http://101.126.135.102:3000";
+import { API_BASE_URL } from "@/@constants/apiConfig";
 
 interface SubjectModalProps {
   visible: boolean;

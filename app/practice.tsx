@@ -15,21 +15,14 @@ import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 // @ts-ignore
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { USER_ID } from "./services/progressService";
-// 移除直接导入 addToErrorBook
-// import { addToErrorBook } from "./services/errorBookService";
-
 // 导入工具函数，添加新的 processAnswer 函数
-import { checkAnswerCorrect, addToErrorBook, calculateCorrectCount, processAnswer } from "./utils/exerciseUtils";
-
-// 使用与study.tsx相同的API基础URL配置
-const isDevelopment = process.env.NODE_ENV === "development";
-const API_BASE_URL = "http://101.126.135.102:3000"; // 直接使用绝对URL，不依赖环境判断
+import { processAnswer } from "./utils/exerciseUtils";
 
 // 正确导入Exercise组件
 import { Exercise } from "./components/Exercise";
-
 import { useSubject } from "@/hooks/useSubject";
 import { LinearGradient } from "expo-linear-gradient";
+import { API_BASE_URL } from "@/@constants/apiConfig";
 
 // 总结弹窗组件
 const SummaryModal = ({

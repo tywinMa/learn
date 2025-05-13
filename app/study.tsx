@@ -20,22 +20,7 @@ import { getUserPoints } from "../app/services/pointsService";
 import { USER_ID } from "../app/services/progressService";
 import RenderHtml from "react-native-render-html";
 import { LinearGradient } from "expo-linear-gradient";
-
-// API基础URL
-const API_BASE_URL = "http://101.126.135.102:3000";
-
-// 视频资源映射
-const VIDEO_RESOURCES = {
-  "1-1": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4", // 示例视频URL
-  "1-2": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
-  "1-3": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
-  "1-4": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
-  "2-1": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
-  "2-2": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
-  "2-3": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
-  "3-1": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
-  "3-2": "https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4",
-};
+import { API_BASE_URL } from "@/@constants/apiConfig";
 
 export default function StudyScreen() {
   const params = useLocalSearchParams();

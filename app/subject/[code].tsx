@@ -6,9 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 // @ts-ignore
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { useSubject } from "@/hooks/useSubject";
-
-// API基础URL
-const API_BASE_URL = "http://101.126.135.102:3000";
+import { API_BASE_URL } from "@/@constants/apiConfig";
 
 export default function SubjectScreen() {
   const router = useRouter();

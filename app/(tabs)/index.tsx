@@ -29,10 +29,7 @@ import { getUserPoints } from "../services/pointsService";
 import UnlockModal from "../../components/UnlockModal";
 import SubjectModal from "../../components/SubjectModal";
 import { useSubject, Subject } from "@/hooks/useSubject";
-
-const isDevelopment = process.env.NODE_ENV === "development";
-// API基础URL
-const API_BASE_URL = isDevelopment ? "http://localhost:3000" : "http://101.126.135.102:3000";
+import { API_BASE_URL } from "@/@constants/apiConfig";
 
 // 学科信息存储键
 const CURRENT_SUBJECT_KEY = "currentSubject";

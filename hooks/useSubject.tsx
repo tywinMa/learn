@@ -4,9 +4,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // 学科存储键
 export const CURRENT_SUBJECT_KEY = "currentSubject";
 
-// API基础URL
-const API_BASE_URL = "http://101.126.135.102:3000";
-
 // 学科类型定义
 export interface Subject {
   id: number;

@@ -3,10 +3,7 @@ import { Alert } from "react-native";
 import { ScrollView } from "react-native";
 import { processAnswer } from "../utils/exerciseUtils";
 import { USER_ID } from "../services/progressService";
-
-// API基础URL - 根据环境选择不同的URL
-const isDevelopment = process.env.NODE_ENV === "development";
-const API_BASE_URL = "http://101.126.135.102:3000"; // 直接使用固定URL
+import { API_BASE_URL } from "@/@constants/apiConfig";
 
 /**
  * 学习页面业务逻辑Hook

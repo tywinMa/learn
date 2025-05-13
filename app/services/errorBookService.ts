@@ -1,8 +1,5 @@
+import { API_BASE_URL } from "@/@constants/apiConfig";
 import { USER_ID } from "./progressService";
-
-// API基础URL - 根据环境选择不同的URL
-const isDevelopment = process.env.NODE_ENV === "development";
-const API_BASE_URL = "http://101.126.135.102:3000"; // 使用固定URL
 
 // 本地存储的键名
 const ERROR_BOOK_STORAGE_KEY = "user_error_book";
