@@ -51,19 +51,6 @@ const Unit = sequelize.define('Unit', {
 }, {
   timestamps: true,
   comment: '单元表，存储课程单元信息',
-  hooks: {
-    beforeCreate: (unit) => {
-      // 确保ID包含学科代码前缀
-      if (!unit.id.startsWith(unit.subject)) {
-        unit.id = `${unit.subject}-${unit.id}`;
-      }
-      
-      // 如果有父单元ID，确保也包含学科前缀
-      if (unit.parentId && !unit.parentId.startsWith(unit.subject)) {
-        unit.parentId = `${unit.subject}-${unit.parentId}`;
-      }
-    }
-  }
 });
 
 module.exports = Unit; 

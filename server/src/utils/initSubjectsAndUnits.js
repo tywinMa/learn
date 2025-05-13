@@ -232,7 +232,7 @@ const initSubjectsAndUnits = async () => {
     if (physicsSubject) {
       // 大章节：力学
       units.push({
-        id: 'physics-1',
+        id: '1',
         subject: physicsSubject.code,
         title: '力学',
         description: '包含运动学、动力学等内容',
@@ -242,18 +242,18 @@ const initSubjectsAndUnits = async () => {
 
       // 小节：牛顿运动定律
       units.push({
-        id: 'physics-1-1',
+        id: '1-1',
         subject: physicsSubject.code,
         title: '牛顿运动定律',
         description: '牛顿三大运动定律及其应用',
-        parentId: 'physics-1',
+        parentId: '1',
         level: 2,
         order: 1
       });
 
       // 大章节：电磁学
       units.push({
-        id: 'physics-2',
+        id: '2',
         subject: physicsSubject.code,
         title: '电磁学',
         description: '包含静电场、磁场等内容',
@@ -263,11 +263,11 @@ const initSubjectsAndUnits = async () => {
 
       // 小节：电场
       units.push({
-        id: 'physics-2-1',
+        id: '2-1',
         subject: physicsSubject.code,
         title: '电场',
         description: '电场的性质和计算',
-        parentId: 'physics-2',
+        parentId: '2',
         level: 2,
         order: 1
       });
@@ -278,7 +278,7 @@ const initSubjectsAndUnits = async () => {
     if (chemistrySubject) {
       // 大章节：元素与物质
       units.push({
-        id: 'chemistry-1',
+        id: '1',
         subject: chemistrySubject.code,
         title: '元素与物质',
         description: '包含元素周期表、元素性质等内容',
@@ -288,11 +288,11 @@ const initSubjectsAndUnits = async () => {
 
       // 小节：元素周期表
       units.push({
-        id: 'chemistry-1-1',
+        id: '1-1',
         subject: chemistrySubject.code,
         title: '元素周期表',
         description: '元素周期表的规律和应用',
-        parentId: 'chemistry-1',
+        parentId: '1',
         level: 2,
         order: 1
       });
@@ -303,7 +303,7 @@ const initSubjectsAndUnits = async () => {
     if (biologySubject) {
       // 大章节：细胞生物学
       units.push({
-        id: 'biology-1',
+        id: '1',
         subject: biologySubject.code,
         title: '细胞生物学',
         description: '包含细胞结构、细胞分裂等内容',
@@ -313,11 +313,11 @@ const initSubjectsAndUnits = async () => {
 
       // 小节：细胞结构
       units.push({
-        id: 'biology-1-1',
+        id: '1-1',
         subject: biologySubject.code,
         title: '细胞结构',
         description: '细胞的基本结构和功能',
-        parentId: 'biology-1',
+        parentId: '1',
         level: 2,
         order: 1
       });

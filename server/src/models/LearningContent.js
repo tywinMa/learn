@@ -55,14 +55,6 @@ const LearningContent = sequelize.define('LearningContent', {
 }, {
   timestamps: true,
   comment: '学习内容表，存储每个单元的学习材料',
-  hooks: {
-    beforeCreate: (content) => {
-      // 确保unitId包含学科前缀
-      if (!content.unitId.startsWith(content.subject)) {
-        content.unitId = `${content.subject}-${content.unitId}`;
-      }
-    }
-  }
 });
 
 module.exports = LearningContent; 
