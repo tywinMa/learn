@@ -23,7 +23,7 @@ import { checkAnswerCorrect, addToErrorBook, calculateCorrectCount, processAnswe
 
 // 使用与study.tsx相同的API基础URL配置
 const isDevelopment = process.env.NODE_ENV === "development";
-const API_BASE_URL = "http://localhost:3000"; // 直接使用绝对URL，不依赖环境判断
+const API_BASE_URL = "http://101.126.135.102:3000"; // 直接使用绝对URL，不依赖环境判断
 
 // 正确导入Exercise组件
 import { Exercise } from "./components/Exercise";

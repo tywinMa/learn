@@ -31,7 +31,7 @@ import SubjectModal from "../../components/SubjectModal";
 import { useSubject, Subject } from "@/hooks/useSubject";
 
 // API基础URL
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = "http://101.126.135.102:3000";
 
 // 学科信息存储键
 const CURRENT_SUBJECT_KEY = "currentSubject";

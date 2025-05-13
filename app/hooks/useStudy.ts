@@ -6,7 +6,7 @@ import { USER_ID } from "../services/progressService";
 
 // API基础URL - 根据环境选择不同的URL
 const isDevelopment = process.env.NODE_ENV === "development";
-const API_BASE_URL = "http://localhost:3000"; // 直接使用固定URL
+const API_BASE_URL = "http://101.126.135.102:3000"; // 直接使用固定URL
 
 /**
  * 学习页面业务逻辑Hook

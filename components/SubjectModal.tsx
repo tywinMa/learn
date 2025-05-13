@@ -14,7 +14,7 @@ import { BlurView } from "expo-blur";
 import { useSubject, Subject } from "@/hooks/useSubject";
 
 // API基础URL
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = "http://101.126.135.102:3000";
 
 interface SubjectModalProps {
   visible: boolean;

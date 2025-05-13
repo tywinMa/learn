@@ -22,7 +22,7 @@ import RenderHtml from "react-native-render-html";
 import { LinearGradient } from "expo-linear-gradient";
 
 // API基础URL
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = "http://101.126.135.102:3000";
 
 // 视频资源映射
 const VIDEO_RESOURCES = {

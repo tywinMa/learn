@@ -8,13 +8,13 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  Dimensions
+  Dimensions,
 } from "react-native";
 import { Text, View } from "../../components/Themed";
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import Colors from "../../constants/Colors";
 import { useColorScheme } from "react-native";
-import { LinearGradient } from 'expo-linear-gradient';
+import { LinearGradient } from "expo-linear-gradient";
 
 // 临时用户ID，实际应用中应该从认证系统获取
 const USER_ID = "user1";
@@ -26,102 +26,90 @@ const SHOP_ITEMS = [
     name: "数学公式手册",
     description: "包含常用数学公式和解题技巧的精美手册",
     points: 50,
-    image: "https://i.imgur.com/NhBFjc6.png"
+    image: "https://i.imgur.com/NhBFjc6.png",
   },
   {
     id: "item2",
     name: "学习徽章",
     description: "精美的学习成就徽章，可以佩戴在书包上",
     points: 100,
-    image: "https://i.imgur.com/h3pFJG3.png"
+    image: "https://i.imgur.com/h3pFJG3.png",
   },
   {
     id: "item3",
     name: "定制笔记本",
     description: "高质量的定制笔记本，印有你的名字",
     points: 200,
-    image: "https://i.imgur.com/F9zS3OT.png"
+    image: "https://i.imgur.com/F9zS3OT.png",
   },
   {
     id: "item4",
     name: "学习文具套装",
     description: "包含铅笔、橡皮、尺子等学习必备文具",
     points: 150,
-    image: "https://i.imgur.com/NhBFjc6.png"
+    image: "https://i.imgur.com/NhBFjc6.png",
   },
   {
     id: "item5",
     name: "知识海报",
     description: "精美的知识海报，可以贴在墙上帮助记忆",
     points: 80,
-    image: "https://i.imgur.com/h3pFJG3.png"
+    image: "https://i.imgur.com/h3pFJG3.png",
   },
   {
     id: "item6",
     name: "学习计时器",
     description: "帮助你管理学习时间的计时器",
     points: 120,
-    image: "https://i.imgur.com/F9zS3OT.png"
-  }
+    image: "https://i.imgur.com/F9zS3OT.png",
+  },
 ];
 
 // 商品详情弹窗组件
-const ItemDetailModal = ({ 
-  visible, 
-  item, 
-  onClose, 
+const ItemDetailModal = ({
+  visible,
+  item,
+  onClose,
   onExchange,
-  userPoints
-}: { 
-  visible: boolean; 
-  item: any; 
-  onClose: () => void; 
+  userPoints,
+}: {
+  visible: boolean;
+  item: any;
+  onClose: () => void;
   onExchange: () => void;
   userPoints: number;
 }) => {
   const canExchange = userPoints >= item?.points;
-  
+
   return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
+    <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
       <RNView style={styles.modalOverlay}>
         <RNView style={styles.modalContent}>
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <Ionicons name="close" size={24} color="#666" />
           </TouchableOpacity>
-          
+
           {item && (
             <>
               <Image source={{ uri: item.image }} style={styles.modalImage} />
               <Text style={styles.modalTitle}>{item.name}</Text>
               <Text style={styles.modalDescription}>{item.description}</Text>
-              
+
               <RNView style={styles.pointsContainer}>
                 <FontAwesome5 name="gem" size={16} color="#1CB0F6" solid />
                 <Text style={styles.pointsText}>{item.points} 积分</Text>
               </RNView>
-              
-              <TouchableOpacity 
-                style={[
-                  styles.exchangeButton,
-                  !canExchange && styles.disabledButton
-                ]}
+
+              <TouchableOpacity
+                style={[styles.exchangeButton, !canExchange && styles.disabledButton]}
                 onPress={onExchange}
                 disabled={!canExchange}
               >
-                <Text style={styles.exchangeButtonText}>
-                  {canExchange ? "立即兑换" : "积分不足"}
-                </Text>
+                <Text style={styles.exchangeButtonText}>{canExchange ? "立即兑换" : "积分不足"}</Text>
               </TouchableOpacity>
-              
+
               {!canExchange && (
-                <Text style={styles.insufficientText}>
-                  还差 {item.points - userPoints} 积分才能兑换
-                </Text>
+                <Text style={styles.insufficientText}>还差 {item.points - userPoints} 积分才能兑换</Text>
               )}
             </>
           )}
@@ -132,38 +120,18 @@ const ItemDetailModal = ({
 };
 
 // 兑换成功弹窗组件
-const ExchangeSuccessModal = ({
-  visible,
-  item,
-  onClose
-}: {
-  visible: boolean;
-  item: any;
-  onClose: () => void;
-}) => {
+const ExchangeSuccessModal = ({ visible, item, onClose }: { visible: boolean; item: any; onClose: () => void }) => {
   return (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
+    <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onClose}>
       <RNView style={styles.modalOverlay}>
         <RNView style={[styles.modalContent, styles.successModal]}>
           <RNView style={styles.successIconContainer}>
             <Ionicons name="checkmark-circle" size={60} color="#4CAF50" />
           </RNView>
           <Text style={styles.successTitle}>兑换成功</Text>
-          <Text style={styles.successMessage}>
-            您已成功兑换 {item?.name}
-          </Text>
-          <Text style={styles.successSubMessage}>
-            客服将尽快联系您安排发货
-          </Text>
-          <TouchableOpacity 
-            style={styles.successButton}
-            onPress={onClose}
-          >
+          <Text style={styles.successMessage}>您已成功兑换 {item?.name}</Text>
+          <Text style={styles.successSubMessage}>客服将尽快联系您安排发货</Text>
+          <TouchableOpacity style={styles.successButton} onPress={onClose}>
             <Text style={styles.successButtonText}>确定</Text>
           </TouchableOpacity>
         </RNView>
@@ -180,11 +148,11 @@ export default function ShopScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [exchanging, setExchanging] = useState(false);
   const [successModalVisible, setSuccessModalVisible] = useState(false);
-  
+
   // 获取用户积分
   const fetchUserPoints = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/users/${USER_ID}/points`);
+      const response = await fetch(`http://101.126.135.102:3000/api/users/${USER_ID}/points`);
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -192,32 +160,32 @@ export default function ShopScreen() {
         }
       }
     } catch (error) {
-      console.error('获取用户积分出错:', error);
+      console.error("获取用户积分出错:", error);
     } finally {
       setLoading(false);
     }
   };
-  
+
   // 兑换商品
   const exchangeItem = async (item: any) => {
     if (userPoints < item.points) {
       Alert.alert("积分不足", "您的积分不足以兑换该商品");
       return;
     }
-    
+
     setExchanging(true);
-    
+
     try {
-      const response = await fetch(`http://localhost:3000/api/users/${USER_ID}/points/deduct`, {
-        method: 'POST',
+      const response = await fetch(`http://101.126.135.102:3000/api/users/${USER_ID}/points/deduct`, {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          points: item.points
-        })
+          points: item.points,
+        }),
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -231,24 +199,24 @@ export default function ShopScreen() {
         Alert.alert("兑换失败", "请稍后再试");
       }
     } catch (error) {
-      console.error('兑换商品出错:', error);
+      console.error("兑换商品出错:", error);
       Alert.alert("兑换失败", "网络错误，请稍后再试");
     } finally {
       setExchanging(false);
     }
   };
-  
+
   // 打开商品详情
   const openItemDetail = (item: any) => {
     setSelectedItem(item);
     setModalVisible(true);
   };
-  
+
   // 初始加载
   useEffect(() => {
     fetchUserPoints();
   }, []);
-  
+
   return (
     <View style={styles.container}>
       {/* 顶部状态栏 */}
@@ -259,7 +227,7 @@ export default function ShopScreen() {
           <Text style={styles.pointsValue}>{userPoints}</Text>
         </RNView>
       </RNView>
-      
+
       {loading ? (
         <RNView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#1CB0F6" />
@@ -270,11 +238,7 @@ export default function ShopScreen() {
           {/* 商品列表 */}
           <RNView style={styles.itemsGrid}>
             {SHOP_ITEMS.map((item) => (
-              <TouchableOpacity 
-                key={item.id} 
-                style={styles.itemCard}
-                onPress={() => openItemDetail(item)}
-              >
+              <TouchableOpacity key={item.id} style={styles.itemCard} onPress={() => openItemDetail(item)}>
                 <Image source={{ uri: item.image }} style={styles.itemImage} />
                 <Text style={styles.itemName}>{item.name}</Text>
                 <RNView style={styles.itemPoints}>
@@ -284,17 +248,15 @@ export default function ShopScreen() {
               </TouchableOpacity>
             ))}
           </RNView>
-          
+
           {/* 底部提示 */}
           <RNView style={styles.tipContainer}>
             <Ionicons name="information-circle" size={20} color="#666" />
-            <Text style={styles.tipText}>
-              每答对一道题可获得1积分，积分可用于兑换各种礼品
-            </Text>
+            <Text style={styles.tipText}>每答对一道题可获得1积分，积分可用于兑换各种礼品</Text>
           </RNView>
         </ScrollView>
       )}
-      
+
       {/* 商品详情弹窗 */}
       <ItemDetailModal
         visible={modalVisible}
@@ -303,7 +265,7 @@ export default function ShopScreen() {
         onExchange={() => exchangeItem(selectedItem)}
         userPoints={userPoints}
       />
-      
+
       {/* 兑换成功弹窗 */}
       <ExchangeSuccessModal
         visible={successModalVisible}
@@ -371,7 +333,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   itemCard: {
-    width: '48%',
+    width: "48%",
     backgroundColor: "white",
     borderRadius: 12,
     padding: 12,
@@ -502,7 +464,7 @@ const styles = StyleSheet.create({
     color: "#FF6B6B",
   },
   successModal: {
-    alignItems: 'center',
+    alignItems: "center",
     padding: 20,
     maxWidth: 300,
   },
@@ -511,30 +473,30 @@ const styles = StyleSheet.create({
   },
   successTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
-    color: '#4CAF50',
+    color: "#4CAF50",
   },
   successMessage: {
     fontSize: 18,
-    textAlign: 'center',
+    textAlign: "center",
     marginBottom: 8,
   },
   successSubMessage: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
+    color: "#666",
+    textAlign: "center",
     marginBottom: 20,
   },
   successButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
     paddingHorizontal: 30,
     paddingVertical: 12,
     borderRadius: 25,
   },
   successButtonText: {
-    color: 'white',
+    color: "white",
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });

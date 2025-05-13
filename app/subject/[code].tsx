@@ -8,7 +8,7 @@ import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { useSubject } from "@/hooks/useSubject";
 
 // API基础URL
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = "http://101.126.135.102:3000";
 
 export default function SubjectScreen() {
   const router = useRouter();

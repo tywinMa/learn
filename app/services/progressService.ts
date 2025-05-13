@@ -4,7 +4,7 @@
 // 根据环境选择不同的API基础URL
 const isDevelopment = process.env.NODE_ENV === "development";
 // API基础URL - 本地开发使用IP地址，生产环境使用相对路径
-const API_BASE_URL = "http://localhost:3000"; // 使用固定URL
+const API_BASE_URL = "http://101.126.135.102:3000"; // 使用固定URL
 
 // 临时用户ID，实际应用中应该从认证系统获取
 export const USER_ID = "user1";

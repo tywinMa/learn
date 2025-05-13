@@ -1,24 +1,24 @@
 import { USER_ID } from "./progressService";
 
 // API基础URL - 根据环境选择不同的URL
-const isDevelopment = process.env.NODE_ENV === 'development';
-const API_BASE_URL = "http://localhost:3000";  // 使用固定URL
+const isDevelopment = process.env.NODE_ENV === "development";
+const API_BASE_URL = "http://101.126.135.102:3000"; // 使用固定URL
 
 // 本地存储的键名
-const ERROR_BOOK_STORAGE_KEY = 'user_error_book';
+const ERROR_BOOK_STORAGE_KEY = "user_error_book";
 
 // 错题结构类型
 export interface ErrorBookItem {
-  id: string;           // 题目ID
-  exerciseId: string;   // 练习ID
-  unitId: string;       // 单元ID
-  question: string;     // 题目问题
-  options?: any;        // 题目选项
-  correctAnswer: any;   // 正确答案
-  userAnswer: any;      // 用户答案
-  type: string;         // 题目类型
-  addedAt: number;      // 添加时间戳
-  reviewCount: number;  // 复习次数
+  id: string; // 题目ID
+  exerciseId: string; // 练习ID
+  unitId: string; // 单元ID
+  question: string; // 题目问题
+  options?: any; // 题目选项
+  correctAnswer: any; // 正确答案
+  userAnswer: any; // 用户答案
+  type: string; // 题目类型
+  addedAt: number; // 添加时间戳
+  reviewCount: number; // 复习次数
 }
 
 /**
@@ -31,7 +31,7 @@ export const addToErrorBook = async (
   options: any,
   correctAnswer: any,
   userAnswer: any,
-  type: string = 'choice'
+  type: string = "choice"
 ): Promise<boolean> => {
   try {
     // 创建错题项
@@ -45,7 +45,7 @@ export const addToErrorBook = async (
       userAnswer,
       type,
       addedAt: Date.now(),
-      reviewCount: 0
+      reviewCount: 0,
     };
 
     // 错题已被自动添加到后端，因为我们在提交答案时，后端会自动处理
@@ -64,13 +64,13 @@ export const addToErrorBook = async (
     }
 
     // 检查是否已存在相同题目
-    const existingIndex = errorBook.findIndex(item => item.exerciseId === exerciseId);
+    const existingIndex = errorBook.findIndex((item) => item.exerciseId === exerciseId);
     if (existingIndex !== -1) {
       // 更新已存在的错题
       errorBook[existingIndex] = {
         ...errorBook[existingIndex],
         userAnswer,
-        addedAt: Date.now()
+        addedAt: Date.now(),
       };
     } else {
       // 添加新错题
@@ -80,7 +80,7 @@ export const addToErrorBook = async (
     // 保存回本地存储
     localStorage.setItem(ERROR_BOOK_STORAGE_KEY, JSON.stringify(errorBook));
     console.log("错题已添加到本地错题集");
-    
+
     return true;
   } catch (error) {
     console.error("添加错题失败:", error);
@@ -97,7 +97,7 @@ export const getErrorBook = async (): Promise<ErrorBookItem[]> => {
     try {
       const apiUrl = `${API_BASE_URL}/api/users/${USER_ID}/wrong-exercises`;
       const response = await fetch(apiUrl);
-      
+
       if (response.ok) {
         const result = await response.json();
         if (result.success && Array.isArray(result.data)) {
@@ -111,9 +111,9 @@ export const getErrorBook = async (): Promise<ErrorBookItem[]> => {
             options: item.exerciseData.options,
             correctAnswer: item.exerciseData.correctAnswer,
             userAnswer: null, // 后端目前不存储用户答案
-            type: item.exerciseData.type || 'choice',
+            type: item.exerciseData.type || "choice",
             addedAt: item.timestamp,
-            reviewCount: item.attempts || 0
+            reviewCount: item.attempts || 0,
           }));
         }
       }
@@ -134,7 +134,7 @@ export const getErrorBook = async (): Promise<ErrorBookItem[]> => {
         console.error("解析本地错题集失败:", e);
       }
     }
-    
+
     return [];
   } catch (error) {
     console.error("获取错题集失败:", error);
@@ -148,15 +148,15 @@ export const getErrorBook = async (): Promise<ErrorBookItem[]> => {
 export const removeFromErrorBook = async (errorItemId: string): Promise<boolean> => {
   try {
     // 从错题ID提取exerciseId
-    const exerciseId = errorItemId.split('_')[0];
-    
+    const exerciseId = errorItemId.split("_")[0];
+
     // 从后端删除错题
     try {
       const apiUrl = `${API_BASE_URL}/api/users/${USER_ID}/wrong-exercises/${exerciseId}`;
       const response = await fetch(apiUrl, {
-        method: "DELETE"
+        method: "DELETE",
       });
-      
+
       if (response.ok) {
         console.log("从服务器错题集删除成功");
         return true;
@@ -172,7 +172,7 @@ export const removeFromErrorBook = async (errorItemId: string): Promise<boolean>
       try {
         let errorBook = JSON.parse(storedErrorBook);
         if (Array.isArray(errorBook)) {
-          errorBook = errorBook.filter(item => item.id !== errorItemId);
+          errorBook = errorBook.filter((item) => item.id !== errorItemId);
           localStorage.setItem(ERROR_BOOK_STORAGE_KEY, JSON.stringify(errorBook));
           console.log("从本地错题集删除成功");
           return true;
@@ -181,7 +181,7 @@ export const removeFromErrorBook = async (errorItemId: string): Promise<boolean>
         console.error("处理本地错题集失败:", e);
       }
     }
-    
+
     return false;
   } catch (error) {
     console.error("删除错题失败:", error);
@@ -200,16 +200,16 @@ export const markErrorItemReviewed = async (errorItemId: string): Promise<boolea
       try {
         let errorBook = JSON.parse(storedErrorBook);
         if (Array.isArray(errorBook)) {
-          const updatedErrorBook = errorBook.map(item => {
+          const updatedErrorBook = errorBook.map((item) => {
             if (item.id === errorItemId) {
               return {
                 ...item,
-                reviewCount: (item.reviewCount || 0) + 1
+                reviewCount: (item.reviewCount || 0) + 1,
               };
             }
             return item;
           });
-          
+
           localStorage.setItem(ERROR_BOOK_STORAGE_KEY, JSON.stringify(updatedErrorBook));
           console.log("本地更新错题复习状态成功");
           return true;
@@ -218,10 +218,10 @@ export const markErrorItemReviewed = async (errorItemId: string): Promise<boolea
         console.error("处理本地错题集失败:", e);
       }
     }
-    
+
     return false;
   } catch (error) {
     console.error("更新错题复习状态失败:", error);
     return false;
   }
-}; 
+};

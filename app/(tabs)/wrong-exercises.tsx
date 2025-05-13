@@ -21,7 +21,7 @@ export default function WrongExercisesScreen() {
       try {
         setLoading(true);
         // 使用 IP 地址而不是 localhost，这样在真机上也能正常工作
-        const apiUrl = `http://localhost:3000/api/users/${USER_ID}/wrong-exercises`;
+        const apiUrl = `http://101.126.135.102:3000/api/users/${USER_ID}/wrong-exercises`;
         const response = await fetch(apiUrl);
 
         if (!response.ok) {
@@ -51,7 +51,7 @@ export default function WrongExercisesScreen() {
   const handleRemoveExercise = async (exerciseId: string) => {
     try {
       // 使用 IP 地址而不是 localhost，这样在真机上也能正常工作
-      const apiUrl = `http://localhost:3000/api/users/${USER_ID}/wrong-exercises/${exerciseId}`;
+      const apiUrl = `http://101.126.135.102:3000/api/users/${USER_ID}/wrong-exercises/${exerciseId}`;
       const response = await fetch(apiUrl, {
         method: "DELETE",
       });
