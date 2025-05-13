@@ -11,6 +11,7 @@ const addMissingExercises = async () => {
       throw new Error('找不到数学学科，请先初始化学科数据');
     }
     const mathSubjectId = mathSubject.id;
+    const mathSubjectCode = mathSubject.code;
 
     // 需要添加的单元ID
     const missingUnitIds = ['math-2-3', 'math-2-4', 'math-3-3'];
@@ -38,9 +39,11 @@ const addMissingExercises = async () => {
         case 'math-2-3':
           exercisesToAdd = [
             {
-              id: '2-3-1',
+              id: `${mathSubjectCode}-2-3-1`,
               unitId,
+              subject: mathSubjectCode,
               subjectId: mathSubjectId,
+              subjectCode: mathSubjectCode,
               question: '平行四边形的定义是什么？',
               options: [
                 '对边平行且相等的四边形',
@@ -53,9 +56,11 @@ const addMissingExercises = async () => {
               difficulty: 1
             },
             {
-              id: '2-3-2',
+              id: `${mathSubjectCode}-2-3-2`,
               unitId,
+              subject: mathSubjectCode,
               subjectId: mathSubjectId,
+              subjectCode: mathSubjectCode,
               question: '平行四边形的对角线互相平分，这句话的正确性是？',
               options: ['正确', '错误', '部分正确', '无法判断'],
               correctAnswer: 0,
@@ -63,9 +68,11 @@ const addMissingExercises = async () => {
               difficulty: 1
             },
             {
-              id: '2-3-3',
+              id: `${mathSubjectCode}-2-3-3`,
               unitId,
+              subject: mathSubjectCode,
               subjectId: mathSubjectId,
+              subjectCode: mathSubjectCode,
               question: '如果一个四边形的对边分别平行，那么这个四边形一定是？',
               options: ['平行四边形', '菱形', '矩形', '正方形'],
               correctAnswer: 0,
@@ -78,9 +85,11 @@ const addMissingExercises = async () => {
         case 'math-2-4':
           exercisesToAdd = [
             {
-              id: '2-4-1',
+              id: `${mathSubjectCode}-2-4-1`,
               unitId,
+              subject: mathSubjectCode,
               subjectId: mathSubjectId,
+              subjectCode: mathSubjectCode,
               question: '圆的切线与半径的夹角是多少度？',
               options: ['90度', '60度', '45度', '30度'],
               correctAnswer: 0,
@@ -88,9 +97,11 @@ const addMissingExercises = async () => {
               difficulty: 1
             },
             {
-              id: '2-4-2',
+              id: `${mathSubjectCode}-2-4-2`,
               unitId,
+              subject: mathSubjectCode,
               subjectId: mathSubjectId,
+              subjectCode: mathSubjectCode,
               question: '如果两个圆相交，它们最多有几个交点？',
               options: ['1个', '2个', '3个', '4个'],
               correctAnswer: 1,
@@ -98,9 +109,11 @@ const addMissingExercises = async () => {
               difficulty: 1
             },
             {
-              id: '2-4-3',
+              id: `${mathSubjectCode}-2-4-3`,
               unitId,
+              subject: mathSubjectCode,
               subjectId: mathSubjectId,
+              subjectCode: mathSubjectCode,
               question: '圆内接四边形的对角之和是多少度？',
               options: ['180度', '270度', '360度', '540度'],
               correctAnswer: 2,
@@ -108,9 +121,11 @@ const addMissingExercises = async () => {
               difficulty: 2
             },
             {
-              id: '2-4-4',
+              id: `${mathSubjectCode}-2-4-4`,
               unitId,
+              subject: mathSubjectCode,
               subjectId: mathSubjectId,
+              subjectCode: mathSubjectCode,
               question: '一个圆的面积是64π平方厘米，则它的半径是多少厘米？',
               options: ['4', '8', '16', '32'],
               correctAnswer: 0,
@@ -123,9 +138,11 @@ const addMissingExercises = async () => {
         case 'math-3-3':
           exercisesToAdd = [
             {
-              id: '3-3-1',
+              id: `${mathSubjectCode}-3-3-1`,
               unitId,
+              subject: mathSubjectCode,
               subjectId: mathSubjectId,
+              subjectCode: mathSubjectCode,
               question: '如果事件A和事件B互斥，则 P(A∩B) 等于多少？',
               options: ['0', 'P(A)×P(B)', 'P(A)+P(B)', '1-P(A)-P(B)'],
               correctAnswer: 0,
@@ -133,9 +150,11 @@ const addMissingExercises = async () => {
               difficulty: 2
             },
             {
-              id: '3-3-2',
+              id: `${mathSubjectCode}-3-3-2`,
               unitId,
+              subject: mathSubjectCode,
               subjectId: mathSubjectId,
+              subjectCode: mathSubjectCode,
               question: '如果事件A和事件B独立，则 P(A|B) 等于多少？',
               options: ['P(A)', 'P(B)', 'P(A)×P(B)', 'P(A)/P(B)'],
               correctAnswer: 0,
@@ -143,9 +162,11 @@ const addMissingExercises = async () => {
               difficulty: 2
             },
             {
-              id: '3-3-3',
+              id: `${mathSubjectCode}-3-3-3`,
               unitId,
+              subject: mathSubjectCode,
               subjectId: mathSubjectId,
+              subjectCode: mathSubjectCode,
               question: '一个袋子里有3个红球和2个蓝球，随机取出2个球，取出的两个球都是红球的概率是多少？',
               options: ['3/10', '3/5', '9/25', '6/25'],
               correctAnswer: 0,
@@ -153,9 +174,11 @@ const addMissingExercises = async () => {
               difficulty: 3
             },
             {
-              id: '3-3-4',
+              id: `${mathSubjectCode}-3-3-4`,
               unitId,
+              subject: mathSubjectCode,
               subjectId: mathSubjectId,
+              subjectCode: mathSubjectCode,
               question: '如果一个随机变量X服从标准正态分布，则 P(X > 0) 等于多少？',
               options: ['0.5', '0.6827', '0.9545', '0.9973'],
               correctAnswer: 0,

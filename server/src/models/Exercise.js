@@ -6,16 +6,19 @@ const Exercise = sequelize.define('Exercise', {
   id: {
     type: DataTypes.STRING,
     primaryKey: true,
-    allowNull: false
-  },
-  subjectId: {
-    type: DataTypes.INTEGER,
     allowNull: false,
-    comment: '所属学科ID'
+    comment: '练习题ID，格式为unitId-题号，如math-1-1-1表示数学学科第1单元第1关卡第1题'
   },
+  subject: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    comment: '学科代码，如math、physics等，用于标识所属学科'
+  },
+
   unitId: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: false,
+    comment: '所属单元ID，必须包含学科前缀，如math-1-1'
   },
   question: {
     type: DataTypes.TEXT,
@@ -57,7 +60,29 @@ const Exercise = sequelize.define('Exercise', {
     allowNull: true, // 可选提示
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  hooks: {
+    beforeCreate: (exercise) => {
+      // 确保ID包含学科代码
+      if (!exercise.id.startsWith(exercise.subject)) {
+        // 检查unitId是否已包含学科前缀
+        if (exercise.unitId.startsWith(exercise.subject)) {
+          // 如果unitId已经有学科前缀，则直接使用unitId作为id的前缀
+          if (!exercise.id.startsWith(exercise.unitId)) {
+            exercise.id = `${exercise.unitId}-${exercise.id.split('-').pop()}`;
+          }
+        } else {
+          // 如果unitId没有学科前缀，给ID添加学科前缀
+          exercise.id = `${exercise.subject}-${exercise.id}`;
+        }
+      }
+      
+      // 确保unitId包含学科前缀
+      if (!exercise.unitId.startsWith(exercise.subject)) {
+        exercise.unitId = `${exercise.subject}-${exercise.unitId}`;
+      }
+    }
+  }
 });
 
 module.exports = Exercise;

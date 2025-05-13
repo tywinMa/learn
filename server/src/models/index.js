@@ -9,15 +9,17 @@ const { sequelize } = require('../config/database');
 
 // 定义模型之间的关系
 // 学科与单元之间的关系
-Subject.hasMany(Unit, { foreignKey: 'subjectId', sourceKey: 'id' });
-Unit.belongsTo(Subject, { foreignKey: 'subjectId', targetKey: 'id' });
+// 使用subject字段作为关联键
+Subject.hasMany(Unit, { foreignKey: 'subject', sourceKey: 'code' });
+Unit.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 
-// 学科与练习题、学习内容之间的关系
-Subject.hasMany(Exercise, { foreignKey: 'subjectId', sourceKey: 'id' });
-Exercise.belongsTo(Subject, { foreignKey: 'subjectId', targetKey: 'id' });
+// 学科与练习题之间的关系
+Subject.hasMany(Exercise, { foreignKey: 'subject', sourceKey: 'code' });
+Exercise.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 
-Subject.hasMany(LearningContent, { foreignKey: 'subjectId', sourceKey: 'id' });
-LearningContent.belongsTo(Subject, { foreignKey: 'subjectId', targetKey: 'id' });
+// 学科与学习内容之间的关系
+Subject.hasMany(LearningContent, { foreignKey: 'subject', sourceKey: 'code' });
+LearningContent.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 
 // 单元与练习题、学习内容之间的关系
 Unit.hasMany(Exercise, { foreignKey: 'unitId', sourceKey: 'id' });
@@ -33,6 +35,14 @@ UserRecord.belongsTo(Exercise, { foreignKey: 'exerciseId', targetKey: 'id' });
 // Exercise 和 WrongExercise 之间的关系
 Exercise.hasMany(WrongExercise, { foreignKey: 'exerciseId', sourceKey: 'id' });
 WrongExercise.belongsTo(Exercise, { foreignKey: 'exerciseId', targetKey: 'id' });
+
+// Subject 和 UserRecord 之间的关系
+Subject.hasMany(UserRecord, { foreignKey: 'subject', sourceKey: 'code' });
+UserRecord.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
+
+// Subject 和 WrongExercise 之间的关系
+Subject.hasMany(WrongExercise, { foreignKey: 'subject', sourceKey: 'code' });
+WrongExercise.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 
 // 同步所有模型到数据库
 const syncDatabase = async () => {

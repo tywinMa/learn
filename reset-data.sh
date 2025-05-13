@@ -40,7 +40,9 @@ echo -e "${YELLOW}运行数据初始化脚本...${NC}"
 node src/utils/initData.js
 
 if [ $? -eq 0 ]; then
-  echo -e "${GREEN}数据重置完成！${NC}"
+  echo -e "${GREEN}数据初始化完成！${NC}"
+  
+  # 数据迁移已完成，不再需要运行迁移脚本
   
   # 返回项目根目录
   cd "${0%/*}"

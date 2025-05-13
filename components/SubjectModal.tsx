@@ -9,29 +9,24 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Text, View } from "./Themed";
-import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
+import { useSubject, Subject } from "@/hooks/useSubject";
 
-interface Subject {
-  id: number;
-  name: string;
-  code: string;
-  description: string;
-  color: string;
-  iconName: string;
-}
+// API基础URL
+const API_BASE_URL = "http://localhost:3000";
 
 interface SubjectModalProps {
   visible: boolean;
   onClose: () => void;
   onSelectSubject: (subject: Subject) => void;
-  currentSubjectCode?: string;
 }
 
-const SubjectModal = ({ visible, onClose, onSelectSubject, currentSubjectCode = "math" }: SubjectModalProps) => {
+const SubjectModal = ({ visible, onClose, onSelectSubject }: SubjectModalProps) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { currentSubject } = useSubject();
 
   // 获取学科列表
   useEffect(() => {
@@ -45,18 +40,12 @@ const SubjectModal = ({ visible, onClose, onSelectSubject, currentSubjectCode = 
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:3000/api/subjects");
+      const response = await fetch(`${API_BASE_URL}/api/subjects`);
       const result = await response.json();
 
       if (result.success) {
-        // 添加一些视觉信息，如颜色和图标
-        const enhancedSubjects = result.data.map((subject: any) => ({
-          ...subject,
-          color: getSubjectColor(subject.code),
-          iconName: getSubjectIcon(subject.code),
-        }));
-
-        setSubjects(enhancedSubjects);
+        // 从API获取学科数据，包含服务器设置的颜色和图标
+        setSubjects(result.data);
       } else {
         setError("获取学科列表失败");
       }
@@ -68,37 +57,9 @@ const SubjectModal = ({ visible, onClose, onSelectSubject, currentSubjectCode = 
     }
   };
 
-  // 根据学科代码获取颜色
-  const getSubjectColor = (code: string): string => {
-    const colors: Record<string, string> = {
-      math: "#58CC02",
-      physics: "#5EC0DE",
-      chemistry: "#FF9600",
-      biology: "#9069CD",
-      history: "#DD6154",
-      default: "#1CB0F6",
-    };
-
-    return colors[code] || colors.default;
-  };
-
-  // 根据学科代码获取图标
-  const getSubjectIcon = (code: string): string => {
-    const icons: Record<string, string> = {
-      math: "calculator-variant",
-      physics: "atom",
-      chemistry: "flask",
-      biology: "leaf",
-      history: "book-open-page-variant",
-      default: "school",
-    };
-
-    return icons[code] || icons.default;
-  };
-
   // 渲染学科项
   const renderSubjectItem = ({ item }: { item: Subject }) => {
-    const isSelected = item.code === currentSubjectCode;
+    const isSelected = item.code === currentSubject.code;
 
     return (
       <TouchableOpacity

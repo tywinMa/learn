@@ -39,8 +39,19 @@ const VIDEO_RESOURCES = {
 export default function StudyScreen() {
   const params = useLocalSearchParams();
   const { id, unitTitle, color, subject } = params;
-  const lessonId = Array.isArray(id) ? id[0] : id || "";
-  const subjectCode = Array.isArray(subject) ? subject[0] : subject || ""; // 获取学科代码
+  // 获取单元ID - 分离学科代码和单元号
+  let lessonId = Array.isArray(id) ? id[0] : id || "";
+  const subjectCode = Array.isArray(subject) ? subject[0] : subject || "math"; // 获取学科代码，默认为math
+  
+  // 处理可能的混合格式 (如 "math-1-1")
+  if (lessonId.includes('-') && lessonId.split('-').length > 2) {
+    const parts = lessonId.split('-');
+    // 如果ID中已包含学科代码，则需要提取纯单元号部分
+    if (parts[0] === subjectCode) {
+      // 移除学科前缀，保留单元号部分 (如 "1-1")
+      lessonId = parts.slice(1).join('-');
+    }
+  }
 
   const router = useRouter();
   const [videoStatus, setVideoStatus] = React.useState<any>({});
@@ -295,9 +306,10 @@ export default function StudyScreen() {
                 router.push({
                   pathname: "/practice",
                   params: {
-                    unitId: lessonId,
+                    id: lessonId, // 使用id参数代替unitId，与practice.tsx中的处理一致
                     unitTitle: Array.isArray(unitTitle) ? unitTitle[0] : unitTitle || "课后练习",
                     color: Array.isArray(color) ? color[0] : color || "#5EC0DE",
+                    subject: subjectCode, // 传递学科代码
                   },
                 });
               }}

@@ -27,6 +27,9 @@ router.get('/', async (req, res) => {
       // 添加颜色字段
       subjectData.color = colors[subject.code] || colors.default;
 
+      // 添加图标名称映射（如果icon字段只存了图标名称而不是完整的Material Community Icons名称）
+      subjectData.iconName = getIconNameByCode(subject.code, subject.icon);
+
       return subjectData;
     });
 
@@ -59,20 +62,11 @@ router.get('/:code', async (req, res) => {
       });
     }
 
-    // 添加颜色信息
+    // 获取学科数据
     const subjectData = subject.toJSON();
-
-    // 根据学科代码设置颜色
-    const colors = {
-      math: "#58CC02",
-      physics: "#5EC0DE",
-      chemistry: "#FF9600",
-      biology: "#9069CD",
-      history: "#DD6154",
-      default: "#1CB0F6"
-    };
-
-    subjectData.color = colors[code] || colors.default;
+    
+    // 添加图标名称映射
+    subjectData.iconName = getIconNameByCode(code, subject.icon);
 
     res.json({
       success: true,
@@ -106,7 +100,7 @@ router.get('/:code/units', async (req, res) => {
     }
 
     // 查询条件
-    const whereClause = { subjectId: subject.id };
+    const whereClause = { subject: subject.code };
 
     // 如果指定了level，只返回该层级的单元
     if (level) {
@@ -155,7 +149,7 @@ router.get('/:code/units', async (req, res) => {
         ...unitData,
         exercisesCount,
         isChallenge,
-        subjectCode: code, // 添加学科代码，帮助前端构建完整ID
+        subject: code, // 使用subject字段替代subjectCode
       };
     }));
 
@@ -317,6 +311,24 @@ function getUnitColor(level, order) {
   // 同一级别的单元使用相同颜色
   const colorIndex = (level - 1) % colors.length;
   return colors[colorIndex];
+}
+
+// 根据学科代码获取图标名称
+function getIconNameByCode(code, iconFromDb) {
+  // 如果数据库中已有完整的图标名称，则直接使用
+  if (iconFromDb) return iconFromDb;
+  
+  // 默认图标映射
+  const iconMapping = {
+    math: "calculator-variant",
+    physics: "atom",
+    chemistry: "flask", 
+    biology: "leaf",
+    history: "book-open-page-variant",
+    default: "school"
+  };
+  
+  return iconMapping[code] || iconMapping.default;
 }
 
 module.exports = router; 

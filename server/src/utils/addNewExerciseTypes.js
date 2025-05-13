@@ -13,13 +13,16 @@ const addNewExerciseTypes = async () => {
       throw new Error('找不到数学学科，请先初始化学科数据');
     }
     const mathSubjectId = mathSubject.id;
+    const mathSubjectCode = mathSubject.code;
 
     // 匹配题
     const matchingExercises = [
       {
-        id: '1-2-4',
+        id: `${mathSubjectCode}-1-2-4`,
         unitId: 'math-1-2',
+        subject: mathSubjectCode,
         subjectId: mathSubjectId,
+        subjectCode: mathSubjectCode,
         question: '将左侧的因式分解式与右侧的表达式进行匹配',
         type: 'matching',
         options: {
@@ -31,9 +34,11 @@ const addNewExerciseTypes = async () => {
         difficulty: 2
       },
       {
-        id: '1-5-5',
+        id: `${mathSubjectCode}-1-5-5`,
         unitId: 'math-1-5',
+        subject: mathSubjectCode,
         subjectId: mathSubjectId,
+        subjectCode: mathSubjectCode,
         question: '匹配函数与其图像特征',
         type: 'matching',
         options: {
@@ -49,9 +54,11 @@ const addNewExerciseTypes = async () => {
     // 填空题
     const fillBlankExercises = [
       {
-        id: '1-3-3',
+        id: `${mathSubjectCode}-1-3-3`,
         unitId: 'math-1-3',
+        subject: mathSubjectCode,
         subjectId: mathSubjectId,
+        subjectCode: mathSubjectCode,
         question: '使用配方法解一元二次方程 x² + 6x + 8 = 0。\n第一步，移项：x² + 6x = -8\n第二步，配方：x² + 6x + ____ = -8 + ____\n第三步，因式分解：(x + ____)² = ____\n第四步，求解：x + 3 = ±____，即x = ____ 或 x = ____',
         type: 'fill_blank',
         options: null,
@@ -60,9 +67,11 @@ const addNewExerciseTypes = async () => {
         difficulty: 3
       },
       {
-        id: '2-2-3',
+        id: `${mathSubjectCode}-2-2-3`,
         unitId: 'math-2-2',
+        subject: mathSubjectCode,
         subjectId: mathSubjectId,
+        subjectCode: mathSubjectCode,
         question: '已知直角三角形的斜边长为10，一条直角边长为6，则另一条直角边长为____。',
         type: 'fill_blank',
         options: null,
@@ -75,9 +84,11 @@ const addNewExerciseTypes = async () => {
     // 排序题
     const sortExercises = [
       {
-        id: '1-4-4',
+        id: `${mathSubjectCode}-1-4-4`,
         unitId: 'math-1-4',
+        subject: mathSubjectCode,
         subjectId: mathSubjectId,
+        subjectCode: mathSubjectCode,
         question: '按照解一元二次方程的正确步骤排序',
         type: 'sort',
         options: [
@@ -95,9 +106,11 @@ const addNewExerciseTypes = async () => {
     // 拖拽题
     const dragDropExercises = [
       {
-        id: '1-5-6',
+        id: `${mathSubjectCode}-1-5-6`,
         unitId: 'math-1-5',
+        subject: mathSubjectCode,
         subjectId: mathSubjectId,
+        subjectCode: mathSubjectCode,
         question: '将函数图像的各个部分拖放到正确的位置',
         type: 'drag_drop',
         options: {
@@ -117,9 +130,11 @@ const addNewExerciseTypes = async () => {
     // 数学计算题
     const mathExercises = [
       {
-        id: '3-3-5',
+        id: `${mathSubjectCode}-3-3-5`,
         unitId: 'math-3-3',
+        subject: mathSubjectCode,
         subjectId: mathSubjectId,
+        subjectCode: mathSubjectCode,
         question: '有一袋10个球，其中3个红球、4个蓝球和3个绿球。随机抽取2个球，求抽到的球颜色相同的概率。',
         type: 'math',
         options: null,
@@ -143,9 +158,11 @@ const addNewExerciseTypes = async () => {
         ]
       },
       {
-        id: '1-6-4',
+        id: `${mathSubjectCode}-1-6-4`,
         unitId: 'math-1-6',
+        subject: mathSubjectCode,
         subjectId: mathSubjectId,
+        subjectCode: mathSubjectCode,
         question: '有一个长方形，周长固定为20米。如果要使面积最大，请计算长和宽各是多少？并证明这是最大值。',
         type: 'math',
         options: null,

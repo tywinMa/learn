@@ -5,6 +5,7 @@ const addMissingExercises = require('./addMissingExercises');
 const addNewExerciseTypes = require('./addNewExerciseTypes');
 const initLearningContent = require('./initLearningContent');
 const fixLearningContentIds = require('./fixLearningContentIds');
+const migrateSubjectFields = require('./migrateSubjectFields');
 
 /**
  * 重置数据库并重新初始化数据
@@ -34,6 +35,14 @@ const initData = async () => {
 
     // 修复学习内容ID格式
     await fixLearningContentIds();
+
+    // 统一学科字段（新增）
+    try {
+      await migrateSubjectFields();
+      console.log('学科字段统一完成');
+    } catch (migrationError) {
+      console.warn('学科字段统一过程中出现问题，但不影响初始化：', migrationError.message);
+    }
 
     console.log('数据初始化完成！');
   } catch (error) {

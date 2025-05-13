@@ -28,6 +28,8 @@ const API_BASE_URL = "http://localhost:3000"; // 直接使用绝对URL，不依�
 // 正确导入Exercise组件
 import { Exercise } from "./components/Exercise";
 
+import { useSubject } from "@/hooks/useSubject";
+
 // 总结弹窗组件
 const SummaryModal = ({
   visible,
@@ -214,7 +216,7 @@ const ResultFeedback = ({
 // 主页面组件
 export default function PracticeScreen() {
   const params = useLocalSearchParams();
-  const { unitId, unitTitle, color } = params;
+  const { currentSubject } = useSubject();
   const router = useRouter();
   const [exercises, setExercises] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -233,16 +235,50 @@ export default function PracticeScreen() {
   const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
-  // 确保 unitId 是单个字符串
-  const lessonId = Array.isArray(unitId) ? unitId[0] : unitId || "1-1";
+  // 从URL参数中获取单元ID和学科代码
+// 同时支持id和unitId参数，兼容两种URL参数形式
+let lessonId = typeof params.id === 'string' && params.id.trim() ? 
+              params.id.trim() : 
+              (typeof params.unitId === 'string' && params.unitId.trim() ? 
+              params.unitId.trim() : '');
+// 先使用URL参数中的学科代码，如果没有则使用全局当前学科代码
+const subjectCode = typeof params.subject === 'string' && params.subject.trim() ? 
+                    params.subject.trim() : currentSubject?.code || 'math';
+
+// 处理可能的混合格式 (如 "math-1-1")
+if (lessonId.includes('-') && lessonId.split('-').length > 2) {
+  const parts = lessonId.split('-');
+  // 如果ID中已包含学科代码，则需要提取纯单元号部分
+  if (parts[0] === subjectCode) {
+    // 移除学科前缀，保留单元号部分 (如 "1-1")
+    lessonId = parts.slice(1).join('-');
+  }
+}
+
+// 获取其他参数用于界面显示
+const unitTitle = typeof params.unitTitle === 'string' ? params.unitTitle : '练习';
+const color = typeof params.color === 'string' ? params.color : '#5EC0DE';
 
   // 获取练习题
-  const fetchExercises = async () => {
-    try {
-      setLoading(true);
-      // 修改API调用，添加参数过滤已完成的题目，只保留错题和未做过的题
-      const apiUrl = `${API_BASE_URL}/api/exercises/${lessonId}?userId=${USER_ID}&filterCompleted=true`;
-      console.log("请求练习题URL:", apiUrl);
+const fetchExercises = async () => {
+  try {
+    setLoading(true);
+    
+    // 检查必要参数
+    if (!lessonId) {
+      console.error("缺少必要参数：lessonId");
+      throw new Error("无法加载练习题：缺少单元ID");
+    }
+    
+    // 确保subjectCode和lessonId都有效，避免发送无效的API请求
+    if (!subjectCode) {
+      throw new Error("无法加载练习题：缺少学科代码");
+    }
+    
+    // 构建API URL，确保包含学科代码和lessonId
+    const apiUrl = `${API_BASE_URL}/api/exercises/${subjectCode}/${lessonId}?userId=${USER_ID}&filterCompleted=true`;
+    
+    console.log("请求练习题URL:", apiUrl);
 
       const response = await fetch(apiUrl);
 
@@ -266,29 +302,9 @@ export default function PracticeScreen() {
       } else {
         throw new Error(result.message || "获取练习题失败: 服务器未返回数据");
       }
-    } catch (err: any) {
-      console.error("获取练习题出错:", err);
-      setError(err.message || "获取练习题失败，请稍后再试");
-      // 如果API请求失败，使用默认练习题
-      setExercises([
-        {
-          id: "1",
-          question: "解一元二次方程：x² - 5x + 6 = 0",
-          options: ["x = 2 或 x = 3", "x = -2 或 x = -3", "x = 2 或 x = -3", "x = -2 或 x = 3"],
-          correctAnswer: 0,
-          type: "choice",
-          explanation: "使用因式分解法：x² - 5x + 6 = (x-2)(x-3) = 0，所以x = 2或x = 3",
-        },
-        {
-          id: "2",
-          question: "已知三角形的两边长分别为3和4，且夹角为60°，求第三边的长度。",
-          options: ["5", "√13", "√19", "7"],
-          correctAnswer: 2,
-          type: "choice",
-          explanation:
-            "使用余弦定理：c² = a² + b² - 2ab·cosC = 3² + 4² - 2·3·4·cos(60°) = 9 + 16 - 24·0.5 = 25 - 12 = 13，所以c = √19",
-        },
-      ]);
+    } catch (error: any) {
+      console.error("获取练习题出错:", error);
+      setError(error.message || "获取练习题出错，请稍后重试");
     } finally {
       setLoading(false);
     }
@@ -296,7 +312,12 @@ export default function PracticeScreen() {
 
   // 初始加载
   useEffect(() => {
-    fetchExercises();
+    if (lessonId) {
+      fetchExercises();
+    } else {
+      setError("无法加载练习题：缺少单元ID");
+      setLoading(false);
+    }
   }, [lessonId]);
 
   // 计算正确答题数
@@ -465,6 +486,7 @@ export default function PracticeScreen() {
         id: lessonId,
         unitTitle: unitTitle || "",
         color: color || "#5EC0DE",
+        subject: subjectCode, // 确保传递学科代码
       },
     });
   };

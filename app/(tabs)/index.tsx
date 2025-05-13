@@ -23,17 +23,18 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { getUserUnitProgress, getMultipleUnitProgress, USER_ID as PROGRESS_USER_ID } from "../services/progressService";
 import { getUserPoints } from "../services/pointsService";
 import UnlockModal from "../../components/UnlockModal";
 import SubjectModal from "../../components/SubjectModal";
-
-// 学科存储键
-const CURRENT_SUBJECT_KEY = "currentSubject";
+import { useSubject, Subject } from "@/hooks/useSubject";
 
 // API基础URL
 const API_BASE_URL = "http://localhost:3000";
+
+// 学科信息存储键
+const CURRENT_SUBJECT_KEY = "currentSubject";
 
 // 保存当前学科到AsyncStorage
 const saveCurrentSubject = async (subject: any) => {
@@ -58,9 +59,6 @@ const loadCurrentSubject = async () => {
     return null;
   }
 };
-
-// 动态课程数据，现在通过API获取
-// ... existing code ...
 
 // 关卡组件
 const Level = ({
@@ -287,8 +285,10 @@ const Level = ({
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme() ?? "light";
-  // @ts-ignore - 添加router变量
   const router = useRouter();
+  // 使用useLocalSearchParams获取路由参数
+  const params = useLocalSearchParams();
+  
   const [currentUnit, setCurrentUnit] = useState(0);
   const [streak, setStreak] = useState(0);
   const [xp, setXp] = useState(0);
@@ -301,29 +301,13 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [showFixedBanner, setShowFixedBanner] = useState(true);
 
-  // 从URL获取刷新触发参数
-  const [refreshTrigger, setRefreshTrigger] = useState<string | null>(null);
-  const [urlSubjectCode, setUrlSubjectCode] = useState<string | null>(null);
-
-  useEffect(() => {
-    // 从URL中获取刷新触发参数和学科参数
-    if (Platform.OS === "web") {
-      const urlParams = new URLSearchParams(window.location.search);
-      setRefreshTrigger(urlParams.get("refresh"));
-      setUrlSubjectCode(urlParams.get("currentSubject"));
-    }
-  }, []);
+  // 从expo-router获取刷新触发参数
+  const refreshTrigger = params.refresh as string | undefined;
+  const urlSubjectCode = params.currentSubject as string | undefined;
 
   // 添加学科切换相关状态
   const [showSubjectModal, setShowSubjectModal] = useState(false);
-  const [currentSubject, setCurrentSubject] = useState({
-    id: 1,
-    name: "数学",
-    code: "math",
-    description: "掌握数学基础知识和解题技巧",
-    color: "#58CC02",
-    iconName: "calculator-variant",
-  });
+  const { currentSubject, setCurrentSubject } = useSubject();
 
   // 添加课程数据状态 - 替代硬编码的COURSES
   const [courses, setCourses] = useState<any[]>([]);
@@ -338,16 +322,38 @@ export default function HomeScreen() {
 
   // 组件挂载后初始化位置数据和加载默认学科课程
   useEffect(() => {
-    // 尝试加载保存的学科
+    // 尝试加载保存的学科或加载默认学科
     const initSubject = async () => {
-      const savedSubject = await loadCurrentSubject();
-      if (savedSubject) {
-        console.log("从存储中加载学科:", savedSubject.name);
-        setCurrentSubject(savedSubject);
-        fetchSubjectCourses(savedSubject.code);
-      } else {
-        // 使用默认学科
-        fetchSubjectCourses(currentSubject.code);
+      try {
+        // 尝试从本地存储加载
+        const savedSubject = await loadCurrentSubject();
+        
+        if (savedSubject) {
+          console.log("从存储中加载学科:", savedSubject.name);
+          setCurrentSubject(savedSubject);
+          fetchSubjectCourses(savedSubject.code);
+        } else {
+          // 从服务器获取默认学科(数学)
+          const response = await fetch(`${API_BASE_URL}/api/subjects/math`);
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.data) {
+              console.log("从服务器加载默认学科:", result.data.name);
+              setCurrentSubject(result.data);
+              fetchSubjectCourses(result.data.code);
+            } else {
+              // 加载失败时使用本地默认值
+              fetchSubjectCourses("math");
+            }
+          } else {
+            // 加载失败时使用本地默认值
+            fetchSubjectCourses("math");
+          }
+        }
+      } catch (error) {
+        console.error("初始化学科失败:", error);
+        // 出错时使用默认值
+        fetchSubjectCourses("math");
       }
     };
 
@@ -380,7 +386,7 @@ export default function HomeScreen() {
 
     try {
       // 获取学科的单元数据
-      const response = await fetch(`http://localhost:3000/api/subjects/${subjectCode}/units`);
+      const response = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}/units`);
 
       if (!response.ok) {
         throw new Error(`获取${subjectCode}学科单元失败`);
@@ -389,14 +395,27 @@ export default function HomeScreen() {
       const result = await response.json();
 
       if (result.success) {
+        // 获取学科信息
+        const subjectResponse = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}`);
+        let subject = currentSubject;
+        
+        if (subjectResponse.ok) {
+          const subjectResult = await subjectResponse.json();
+          if (subjectResult.success && subjectResult.data) {
+            subject = subjectResult.data;
+            // 更新当前学科
+            setCurrentSubject(subject);
+          }
+        }
+
         // 将API返回的数据转换为应用所需的格式
-        const formattedCourses = formatCoursesData(result.data, currentSubject);
+        const formattedCourses = formatCoursesData(result.data, subject);
         setCourses(formattedCourses);
 
         // 获取该学科下的进度数据
         await fetchUserData(formattedCourses);
       } else {
-        setError(`获取${currentSubject.name}学科单元失败: ${result.message}`);
+        setError(`获取${subjectCode}学科单元失败: ${result.message}`);
       }
     } catch (err: any) {
       console.error(`获取学科单元数据出错:`, err);
@@ -444,8 +463,8 @@ export default function HomeScreen() {
         color: subject.color,
         secondaryColor: getLighterColor(subject.color),
         levels: units.map((u) => {
-          // 使用API返回的subjectCode字段，如果存在
-          const subjectCode = u.subjectCode || subject.code || "unknown";
+                  // 使用API返回的subject字段，如果存在
+        const subjectCode = u.subject || subject.code || "unknown";
 
           // 确保code字段存在
           if (!u.code) {
@@ -534,23 +553,44 @@ export default function HomeScreen() {
   };
 
   // 处理学科切换
-  const handleSubjectSelect = (subject: any) => {
-    setCurrentSubject(subject);
+  const handleSubjectSelect = (subject: Subject) => {
+    // 关闭模态框
     setShowSubjectModal(false);
 
-    // 将选择的学科保存到AsyncStorage
-    saveCurrentSubject(subject);
+    // 如果选择的是当前学科，不做任何操作
+    if (subject.code === currentSubject.code) {
+      return;
+    }
 
-    // 重置数据
+    // 保存学科到上下文和AsyncStorage
+    saveCurrentSubject(subject);
+    
+    // 弹出一个提示，表示已切换学科
+    Alert.alert("学科已切换", `您已成功切换到${subject.name}学科`, [{ 
+      text: "好的", 
+      style: "default",
+      onPress: () => {
+        // 使用expo-router导航刷新应用
+        router.replace({
+          pathname: "/",
+          params: {
+            refresh: Date.now().toString(),
+            currentSubject: subject.code,
+          },
+        });
+      }
+    }]);
+
+    // 更新本地状态
+    setCurrentSubject(subject);
     setError(null);
     setProgressData({});
     setCurrentUnit(0);
-
+    setCourses([]);  // 清空当前课程数据
+    setLoadingCourses(true);  // 显示加载状态
+    
     // 获取新学科的课程数据
     fetchSubjectCourses(subject.code);
-
-    // 弹出一个提示，表示已切换学科
-    Alert.alert("学科已切换", `您已成功切换到${subject.name}学科`, [{ text: "好的", style: "default" }]);
   };
 
   // 分阶段获取用户进度数据和积分
@@ -587,12 +627,21 @@ export default function HomeScreen() {
     }
   };
 
-  // 加载用户数据 - 当refreshTrigger变化时重新加载
+  // 监听URL参数和刷新触发器，当它们变化时重新加载数据
   useEffect(() => {
-    if (courses.length > 0) {
-      fetchUserData();
+    if (refreshTrigger) {
+      console.log("检测到刷新触发，刷新时间戳:", refreshTrigger);
+      
+      // 如果有URL学科参数，先加载该学科
+      if (urlSubjectCode) {
+        console.log("从路由参数加载学科:", urlSubjectCode);
+        fetchSubjectCourses(urlSubjectCode);
+      } else if (courses.length > 0) {
+        // 否则只刷新当前学科的数据
+        fetchUserData();
+      }
     }
-  }, [refreshTrigger]);
+  }, [refreshTrigger, urlSubjectCode]);
 
   // 按阶段获取进度数据的函数
   const fetchProgressByStage = async (stageIndex: number, coursesData = courses) => {
@@ -621,11 +670,11 @@ export default function HomeScreen() {
     }
   };
 
-  // 处理URL中传递的学科参数
+  // 处理路由中传递的学科参数
   useEffect(() => {
     const handleUrlSubject = async () => {
-      if (urlSubjectCode) {
-        console.log("从URL接收学科代码:", urlSubjectCode);
+      if (urlSubjectCode && urlSubjectCode !== currentSubject.code) {
+        console.log("从路由参数接收学科代码:", urlSubjectCode);
 
         try {
           // 获取学科详情
@@ -685,15 +734,12 @@ export default function HomeScreen() {
   const handleExit = () => {
     setShowFixedBanner(false);
 
-    // 强制重新获取用户进度数据
-    const paramsObj = {
-      refresh: Date.now().toString(), // 添加时间戳参数，强制组件刷新
-    };
-
-    // 使用router导航回主页
+    // 强制重新获取用户进度数据，使用expo-router刷新
     router.replace({
       pathname: "/",
-      params: paramsObj,
+      params: {
+        refresh: Date.now().toString(), // 添加时间戳参数，强制组件刷新
+      },
     });
   };
 
@@ -837,7 +883,6 @@ export default function HomeScreen() {
         visible={showSubjectModal}
         onClose={() => setShowSubjectModal(false)}
         onSelectSubject={handleSubjectSelect}
-        currentSubjectCode={currentSubject.code}
       />
 
       {/* 显示错误提示 */}

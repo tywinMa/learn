@@ -57,6 +57,7 @@ router.post('/:userId/submit', async (req, res) => {
       where: { userId, exerciseId },
       defaults: {
         unitId,
+        subject: exercise.subject, // 从练习题获取subject值
         isCorrect,
         attemptCount: 1
       }
@@ -76,6 +77,7 @@ router.post('/:userId/submit', async (req, res) => {
         where: { userId, exerciseId },
         defaults: {
           unitId,
+          subject: exercise.subject, // 从练习题获取subject值
           attempts: 1
         }
       });
@@ -349,10 +351,23 @@ router.post('/:userId/progress/:unitId/refresh', async (req, res) => {
 
     // 添加缺失的记录
     if (missingExerciseIds.length > 0) {
+      // 获取每个练习题的subject值
+      const exerciseDetails = await Exercise.findAll({
+        where: { id: { [Op.in]: missingExerciseIds } },
+        attributes: ['id', 'subject']
+      });
+      
+      // 创建ID到subject的映射
+      const exerciseSubjectMap = {};
+      exerciseDetails.forEach(ex => {
+        exerciseSubjectMap[ex.id] = ex.subject;
+      });
+
       const recordsToCreate = missingExerciseIds.map(exerciseId => ({
         userId,
         exerciseId,
         unitId,
+        subject: exerciseSubjectMap[exerciseId] || unitId.split('-')[0], // 从映射获取subject，或从unitId推断
         isCorrect: true,
         attemptCount: 1
       }));

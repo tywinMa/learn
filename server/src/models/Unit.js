@@ -9,11 +9,12 @@ const Unit = sequelize.define('Unit', {
     allowNull: false,
     comment: '单元ID，如"math-1-1"，学科代码-章节-小节'
   },
-  subjectId: {
-    type: DataTypes.INTEGER,
+  subject: {
+    type: DataTypes.STRING,
     allowNull: false,
-    comment: '所属学科ID'
+    comment: '学科代码，如math、physics等，用于标识所属学科'
   },
+
   title: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -49,7 +50,20 @@ const Unit = sequelize.define('Unit', {
   }
 }, {
   timestamps: true,
-  comment: '单元表，存储课程单元信息'
+  comment: '单元表，存储课程单元信息',
+  hooks: {
+    beforeCreate: (unit) => {
+      // 确保ID包含学科代码前缀
+      if (!unit.id.startsWith(unit.subject)) {
+        unit.id = `${unit.subject}-${unit.id}`;
+      }
+      
+      // 如果有父单元ID，确保也包含学科前缀
+      if (unit.parentId && !unit.parentId.startsWith(unit.subject)) {
+        unit.parentId = `${unit.subject}-${unit.parentId}`;
+      }
+    }
+  }
 });
 
 module.exports = Unit; 

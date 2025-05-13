@@ -9,11 +9,12 @@ const LearningContent = sequelize.define('LearningContent', {
     autoIncrement: true,
     allowNull: false
   },
-  subjectId: {
-    type: DataTypes.INTEGER,
+  subject: {
+    type: DataTypes.STRING,
     allowNull: false,
-    comment: '所属学科ID'
+    comment: '学科代码，如math、physics等，用于标识所属学科'
   },
+
   unitId: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -53,7 +54,15 @@ const LearningContent = sequelize.define('LearningContent', {
   }
 }, {
   timestamps: true,
-  comment: '学习内容表，存储每个单元的学习材料'
+  comment: '学习内容表，存储每个单元的学习材料',
+  hooks: {
+    beforeCreate: (content) => {
+      // 确保unitId包含学科前缀
+      if (!content.unitId.startsWith(content.subject)) {
+        content.unitId = `${content.subject}-${content.unitId}`;
+      }
+    }
+  }
 });
 
 module.exports = LearningContent; 

@@ -13,9 +13,10 @@ alwaysApply: true
 - 保持简洁，尽量减少其他描述
 - 若认为可能无正确答案，需明确说明；若不确定，应说明而非猜测
 - 只编写实现功能必需的最小代码量
+- 使用React Native和Expo等跨平台包，支持iOS和Android平台
 
 # 项目概述
-这是一个基于React Native和Expo的跨平台移动应用脚手架，支持iOS和Android平台。并且有服务端的代码
+这是一个基于React Native和Expo的跨平台移动应用，支持iOS和Android平台。并且有服务端的代码
 
 # 数据重置
 使用`./reset-data.sh`重置数据

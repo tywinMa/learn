@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { useSubject } from "@/hooks/useSubject";
 
 // API基础URL
 const API_BASE_URL = "http://localhost:3000";
@@ -12,12 +13,16 @@ const API_BASE_URL = "http://localhost:3000";
 export default function SubjectScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { code, name, color } = params;
+  const { code, name } = params;
+  const { currentSubject } = useSubject();
 
   // 确保code是单个字符串
   const subjectCode = Array.isArray(code) ? code[0] : code || "";
   const subjectName = Array.isArray(name) ? name[0] : name || "学科";
-  const subjectColor = Array.isArray(color) ? color[0] : color || "#5EC0DE";
+  // 如果URL中没有color参数，使用当前主题颜色
+  const subjectColor = subjectCode === currentSubject.code 
+    ? currentSubject.color 
+    : "#5EC0DE";
 
   const [units, setUnits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
