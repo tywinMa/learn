@@ -1,10 +1,11 @@
+import React, { useEffect, useState } from "react";
 import { DarkTheme, DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { useFonts } from "expo-font";
-import { Stack, Slot } from "expo-router";
+import { Stack, SplashScreen as ExpoRouterSplashScreen } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
 import "react-native-reanimated";
+import { Text, View } from "react-native";
 
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { SubjectProvider, useSubject } from "@/hooks/useSubject";
@@ -13,9 +14,42 @@ import { SubjectProvider, useSubject } from "@/hooks/useSubject";
 SplashScreen.preventAutoHideAsync();
 
 // 主应用布局容器
-function RootLayoutNav() {
+export default function RootLayout() {
+  const [loaded] = useFonts({
+    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+  });
+  
+  // 添加状态控制是否显示欢迎界面
+  const [showWelcome, setShowWelcome] = useState(true);
+
+  useEffect(() => {
+    console.log("RootLayout挂载，showWelcome:", showWelcome);
+    
+    if (loaded) {
+      console.log("字体加载完成，隐藏SplashScreen");
+      SplashScreen.hideAsync().catch(e => console.log("隐藏SplashScreen错误:", e));
+    }
+  }, [loaded, showWelcome]);
+
+  if (!loaded) {
+    console.log("字体尚未加载完成");
+    return null;
+  }
+
+  return (
+    <SubjectProvider>
+      <RootLayoutNav initialShowWelcome={showWelcome} />
+    </SubjectProvider>
+  );
+}
+
+function RootLayoutNav({ initialShowWelcome }: { initialShowWelcome: boolean }) {
   const colorScheme = useColorScheme();
   const { currentSubject } = useSubject();
+  
+  useEffect(() => {
+    console.log("RootLayoutNav挂载，initialShowWelcome:", initialShowWelcome);
+  }, [initialShowWelcome]);
   
   // 创建自定义主题，包含当前学科颜色
   const customTheme = {
@@ -37,6 +71,13 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={colorScheme === "dark" ? customDarkTheme : customTheme}>
       <Stack>
+        <Stack.Screen 
+          name="welcome" 
+          options={{ 
+            headerShown: false,
+            presentation: 'transparentModal',
+          }}
+        />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="study"
@@ -58,28 +99,5 @@ function RootLayoutNav() {
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
-  );
-}
-
-// 根布局组件
-export default function RootLayout() {
-  const [loaded] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-  });
-
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  if (!loaded) {
-    return null;
-  }
-
-  return (
-    <SubjectProvider>
-      <RootLayoutNav />
-    </SubjectProvider>
   );
 }
