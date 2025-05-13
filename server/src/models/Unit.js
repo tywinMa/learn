@@ -47,6 +47,16 @@ const Unit = sequelize.define('Unit', {
     allowNull: false,
     defaultValue: true,
     comment: '是否发布'
+  },
+  color: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: '单元的主题颜色，如果不设置则使用学科默认颜色'
+  },
+  secondaryColor: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: '单元的次要颜色，用于渐变效果，如果不设置则自动基于主颜色生成'
   }
 }, {
   timestamps: true,

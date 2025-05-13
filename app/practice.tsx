@@ -29,6 +29,7 @@ const API_BASE_URL = "http://localhost:3000"; // 直接使用绝对URL，不依�
 import { Exercise } from "./components/Exercise";
 
 import { useSubject } from "@/hooks/useSubject";
+import { LinearGradient } from "expo-linear-gradient";
 
 // 总结弹窗组件
 const SummaryModal = ({
@@ -237,6 +238,7 @@ export default function PracticeScreen() {
   // 获取其他参数用于界面显示
   const unitTitle = typeof params.unitTitle === "string" ? params.unitTitle : "练习";
   const color = typeof params.color === "string" ? params.color : "#5EC0DE";
+  const secondaryColor = typeof params.secondaryColor === "string" ? params.secondaryColor : color;
 
   // 获取练习题
   const fetchExercises = async () => {
@@ -501,17 +503,26 @@ export default function PracticeScreen() {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen options={{ headerShown: false }} />
-      <StatusBar barStyle="dark-content" backgroundColor="white" />
-
-      {/* 自定义header */}
-      <RNView style={styles.header}>
-        <TouchableOpacity onPress={handleExit} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{unitTitle || "课后练习"}</Text>
-        <RNView style={styles.placeholder} />
-      </RNView>
+      <Stack.Screen
+        options={{
+          title: unitTitle,
+          headerBackground: () => (
+            <LinearGradient
+              colors={[color, secondaryColor]}
+              style={{ flex: 1 }}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            />
+          ),
+          headerTintColor: "#fff",
+          headerLeft: () => (
+            <TouchableOpacity onPress={handleExit} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <StatusBar barStyle="light-content" backgroundColor={color} />
 
       {/* 进度条 */}
       <RNView style={styles.progressContainer}>

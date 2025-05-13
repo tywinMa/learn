@@ -64,7 +64,7 @@ router.get('/:code', async (req, res) => {
 
     // 获取学科数据
     const subjectData = subject.toJSON();
-    
+
     // 添加图标名称映射
     subjectData.iconName = getIconNameByCode(code, subject.icon);
 
@@ -131,8 +131,15 @@ router.get('/:code/units', async (req, res) => {
       // 添加单元图标URL
       unitData.iconUrl = getIconUrlByTitle(unit.title);
 
-      // 添加单元颜色信息
-      unitData.color = getUnitColor(unit.level, unit.order);
+      // 处理颜色字段 - 优先使用数据库中存储的颜色，没有则生成默认颜色
+      if (!unitData.color) {
+        unitData.color = getDefaultUnitColor(unit.level, unit.order);
+      }
+
+      // 处理次要颜色 - 优先使用数据库中存储的次要颜色，没有则基于主颜色生成
+      if (!unitData.secondaryColor && unitData.color) {
+        unitData.secondaryColor = getLighterColor(unitData.color);
+      }
 
       // 确保每个单元都有code字段，并且遵循学科前缀命名规则
       if (!unitData.code) {
@@ -197,8 +204,15 @@ router.get('/units/:unitId', async (req, res) => {
     // 添加单元图标URL
     unitData.iconUrl = getIconUrlByTitle(unit.title);
 
-    // 添加单元颜色信息
-    unitData.color = getUnitColor(unit.level, unit.order);
+    // 处理颜色字段 - 优先使用数据库中存储的颜色，没有则生成默认颜色
+    if (!unitData.color) {
+      unitData.color = getDefaultUnitColor(unit.level, unit.order);
+    }
+
+    // 处理次要颜色 - 优先使用数据库中存储的次要颜色，没有则基于主颜色生成
+    if (!unitData.secondaryColor && unitData.color) {
+      unitData.secondaryColor = getLighterColor(unitData.color);
+    }
 
     // 添加额外信息
     const enhancedUnit = {
@@ -248,8 +262,15 @@ router.get('/units/:unitId/children', async (req, res) => {
       // 添加单元图标URL
       unitData.iconUrl = getIconUrlByTitle(unit.title);
 
-      // 添加单元颜色信息
-      unitData.color = getUnitColor(unit.level, unit.order);
+      // 处理颜色字段 - 优先使用数据库中存储的颜色，没有则生成默认颜色
+      if (!unitData.color) {
+        unitData.color = getDefaultUnitColor(unit.level, unit.order);
+      }
+
+      // 处理次要颜色 - 优先使用数据库中存储的次要颜色，没有则基于主颜色生成
+      if (!unitData.secondaryColor && unitData.color) {
+        unitData.secondaryColor = getLighterColor(unitData.color);
+      }
 
       // 添加额外信息
       return {
@@ -265,6 +286,77 @@ router.get('/units/:unitId/children', async (req, res) => {
     });
   } catch (error) {
     console.error('获取子单元出错:', error);
+    res.status(500).json({
+      success: false,
+      message: '服务器错误'
+    });
+  }
+});
+
+// 更新单元颜色 - 添加新的API路由
+router.put('/units/:unitId/color', async (req, res) => {
+  try {
+    const { unitId } = req.params;
+    const { color, secondaryColor } = req.body;
+
+    // 验证颜色格式
+    const isValidHexColor = (color) => /^#[0-9A-F]{6}$/i.test(color);
+
+    if (color && !isValidHexColor(color)) {
+      return res.status(400).json({
+        success: false,
+        message: '无效的主色值，请使用有效的HEX颜色（如 #FF5500）'
+      });
+    }
+
+    if (secondaryColor && !isValidHexColor(secondaryColor)) {
+      return res.status(400).json({
+        success: false,
+        message: '无效的次要色值，请使用有效的HEX颜色（如 #FF8855）'
+      });
+    }
+
+    // 查找单元
+    const unit = await Unit.findByPk(unitId);
+
+    if (!unit) {
+      return res.status(404).json({
+        success: false,
+        message: `未找到ID为 ${unitId} 的单元`
+      });
+    }
+
+    // 准备更新数据
+    const updateData = {};
+    if (color) updateData.color = color;
+    if (secondaryColor) updateData.secondaryColor = secondaryColor;
+
+    // 如果只提供了主色，自动生成次要色
+    if (color && !secondaryColor) {
+      updateData.secondaryColor = getLighterColor(color);
+    }
+
+    // 更新单元颜色
+    await unit.update(updateData);
+
+    // 查找所有同级单元并更新颜色（如果是父级单元，则同时更新所有子单元）
+    if (unit.level === 1) {
+      // 如果是大章节，同时更新其所有小节
+      await Unit.update(updateData, {
+        where: { parentId: unitId }
+      });
+    }
+
+    // 返回更新后的单元数据
+    const updatedUnit = await Unit.findByPk(unitId);
+
+    res.json({
+      success: true,
+      message: '单元颜色更新成功',
+      data: updatedUnit
+    });
+  } catch (error) {
+    console.error('更新单元颜色出错:', error);
     res.status(500).json({
       success: false,
       message: '服务器错误'
@@ -295,9 +387,9 @@ function getIconUrlByTitle(title) {
   return defaultIcon;
 }
 
-// 根据单元级别和顺序获取颜色
-function getUnitColor(level, order) {
-  // 颜色库
+// 根据单元级别和顺序获取默认颜色
+function getDefaultUnitColor(level, order) {
+  // 默认颜色库
   const colors = [
     "#58CC02", // 绿色
     "#5EC0DE", // 蓝色
@@ -313,21 +405,44 @@ function getUnitColor(level, order) {
   return colors[colorIndex];
 }
 
+// 生成次要颜色
+function getLighterColor(hexColor) {
+  try {
+    // 从十六进制颜色中提取RGB
+    const r = parseInt(hexColor.slice(1, 3), 16);
+    const g = parseInt(hexColor.slice(3, 5), 16);
+    const b = parseInt(hexColor.slice(5, 7), 16);
+
+    // 计算较浅的颜色（混合白色）
+    const lighterR = Math.min(255, r + 50);
+    const lighterG = Math.min(255, g + 50);
+    const lighterB = Math.min(255, b + 50);
+
+    // 转回十六进制
+    return `#${lighterR.toString(16).padStart(2, "0")}${lighterG.toString(16).padStart(2, "0")}${lighterB
+      .toString(16)
+      .padStart(2, "0")}`;
+  } catch (error) {
+    console.error('生成次要颜色出错:', error, hexColor);
+    return '#FFFFFF'; // 默认返回白色
+  }
+}
+
 // 根据学科代码获取图标名称
 function getIconNameByCode(code, iconFromDb) {
   // 如果数据库中已有完整的图标名称，则直接使用
   if (iconFromDb) return iconFromDb;
-  
+
   // 默认图标映射
   const iconMapping = {
     math: "calculator-variant",
     physics: "atom",
-    chemistry: "flask", 
+    chemistry: "flask",
     biology: "leaf",
     history: "book-open-page-variant",
     default: "school"
   };
-  
+
   return iconMapping[code] || iconMapping.default;
 }
 

@@ -19,6 +19,7 @@ import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { getUserPoints } from "../app/services/pointsService";
 import { USER_ID } from "../app/services/progressService";
 import RenderHtml from "react-native-render-html";
+import { LinearGradient } from "expo-linear-gradient";
 
 // API基础URL
 const API_BASE_URL = "http://localhost:3000";
@@ -38,7 +39,7 @@ const VIDEO_RESOURCES = {
 
 export default function StudyScreen() {
   const params = useLocalSearchParams();
-  const { id, unitTitle, color, subject } = params;
+  const { id, unitTitle, color, secondaryColor, subject } = params;
   // 获取单元ID - 假定包含学科代码前缀，不再需要分离
   let lessonId = Array.isArray(id) ? id[0] : id || "";
   const subjectCode = Array.isArray(subject) ? subject[0] : subject || "math"; // 获取学科代码，默认为math
@@ -52,6 +53,10 @@ export default function StudyScreen() {
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const screenWidth = Dimensions.get("window").width;
   const flatListRef = useRef<FlatList>(null);
+
+  // 获取颜色参数并提供默认值
+  const primaryColor = Array.isArray(color) ? color[0] : color || "#5EC0DE";
+  const secondaryCol = Array.isArray(secondaryColor) ? secondaryColor[0] : secondaryColor || primaryColor;
 
   // 加载学习内容
   useEffect(() => {
@@ -146,7 +151,14 @@ export default function StudyScreen() {
         resizeMode={ResizeMode.CONTAIN}
         onPlaybackStatusUpdate={handleVideoStatusUpdate}
       />
-      <Text style={styles.videoTitle}>{item.title}</Text>
+      <LinearGradient
+        colors={[primaryColor, secondaryCol]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.videoTitleGradient}
+      >
+        <Text style={styles.videoTitleText}>{item.title}</Text>
+      </LinearGradient>
     </RNView>
   );
 
@@ -160,9 +172,14 @@ export default function StudyScreen() {
       <Stack.Screen
         options={{
           title: Array.isArray(unitTitle) ? unitTitle[0] : unitTitle || "学习",
-          headerStyle: {
-            backgroundColor: Array.isArray(color) ? color[0] : color || "#5EC0DE",
-          },
+          headerBackground: () => (
+            <LinearGradient
+              colors={[primaryColor, secondaryCol]}
+              style={{ flex: 1 }}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            />
+          ),
           headerTintColor: "#fff",
           headerLeft: () => (
             <TouchableOpacity
@@ -233,11 +250,17 @@ export default function StudyScreen() {
 
               <RNView style={styles.videoControls}>
                 <TouchableOpacity
-                  style={[styles.videoControlButton, currentVideoIndex === 0 && styles.disabledButton]}
+                  style={[
+                    styles.videoControlButton,
+                    {
+                      backgroundColor: currentVideoIndex === 0 ? "#f0f0f0" : primaryColor,
+                    },
+                    currentVideoIndex === 0 && styles.disabledButton,
+                  ]}
                   onPress={handlePrevVideo}
                   disabled={currentVideoIndex === 0}
                 >
-                  <Ionicons name="chevron-back" size={24} color={currentVideoIndex === 0 ? "#ccc" : "#333"} />
+                  <Ionicons name="chevron-back" size={24} color={currentVideoIndex === 0 ? "#ccc" : "#fff"} />
                 </TouchableOpacity>
 
                 <Text style={styles.videoCounter}>
@@ -247,6 +270,9 @@ export default function StudyScreen() {
                 <TouchableOpacity
                   style={[
                     styles.videoControlButton,
+                    {
+                      backgroundColor: currentVideoIndex === videoContents.length - 1 ? "#f0f0f0" : primaryColor,
+                    },
                     currentVideoIndex === videoContents.length - 1 && styles.disabledButton,
                   ]}
                   onPress={handleNextVideo}
@@ -255,7 +281,7 @@ export default function StudyScreen() {
                   <Ionicons
                     name="chevron-forward"
                     size={24}
-                    color={currentVideoIndex === videoContents.length - 1 ? "#ccc" : "#333"}
+                    color={currentVideoIndex === videoContents.length - 1 ? "#ccc" : "#fff"}
                   />
                 </TouchableOpacity>
               </RNView>
@@ -265,12 +291,12 @@ export default function StudyScreen() {
           )}
 
           <RNView style={styles.contentContainer}>
-            <Text style={styles.sectionTitle}>本节内容</Text>
+            <Text style={[styles.sectionTitle, { color: primaryColor }]}>本节内容</Text>
 
             {learningContents.length > 0 ? (
               learningContents.map((content) => (
                 <RNView key={content.id} style={styles.contentItem}>
-                  <Text style={styles.contentTitle}>{content.title}</Text>
+                  <Text style={[styles.contentTitle, { color: primaryColor }]}>{content.title}</Text>
                   {content.type === "text" && (
                     <RenderHtml contentWidth={screenWidth - 40} source={{ html: content.content }} />
                   )}
@@ -284,14 +310,14 @@ export default function StudyScreen() {
             )}
 
             <TouchableOpacity
-              style={styles.practiceButton}
+              style={[styles.practiceButton, { backgroundColor: primaryColor }]}
               onPress={() => {
                 router.push({
                   pathname: "/practice",
                   params: {
                     id: lessonId, // 使用id参数代替unitId，与practice.tsx中的处理一致
                     unitTitle: Array.isArray(unitTitle) ? unitTitle[0] : unitTitle || "课后练习",
-                    color: Array.isArray(color) ? color[0] : color || "#5EC0DE",
+                    color: primaryColor,
                     subject: subjectCode, // 传递学科代码
                   },
                 });
@@ -336,7 +362,6 @@ const styles = StyleSheet.create({
   videoControlButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: "#f0f0f0",
   },
   disabledButton: {
     opacity: 0.5,
@@ -372,7 +397,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   practiceButton: {
-    backgroundColor: "#FF9600",
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
@@ -429,5 +453,15 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  videoTitleGradient: {
+    padding: 10,
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  videoTitleText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fff",
   },
 });

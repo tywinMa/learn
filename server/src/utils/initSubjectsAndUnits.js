@@ -47,6 +47,43 @@ const initSubjectsAndUnits = async () => {
     const createdSubjects = await Subject.bulkCreate(subjects);
     console.log(`成功创建 ${createdSubjects.length} 条学科记录`);
 
+    // 定义章节颜色库
+    const chapterColors = {
+      math: [
+        { primary: '#58CC02', secondary: '#7FDD33' }, // 数与代数
+        { primary: '#1CB0F6', secondary: '#53C6FF' }, // 几何
+        { primary: '#FF9600', secondary: '#FFB84D' }  // 统计与概率
+      ],
+      physics: [
+        { primary: '#FF4B4B', secondary: '#FF7878' }, // 力学
+        { primary: '#9E58FF', secondary: '#BC8CFF' }  // 电磁学
+      ],
+      chemistry: [
+        { primary: '#DD6154', secondary: '#E68A80' }  // 元素与物质
+      ],
+      biology: [
+        { primary: '#8CB153', secondary: '#ADC782' }  // 细胞生物学
+      ]
+    };
+
+    // 生成次要颜色的函数
+    const getLighterColor = (hexColor) => {
+      // 从十六进制颜色中提取RGB
+      const r = parseInt(hexColor.slice(1, 3), 16);
+      const g = parseInt(hexColor.slice(3, 5), 16);
+      const b = parseInt(hexColor.slice(5, 7), 16);
+
+      // 计算较浅的颜色（混合白色）
+      const lighterR = Math.min(255, r + 50);
+      const lighterG = Math.min(255, g + 50);
+      const lighterB = Math.min(255, b + 50);
+
+      // 转回十六进制
+      return `#${lighterR.toString(16).padStart(2, "0")}${lighterG.toString(16).padStart(2, "0")}${lighterB
+        .toString(16)
+        .padStart(2, "0")}`;
+    };
+
     // 为每个学科创建单元
     const units = [];
 
@@ -60,7 +97,9 @@ const initSubjectsAndUnits = async () => {
         title: '数与代数',
         description: '包含代数基础、一元二次方程等内容',
         level: 1,
-        order: 1
+        order: 1,
+        color: chapterColors.math[0].primary,
+        secondaryColor: chapterColors.math[0].secondary
       });
 
       // 小节：一元二次方程
@@ -70,8 +109,10 @@ const initSubjectsAndUnits = async () => {
         title: '一元二次方程',
         description: '一元二次方程的解法和应用',
         parentId: `${mathSubject.code}-1`,
-        level: 2,
-        order: 1
+        level: 1,
+        order: 2,
+        color: chapterColors.math[0].primary,
+        secondaryColor: chapterColors.math[0].secondary
       });
 
       // 小节：因式分解
@@ -81,8 +122,10 @@ const initSubjectsAndUnits = async () => {
         title: '因式分解',
         description: '多项式的因式分解方法',
         parentId: `${mathSubject.code}-1`,
-        level: 2,
-        order: 2
+        level: 1,
+        order: 3,
+        color: chapterColors.math[0].primary,
+        secondaryColor: chapterColors.math[0].secondary
       });
 
       // 小节：配方法
@@ -92,8 +135,10 @@ const initSubjectsAndUnits = async () => {
         title: '配方法',
         description: '使用配方法解一元二次方程',
         parentId: `${mathSubject.code}-1`,
-        level: 2,
-        order: 3
+        level: 1,
+        order: 4,
+        color: chapterColors.math[0].primary,
+        secondaryColor: chapterColors.math[0].secondary
       });
 
       // 小节：公式法
@@ -103,8 +148,10 @@ const initSubjectsAndUnits = async () => {
         title: '公式法',
         description: '使用公式法解一元二次方程',
         parentId: `${mathSubject.code}-1`,
-        level: 2,
-        order: 4
+        level: 1,
+        order: 5,
+        color: chapterColors.math[0].primary,
+        secondaryColor: chapterColors.math[0].secondary
       });
 
       // 小节：二次函数
@@ -114,8 +161,10 @@ const initSubjectsAndUnits = async () => {
         title: '二次函数',
         description: '二次函数的性质和图像',
         parentId: `${mathSubject.code}-1`,
-        level: 2,
-        order: 5
+        level: 1,
+        order: 6,
+        color: chapterColors.math[0].primary,
+        secondaryColor: chapterColors.math[0].secondary
       });
 
       // 小节：二次函数应用
@@ -125,8 +174,10 @@ const initSubjectsAndUnits = async () => {
         title: '二次函数应用',
         description: '二次函数在实际问题中的应用',
         parentId: `${mathSubject.code}-1`,
-        level: 2,
-        order: 6
+        level: 1,
+        order: 7,
+        color: chapterColors.math[0].primary,
+        secondaryColor: chapterColors.math[0].secondary
       });
 
       // 大章节：几何
@@ -135,8 +186,10 @@ const initSubjectsAndUnits = async () => {
         subject: mathSubject.code,
         title: '几何',
         description: '包含平面几何、空间几何等内容',
-        level: 1,
-        order: 2
+        level: 2,
+        order: 1,
+        color: chapterColors.math[1].primary,
+        secondaryColor: chapterColors.math[1].secondary
       });
 
       // 小节：三角形
@@ -147,7 +200,9 @@ const initSubjectsAndUnits = async () => {
         description: '三角形的性质和计算',
         parentId: `${mathSubject.code}-2`,
         level: 2,
-        order: 1
+        order: 2,
+        color: chapterColors.math[1].primary,
+        secondaryColor: chapterColors.math[1].secondary
       });
 
       // 小节：直角三角形
@@ -158,7 +213,9 @@ const initSubjectsAndUnits = async () => {
         description: '直角三角形的性质和勾股定理',
         parentId: `${mathSubject.code}-2`,
         level: 2,
-        order: 2
+        order: 3,
+        color: chapterColors.math[1].primary,
+        secondaryColor: chapterColors.math[1].secondary
       });
 
       // 小节：四边形
@@ -169,7 +226,9 @@ const initSubjectsAndUnits = async () => {
         description: '平行四边形、矩形、正方形等四边形的性质',
         parentId: `${mathSubject.code}-2`,
         level: 2,
-        order: 3
+        order: 4,
+        color: chapterColors.math[1].primary,
+        secondaryColor: chapterColors.math[1].secondary
       });
 
       // 小节：圆
@@ -180,7 +239,9 @@ const initSubjectsAndUnits = async () => {
         description: '圆的性质和计算',
         parentId: `${mathSubject.code}-2`,
         level: 2,
-        order: 4
+        order: 5,
+        color: chapterColors.math[1].primary,
+        secondaryColor: chapterColors.math[1].secondary
       });
 
       // 大章节：统计与概率
@@ -189,8 +250,10 @@ const initSubjectsAndUnits = async () => {
         subject: mathSubject.code,
         title: '统计与概率',
         description: '包含统计学基础和概率论',
-        level: 1,
-        order: 3
+        level: 3,
+        order: 1,
+        color: chapterColors.math[2].primary,
+        secondaryColor: chapterColors.math[2].secondary
       });
 
       // 小节：数据分析
@@ -200,8 +263,10 @@ const initSubjectsAndUnits = async () => {
         title: '数据分析',
         description: '数据的收集、整理和分析',
         parentId: `${mathSubject.code}-3`,
-        level: 2,
-        order: 1
+        level: 3,
+        order: 2,
+        color: chapterColors.math[2].primary,
+        secondaryColor: chapterColors.math[2].secondary
       });
 
       // 小节：概率基础
@@ -211,8 +276,10 @@ const initSubjectsAndUnits = async () => {
         title: '概率基础',
         description: '随机事件与概率',
         parentId: `${mathSubject.code}-3`,
-        level: 2,
-        order: 2
+        level: 3,
+        order: 3,
+        color: chapterColors.math[2].primary,
+        secondaryColor: chapterColors.math[2].secondary
       });
 
       // 小节：概率论基础
@@ -222,8 +289,10 @@ const initSubjectsAndUnits = async () => {
         title: '概率论基础',
         description: '随机事件、条件概率、独立性等概念',
         parentId: `${mathSubject.code}-3`,
-        level: 2,
-        order: 3
+        level: 3,
+        order: 4,
+        color: chapterColors.math[2].primary,
+        secondaryColor: chapterColors.math[2].secondary
       });
     }
 
@@ -237,7 +306,9 @@ const initSubjectsAndUnits = async () => {
         title: '力学',
         description: '包含运动学、动力学等内容',
         level: 1,
-        order: 1
+        order: 1,
+        color: chapterColors.physics[0].primary,
+        secondaryColor: chapterColors.physics[0].secondary
       });
 
       // 小节：牛顿运动定律
@@ -247,8 +318,10 @@ const initSubjectsAndUnits = async () => {
         title: '牛顿运动定律',
         description: '牛顿三大运动定律及其应用',
         parentId: `${physicsSubject.code}-1`,
-        level: 2,
-        order: 1
+        level: 1,
+        order: 2,
+        color: chapterColors.physics[0].primary,
+        secondaryColor: chapterColors.physics[0].secondary
       });
 
       // 大章节：电磁学
@@ -257,8 +330,10 @@ const initSubjectsAndUnits = async () => {
         subject: physicsSubject.code,
         title: '电磁学',
         description: '包含静电场、磁场等内容',
-        level: 1,
-        order: 2
+        level: 2,
+        order: 1,
+        color: chapterColors.physics[1].primary,
+        secondaryColor: chapterColors.physics[1].secondary
       });
 
       // 小节：电场
@@ -269,7 +344,9 @@ const initSubjectsAndUnits = async () => {
         description: '电场的性质和计算',
         parentId: `${physicsSubject.code}-2`,
         level: 2,
-        order: 1
+        order: 2,
+        color: chapterColors.physics[1].primary,
+        secondaryColor: chapterColors.physics[1].secondary
       });
     }
 
@@ -283,7 +360,9 @@ const initSubjectsAndUnits = async () => {
         title: '元素与物质',
         description: '包含元素周期表、元素性质等内容',
         level: 1,
-        order: 1
+        order: 1,
+        color: chapterColors.chemistry[0].primary,
+        secondaryColor: chapterColors.chemistry[0].secondary
       });
 
       // 小节：元素周期表
@@ -293,8 +372,10 @@ const initSubjectsAndUnits = async () => {
         title: '元素周期表',
         description: '元素周期表的规律和应用',
         parentId: `${chemistrySubject.code}-1`,
-        level: 2,
-        order: 1
+        level: 1,
+        order: 2,
+        color: chapterColors.chemistry[0].primary,
+        secondaryColor: chapterColors.chemistry[0].secondary
       });
     }
 
@@ -308,7 +389,9 @@ const initSubjectsAndUnits = async () => {
         title: '细胞生物学',
         description: '包含细胞结构、细胞分裂等内容',
         level: 1,
-        order: 1
+        order: 1,
+        color: chapterColors.biology[0].primary,
+        secondaryColor: chapterColors.biology[0].secondary
       });
 
       // 小节：细胞结构
@@ -318,8 +401,10 @@ const initSubjectsAndUnits = async () => {
         title: '细胞结构',
         description: '细胞的基本结构和功能',
         parentId: `${biologySubject.code}-1`,
-        level: 2,
-        order: 1
+        level: 1,
+        order: 2,
+        color: chapterColors.biology[0].primary,
+        secondaryColor: chapterColors.biology[0].secondary
       });
     }
 

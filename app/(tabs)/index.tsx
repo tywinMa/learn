@@ -161,11 +161,20 @@ const Level = ({
       return;
     }
 
+    // 获取当前单元的完整颜色信息
+    const courseIndex = parseInt(level.id.split("-")[0]) - 1;
+    const course = courses.find((c) => c.id === `unit${courseIndex + 1}`);
+
+    // 使用关卡所属单元的颜色，或默认使用当前学科颜色
+    const levelColor = course ? course.color : color;
+    const levelSecondaryColor = course ? course.secondaryColor : color;
+
     // 导航到学习页面（独立页面，不是tab）
     const params = {
       id: level.id,
       unitTitle: `${unitTitle} - ${level.title}`,
-      color: color,
+      color: levelColor,
+      secondaryColor: levelSecondaryColor,
       subject: currentSubject.code,
     };
 
@@ -288,14 +297,11 @@ export default function HomeScreen() {
   const router = useRouter();
   // 使用useLocalSearchParams获取路由参数
   const params = useLocalSearchParams();
-  
+
   const [currentUnit, setCurrentUnit] = useState(0);
   const [streak, setStreak] = useState(0);
   const [xp, setXp] = useState(0);
   const [hearts, setHearts] = useState(5);
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const screenWidth = Dimensions.get("window").width;
-  const screenHeight = Dimensions.get("window").height;
   const [loading, setLoading] = useState(true);
   const [progressData, setProgressData] = useState<Record<string, any>>({});
   const [error, setError] = useState<string | null>(null);
@@ -316,9 +322,27 @@ export default function HomeScreen() {
   const [loadingCourses, setLoadingCourses] = useState(true);
 
   // 使用固定高度计算位置（因为直接获取的layout.y值不准确）
-  const UNIT_HEIGHTS = [750, 450, 450]; // 增加每个单元的高度估计值
   const unitPositions = useRef<number[]>([]);
   const lastScrollPosition = useRef(0);
+
+  // 添加课程数据修复函数，确保颜色信息正确
+  const ensureCoursesColors = (coursesData: any[]): any[] => {
+    return coursesData.map((course) => {
+      if (!course) return course;
+
+      // 确保主色存在，否则使用默认颜色
+      const primaryColor = course.color || currentSubject.color || "#58CC02";
+
+      // 确保次要色存在，否则基于主色生成
+      const secondaryColor = course.secondaryColor || getLighterColor(primaryColor);
+
+      return {
+        ...course,
+        color: primaryColor,
+        secondaryColor: secondaryColor,
+      };
+    });
+  };
 
   // 组件挂载后初始化位置数据和加载默认学科课程
   useEffect(() => {
@@ -327,7 +351,7 @@ export default function HomeScreen() {
       try {
         // 尝试从本地存储加载
         const savedSubject = await loadCurrentSubject();
-        
+
         if (savedSubject) {
           console.log("从存储中加载学科:", savedSubject.name);
           setCurrentSubject(savedSubject);
@@ -371,61 +395,35 @@ export default function HomeScreen() {
     for (let i = 0; i < courses.length; i++) {
       positions.push(currentPosition);
       // 动态计算单元高度 - 每个关卡50高度 + 基础高度100
-      const unitHeight = courses[i].levels.length * 50 + 100;
+      const unitHeight = courses[i]?.levels?.length * 50 + 120; // 增加基础高度以改善检测
       currentPosition += unitHeight;
     }
 
     unitPositions.current = positions;
     console.log("更新单元位置:", positions);
+
+    // 打印课程颜色信息
+    console.log("课程颜色信息:");
+    courses.forEach((course, index) => {
+      console.log(`[${index}] ${course.title}: 主色=${course.color}, 次色=${course.secondaryColor}`);
+    });
   }, [courses]);
 
-  // 根据学科代码获取该学科的课程单元数据
-  const fetchSubjectCourses = async (subjectCode: string) => {
-    setLoadingCourses(true);
-    setError(null);
+  // 监听currentUnit变化，确保正确的颜色渲染
+  useEffect(() => {
+    if (currentUnit >= 0 && courses.length > 0) {
+      // 确保currentUnit有效
+      const validUnit = Math.min(currentUnit, courses.length - 1);
+      const course = courses[validUnit];
 
-    try {
-      // 获取学科的单元数据
-      const response = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}/units`);
-
-      if (!response.ok) {
-        throw new Error(`获取${subjectCode}学科单元失败`);
+      if (course) {
+        console.log(`当前单元更新: ${validUnit} - ${course.title}`);
+        console.log(`颜色信息: 主色=${course.color}, 次色=${course.secondaryColor}`);
       }
-
-      const result = await response.json();
-
-      if (result.success) {
-        // 获取学科信息
-        const subjectResponse = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}`);
-        let subject = currentSubject;
-        
-        if (subjectResponse.ok) {
-          const subjectResult = await subjectResponse.json();
-          if (subjectResult.success && subjectResult.data) {
-            subject = subjectResult.data;
-            // 更新当前学科
-            setCurrentSubject(subject);
-          }
-        }
-
-        // 将API返回的数据转换为应用所需的格式
-        const formattedCourses = formatCoursesData(result.data, subject);
-        setCourses(formattedCourses);
-
-        // 获取该学科下的进度数据
-        await fetchUserData(formattedCourses);
-      } else {
-        setError(`获取${subjectCode}学科单元失败: ${result.message}`);
-      }
-    } catch (err: any) {
-      console.error(`获取学科单元数据出错:`, err);
-      setError(`获取学科数据失败: ${err.message}`);
-    } finally {
-      setLoadingCourses(false);
     }
-  };
+  }, [currentUnit, courses]);
 
-  // 将API返回的单元数据格式化为应用所需的格式
+  // 修改formatCoursesData返回值，应用颜色修复
   const formatCoursesData = (unitsData: any[], subject: any) => {
     // 验证参数
     if (!unitsData || !Array.isArray(unitsData) || !subject) {
@@ -451,20 +449,24 @@ export default function HomeScreen() {
     });
 
     // 转换为课程格式
-    return Object.keys(unitsByLevel).map((level, index) => {
+    const formattedCourses = Object.keys(unitsByLevel).map((level, index) => {
       const units = unitsByLevel[Number(level)];
       const firstUnit = units[0];
+
+      // 使用单元自己的颜色或回退到学科颜色
+      const unitColor = firstUnit.color || subject.color;
+      const unitSecondaryColor = firstUnit.secondaryColor || getLighterColor(unitColor);
 
       return {
         id: `unit${index + 1}`,
         title: firstUnit.title,
         description: firstUnit.description || `学习${subject.name}基础知识`,
         icon: firstUnit.iconUrl || "https://i.imgur.com/QgQQXTI.png",
-        color: subject.color,
-        secondaryColor: getLighterColor(subject.color),
+        color: unitColor,
+        secondaryColor: unitSecondaryColor,
         levels: units.map((u) => {
-                  // 使用API返回的subject字段，如果存在
-        const subjectCode = u.subject || subject.code || "unknown";
+          // 使用API返回的subject字段，如果存在
+          const subjectCode = u.subject || subject.code || "unknown";
 
           // 确保code字段存在
           if (!u.code) {
@@ -487,6 +489,9 @@ export default function HomeScreen() {
         }),
       };
     });
+
+    // 应用颜色修复
+    return ensureCoursesColors(formattedCourses);
   };
 
   // 生成较浅的颜色作为secondaryColor
@@ -524,31 +529,37 @@ export default function HomeScreen() {
       return;
     }
 
-    // 触发点在屏幕上方一半的位置
-    const triggerY = screenHeight * 0.25;
+    // 计算当前应显示的单元
+    let newCurrentUnit = 0;
 
-    // 简化逻辑：只关注当前单元和相邻单元的位置
-    // 向下滚动时
-    if (isScrollingDown) {
-      // 检查下一个单元（如果有）
-      if (currentUnit < courses.length - 1) {
-        const nextUnitPos = unitPositions.current[currentUnit + 1] - currentScrollY;
+    // 找出当前视图中的单元 - 减小偏移量以提高灵敏度
+    const offset = 100; // 减小偏移量，使检测更灵敏
 
-        // 当下一个单元的标题位置低于触发点时，切换到下一个单元
-        if (nextUnitPos <= triggerY) {
-          setCurrentUnit(currentUnit + 1);
-        }
+    for (let i = 0; i < unitPositions.current.length; i++) {
+      const unitPosition = unitPositions.current[i];
+      const nextUnitPosition = i < unitPositions.current.length - 1 ? unitPositions.current[i + 1] : Infinity;
+
+      // 如果当前滚动位置在这个单元的显示范围内
+      if (currentScrollY >= unitPosition - offset && currentScrollY < nextUnitPosition - offset) {
+        newCurrentUnit = i;
+        break;
+      }
+
+      // 如果已经滚动超过最后一个单元的位置
+      if (i === unitPositions.current.length - 1 && currentScrollY >= unitPosition - offset) {
+        newCurrentUnit = i;
       }
     }
-    // 向上滚动时
-    else {
-      // 检查当前单元
-      const currentUnitPos = unitPositions.current[currentUnit] - currentScrollY;
 
-      // 当当前单元的标题位置高于触发点时，如果有上一个单元，切换到上一个单元
-      if (currentUnitPos > triggerY && currentUnit > 0) {
-        setCurrentUnit(currentUnit - 1);
-      }
+    // 仅在单元变化时更新状态
+    if (newCurrentUnit !== currentUnit) {
+      const oldCourse = courses[currentUnit];
+      const newCourse = courses[newCurrentUnit];
+      console.log(`滚动更新单元：从 ${currentUnit}(${oldCourse?.title}) 到 ${newCurrentUnit}(${newCourse?.title})`);
+      console.log(`单元颜色信息：旧=${oldCourse?.color || "未知"}, 新=${newCourse?.color || "未知"}`);
+
+      // 设置新的当前单元
+      setCurrentUnit(newCurrentUnit);
     }
   };
 
@@ -564,31 +575,33 @@ export default function HomeScreen() {
 
     // 保存学科到上下文和AsyncStorage
     saveCurrentSubject(subject);
-    
+
     // 弹出一个提示，表示已切换学科
-    Alert.alert("学科已切换", `您已成功切换到${subject.name}学科`, [{ 
-      text: "好的", 
-      style: "default",
-      onPress: () => {
-        // 使用expo-router导航刷新应用
-        router.replace({
-          pathname: "/",
-          params: {
-            refresh: Date.now().toString(),
-            currentSubject: subject.code,
-          },
-        });
-      }
-    }]);
+    Alert.alert("学科已切换", `您已成功切换到${subject.name}学科`, [
+      {
+        text: "好的",
+        style: "default",
+        onPress: () => {
+          // 使用expo-router导航刷新应用
+          router.replace({
+            pathname: "/",
+            params: {
+              refresh: Date.now().toString(),
+              currentSubject: subject.code,
+            },
+          });
+        },
+      },
+    ]);
 
     // 更新本地状态
     setCurrentSubject(subject);
     setError(null);
     setProgressData({});
     setCurrentUnit(0);
-    setCourses([]);  // 清空当前课程数据
-    setLoadingCourses(true);  // 显示加载状态
-    
+    setCourses([]); // 清空当前课程数据
+    setLoadingCourses(true); // 显示加载状态
+
     // 获取新学科的课程数据
     fetchSubjectCourses(subject.code);
   };
@@ -631,7 +644,7 @@ export default function HomeScreen() {
   useEffect(() => {
     if (refreshTrigger) {
       console.log("检测到刷新触发，刷新时间戳:", refreshTrigger);
-      
+
       // 如果有URL学科参数，先加载该学科
       if (urlSubjectCode) {
         console.log("从路由参数加载学科:", urlSubjectCode);
@@ -710,19 +723,35 @@ export default function HomeScreen() {
 
   const renderFixedBanner = () => {
     if (currentUnit === -1 || courses.length === 0) return null;
-    const course = courses[currentUnit];
-    if (!course) return null;
+    // 确保currentUnit有效
+    const validUnit = Math.min(currentUnit, courses.length - 1);
+    const course = courses[validUnit];
+
+    console.log("currentUnit", currentUnit);
+    console.log("course", course);
+    console.log("validUnit", validUnit);
+
+    if (!course) {
+      console.error("无法渲染FixedBanner：找不到课程信息", { currentUnit, coursesLength: courses.length });
+      return null;
+    }
+
+    // 使用默认颜色作为备选方案
+    const primaryColor = course.color || "#58CC02";
+    const secondaryColor = course.secondaryColor || getLighterColor(primaryColor);
+
+    console.log(`FixedBanner渲染：单元=${validUnit}, 标题=${course.title}, 颜色=${primaryColor}`);
 
     return (
       <RNView style={styles.fixedBannerContainer}>
         <LinearGradient
-          colors={[course.color, course.secondaryColor]}
+          colors={[primaryColor, secondaryColor]}
           style={styles.unitHeader}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         >
           <RNView style={styles.unitTitleRow}>
-            <Text style={styles.unitTitle}>第 {currentUnit + 1} 阶段，第 1 部分</Text>
+            <Text style={styles.unitTitle}>第 {validUnit + 1} 阶段，第 1 部分</Text>
           </RNView>
           <Text style={styles.unitSubtitle}>{course.title}</Text>
         </LinearGradient>
@@ -846,6 +875,55 @@ export default function HomeScreen() {
         ))}
       </ScrollView>
     );
+  };
+
+  // 根据学科代码获取该学科的课程单元数据
+  const fetchSubjectCourses = async (subjectCode: string) => {
+    setLoadingCourses(true);
+    setError(null);
+
+    try {
+      // 获取学科的单元数据
+      const response = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}/units`);
+
+      if (!response.ok) {
+        throw new Error(`获取${subjectCode}学科单元失败`);
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        // 获取学科信息
+        const subjectResponse = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}`);
+        let subject = currentSubject;
+
+        if (subjectResponse.ok) {
+          const subjectResult = await subjectResponse.json();
+          if (subjectResult.success && subjectResult.data) {
+            subject = subjectResult.data;
+            // 更新当前学科
+            setCurrentSubject(subject);
+          }
+        }
+
+        // 将API返回的数据转换为应用所需的格式
+        const formattedCourses = formatCoursesData(result.data, subject);
+
+        // 确保所有课程都有颜色信息
+        const coursesWithColors = ensureCoursesColors(formattedCourses);
+        setCourses(coursesWithColors);
+
+        // 获取该学科下的进度数据
+        await fetchUserData(coursesWithColors);
+      } else {
+        setError(`获取${subjectCode}学科单元失败: ${result.message}`);
+      }
+    } catch (err: any) {
+      console.error(`获取学科单元数据出错:`, err);
+      setError(`获取学科数据失败: ${err.message}`);
+    } finally {
+      setLoadingCourses(false);
+    }
   };
 
   return (

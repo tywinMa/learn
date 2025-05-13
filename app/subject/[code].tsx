@@ -20,9 +20,7 @@ export default function SubjectScreen() {
   const subjectCode = Array.isArray(code) ? code[0] : code || "";
   const subjectName = Array.isArray(name) ? name[0] : name || "学科";
   // 如果URL中没有color参数，使用当前主题颜色
-  const subjectColor = subjectCode === currentSubject.code 
-    ? currentSubject.color 
-    : "#5EC0DE";
+  const subjectColor = subjectCode === currentSubject.code ? currentSubject.color : "#5EC0DE";
 
   const [units, setUnits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,6 +75,7 @@ export default function SubjectScreen() {
             id: item.id,
             unitTitle: item.title,
             color: subjectColor,
+            secondaryColor: getLighterColor(subjectColor),
           },
         })
       }
@@ -111,6 +110,7 @@ export default function SubjectScreen() {
                     id: child.id,
                     unitTitle: child.title,
                     color: subjectColor,
+                    secondaryColor: getLighterColor(subjectColor),
                   },
                 })
               }
@@ -297,3 +297,22 @@ const styles = StyleSheet.create({
     color: "#999",
   },
 });
+
+// 在文件下方添加用于生成次要颜色的函数
+// 生成较浅的颜色作为secondaryColor
+const getLighterColor = (hexColor: string): string => {
+  // 从十六进制颜色中提取RGB
+  const r = parseInt(hexColor.slice(1, 3), 16);
+  const g = parseInt(hexColor.slice(3, 5), 16);
+  const b = parseInt(hexColor.slice(5, 7), 16);
+
+  // 计算较浅的颜色（混合白色）
+  const lighterR = Math.min(255, r + 50);
+  const lighterG = Math.min(255, g + 50);
+  const lighterB = Math.min(255, b + 50);
+
+  // 转回十六进制
+  return `#${lighterR.toString(16).padStart(2, "0")}${lighterG.toString(16).padStart(2, "0")}${lighterB
+    .toString(16)
+    .padStart(2, "0")}`;
+};
