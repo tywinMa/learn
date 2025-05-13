@@ -7,7 +7,7 @@ const addUnit1_1Exercises = async () => {
   try {
     console.log('开始为单元1-1添加多样化练习题...');
 
-    const unitId = 'math-1-1'; // 数学学科的第一阶段第一部分
+    const unitId = '1-1'; // 数学学科的第一阶段第一部分
     const subjectCode = 'math'; // 学科代码
 
     // 获取数学学科ID
@@ -15,8 +15,6 @@ const addUnit1_1Exercises = async () => {
     if (!mathSubject) {
       throw new Error('找不到数学学科，请先初始化学科数据');
     }
-    const mathSubjectId = mathSubject.id;
-
     // 检查单元是否已有练习题
     const existingCount = await Exercise.count({ where: { unitId } });
     console.log(`单元 ${unitId} 已有 ${existingCount} 道练习题`);
@@ -24,11 +22,9 @@ const addUnit1_1Exercises = async () => {
     // 要添加的选择题
     const choiceExercises = [
       {
-        id: `${subjectCode}-1-1-1`,
+        id: `1-1-1`,
         unitId,
         subject: subjectCode,
-        subjectId: mathSubjectId,
-        subjectCode,
         question: '以下哪个是解一元一次方程 3x + 6 = 0 的正确步骤？',
         options: [
           '3x = -6，x = -2',
@@ -42,11 +38,9 @@ const addUnit1_1Exercises = async () => {
         explanation: '解一元一次方程的步骤：移项得 3x = -6，然后两边同除以3得 x = -2'
       },
       {
-        id: `${subjectCode}-1-1-2`,
+        id: `1-1-2`,
         unitId,
         subject: subjectCode,
-        subjectId: mathSubjectId,
-        subjectCode,
         question: '实数的基本运算中，以下哪个表达式计算结果为负数？',
         options: [
           '|-5| + |5|',
@@ -60,11 +54,9 @@ const addUnit1_1Exercises = async () => {
         explanation: '|-4| - |6| = 4 - 6 = -2，结果为负数'
       },
       {
-        id: `${subjectCode}-1-1-3`,
+        id: `1-1-3`,
         unitId,
         subject: subjectCode,
-        subjectId: mathSubjectId,
-        subjectCode,
         question: '若一次函数f(x) = 2x - 3，则f(2)的值是？',
         options: ['1', '2', '3', '4'],
         correctAnswer: 0,
@@ -77,11 +69,9 @@ const addUnit1_1Exercises = async () => {
     // 要添加的填空题
     const fillBlankExercises = [
       {
-        id: `${subjectCode}-1-1-4`,
+        id: `1-1-4`,
         unitId,
         subject: subjectCode,
-        subjectId: mathSubjectId,
-        subjectCode,
         question: '解不等式 2x - 5 > 3，解得 x > ____。',
         type: 'fill_blank',
         correctAnswer: ['4'],
@@ -89,11 +79,9 @@ const addUnit1_1Exercises = async () => {
         explanation: '2x - 5 > 3，移项得 2x > 8，两边除以2得 x > 4'
       },
       {
-        id: `${subjectCode}-1-1-5`,
+        id: `1-1-5`,
         unitId,
         subject: subjectCode,
-        subjectId: mathSubjectId,
-        subjectCode,
         question: '已知函数f(x) = ax² + bx + c的图像通过点(1, 2)、(2, 1)和(-1, 4)，则a = ____, b = ____, c = ____。',
         type: 'fill_blank',
         correctAnswer: ['1', '-4', '5'],
@@ -105,11 +93,9 @@ const addUnit1_1Exercises = async () => {
     // 要添加的匹配题
     const matchingExercises = [
       {
-        id: `${subjectCode}-1-1-6`,
+        id: `1-1-6`,
         unitId,
         subject: subjectCode,
-        subjectId: mathSubjectId,
-        subjectCode,
         question: '将左侧的代数式与右侧的等价形式匹配',
         type: 'matching',
         options: {
@@ -121,11 +107,9 @@ const addUnit1_1Exercises = async () => {
         explanation: 'a² - b² = (a-b)(a+b)，a² + 2ab + b² = (a+b)²，a² - 2ab + b² = (a-b)²，a³ - b³ = (a-b)(a²+ab+b²)'
       },
       {
-        id: `${subjectCode}-1-1-7`,
+        id: `1-1-7`,
         unitId,
         subject: subjectCode,
-        subjectId: mathSubjectId,
-        subjectCode,
         question: '匹配函数与其图像特征',
         type: 'matching',
         options: {
@@ -141,11 +125,9 @@ const addUnit1_1Exercises = async () => {
     // 添加应用题
     const applicationExercises = [
       {
-        id: `${subjectCode}-1-1-app-1`,
+        id: `1-1-8`,
         unitId,
         subject: subjectCode,
-        subjectId: mathSubjectId,
-        subjectCode,
         question: '在一次数学考试中，班级的平均分是72分。已知及格线是60分，班级内及格人数占总人数的80%。如果班级总人数是50人，请计算班级内不及格同学的平均分是多少？请写出完整的解题过程并拍照上传。',
         type: 'application',
         options: {
@@ -169,11 +151,9 @@ const addUnit1_1Exercises = async () => {
         explanation: '这是一道典型的平均数问题。通过总人数和及格率计算出及格人数和不及格人数，再利用总分=及格总分+不及格总分的关系列方程求解。根据计算，不及格同学的平均分是30分。'
       },
       {
-        id: `${subjectCode}-1-1-app-2`,
+        id: `1-1-9`,
         unitId,
         subject: subjectCode,
-        subjectId: mathSubjectId,
-        subjectCode,
         question: '小明有100元钱，他想买3个价格相同的笔记本和2支价格相同的钢笔，已知每个笔记本的价格是每支钢笔价格的2倍。如果刚好用完100元，请计算每个笔记本和每支钢笔的价格。请写出完整的解题过程并拍照上传。',
         type: 'application',
         options: {
@@ -197,11 +177,9 @@ const addUnit1_1Exercises = async () => {
         explanation: '这是一个简单的方程应用题。设钢笔单价为x元，笔记本单价为2x元，则3个笔记本和2支钢笔的总价为3(2x) + 2x = 100，解得x = 10，因此笔记本单价为20元，钢笔单价为10元。'
       },
       {
-        id: `${subjectCode}-1-1-app-3`,
+        id: `1-1-10`,
         unitId,
         subject: subjectCode,
-        subjectId: mathSubjectId,
-        subjectCode,
         question: '一个长方形花坛，长是宽的1.5倍，花坛的周长是50米。请计算这个花坛的面积，并画出示意图。完成后拍照上传你的解答。',
         type: 'application',
         options: {
@@ -227,11 +205,9 @@ const addUnit1_1Exercises = async () => {
         explanation: '利用周长公式和长宽关系，设宽为x，则长为1.5x，周长为2(1.5x + x) = 50，解得x = 10，长为15，面积为150平方米。'
       },
       {
-        id: `${subjectCode}-1-1-app-4`,
+        id: `1-1-11`,
         unitId,
         subject: subjectCode,
-        subjectId: mathSubjectId,
-        subjectCode,
         question: '某商店促销活动：购买两件商品可享8折优惠，购买三件商品可享7折优惠。小红买了两件单价分别为120元和80元的商品，小明买了三件单价分别为100元、90元和70元的商品。请计算谁付的钱更多，以及多多少钱？请写出计算过程并拍照上传。',
         type: 'application',
         options: {
@@ -254,11 +230,9 @@ const addUnit1_1Exercises = async () => {
         explanation: '这题考查了打折计算和比较。小红购买两件商品享8折，实付160元；小明购买三件商品享7折，实付182元；两人相差22元，小明付的更多。'
       },
       {
-        id: `${subjectCode}-1-1-app-5`,
+        id: `1-1-12`,
         unitId,
         subject: subjectCode,
-        subjectId: mathSubjectId,
-        subjectCode,
         question: '一列火车从A站出发，以每小时60千米的速度行驶。2小时后，另一列火车从同一站沿同一方向出发，以每小时80千米的速度行驶。请问第二列火车需要多少小时才能追上第一列火车？请写出解题过程并拍照上传。',
         type: 'application',
         options: {

@@ -7,7 +7,7 @@ const Exercise = sequelize.define('Exercise', {
     type: DataTypes.STRING,
     primaryKey: true,
     allowNull: false,
-    comment: '练习题ID，格式为unitId-题号，如math-1-1-1表示数学学科第1单元第1关卡第1题'
+    comment: '练习题ID，如1-1-1表示数学学科第1单元第1关卡第1题'
   },
   subject: {
     type: DataTypes.STRING,
@@ -18,7 +18,7 @@ const Exercise = sequelize.define('Exercise', {
   unitId: {
     type: DataTypes.STRING,
     allowNull: false,
-    comment: '所属单元ID，必须包含学科前缀，如math-1-1'
+    comment: '所属单元ID，如1-1'
   },
   question: {
     type: DataTypes.TEXT,

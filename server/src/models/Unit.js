@@ -7,7 +7,7 @@ const Unit = sequelize.define('Unit', {
     type: DataTypes.STRING,
     primaryKey: true,
     allowNull: false,
-    comment: '单元ID，如"math-1-1"，学科代码-章节-小节'
+    comment: '单元ID，如"1-1"，章节-小节'
   },
   subject: {
     type: DataTypes.STRING,
