@@ -15,9 +15,9 @@ const addUnit1_1Exercises = async () => {
     if (!mathSubject) {
       throw new Error('找不到数学学科，请先初始化学科数据');
     }
-    
+
     // 检查单元是否存在，如果不存在则创建
-    const fullUnitId = `${unitId}`;
+    const fullUnitId = `${subjectCode}-${unitId}`;
     let unit = await Unit.findOne({ where: { id: fullUnitId } });
     if (!unit) {
       console.log(`单元 ${fullUnitId} 不存在，将自动创建`);
@@ -31,7 +31,7 @@ const addUnit1_1Exercises = async () => {
       });
       console.log(`已创建单元: ${unit.id}`);
     }
-    
+
     // 检查单元是否已有练习题
     const existingCount = await Exercise.count({ where: { unitId: fullUnitId } });
     console.log(`单元 ${fullUnitId} 已有 ${existingCount} 道练习题`);
@@ -275,7 +275,7 @@ const addUnit1_1Exercises = async () => {
       }
     ];
 
-    // 所有要添加的练习题
+    // 批量创建所有练习题
     const allExercises = [
       ...choiceExercises,
       ...fillBlankExercises,
@@ -283,29 +283,25 @@ const addUnit1_1Exercises = async () => {
       ...applicationExercises
     ];
 
-    // 检查并添加每道题
+    // 检查是否已存在相同ID的练习题
     for (const exercise of allExercises) {
-      // 检查题目是否已存在
-      const exists = await Exercise.findOne({ where: { id: exercise.id } });
+      const existingExercise = await Exercise.findOne({ where: { id: exercise.id } });
+      if (existingExercise) {
+        console.log(`练习题 ${exercise.id} 已存在，将跳过`);
+        continue;
+      }
 
-      if (!exists) {
-        // 创建新题目
+      try {
         await Exercise.create(exercise);
-        console.log(`成功添加${exercise.type}类型习题: ${exercise.id}`);
-      } else {
-        // 更新已有题目
-        await Exercise.update(exercise, { where: { id: exercise.id } });
-        console.log(`更新${exercise.type}类型习题: ${exercise.id}`);
+        console.log(`已创建练习题: ${exercise.id}`);
+      } catch (err) {
+        console.error(`创建练习题 ${exercise.id} 失败:`, err);
       }
     }
 
-    // 统计单元内题目数量
-    const newCount = await Exercise.count({ where: { unitId: fullUnitId } });
-    console.log(`处理完成，单元 ${fullUnitId} 现在有 ${newCount} 道练习题`);
-
-    console.log('单元1-1多样化练习题添加/更新完成！');
+    console.log(`成功添加 ${allExercises.length} 道练习题到单元 ${fullUnitId}`);
   } catch (error) {
-    console.error('添加单元1-1练习题出错:', error);
+    console.error('添加练习题出错:', error);
     throw error;
   }
 };
