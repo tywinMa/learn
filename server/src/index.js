@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
+const path = require('path');
 const { testConnection } = require('./config/database');
 const exercisesRoutes = require('./routes/exercises');
 const userRecordsRoutes = require('./routes/userRecords');
@@ -19,6 +20,9 @@ app.use(cors({
 })); // 允许跨域请求
 app.use(express.json()); // 解析JSON请求体
 app.use(morgan('dev')); // 日志记录
+
+// 新增：静态文件代理
+app.use(express.static(path.join(__dirname, '..', '..', 'dist')));
 
 // 添加CORS预检请求处理
 app.options('*', cors());
@@ -57,7 +61,7 @@ const startServer = async () => {
     await testConnection();
 
     // 移除所有数据初始化调用
-    
+
     // 尝试启动服务器，如果端口被占用则尝试杀掉占用进程
     const server = app.listen(PORT, () => {
       console.log(`服务器运行在 http://localhost:${PORT}`);
