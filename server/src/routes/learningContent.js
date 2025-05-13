@@ -39,19 +39,11 @@ router.get('/:subject/:id', async (req, res) => {
 
     console.log(`获取学科 ${subject} 中单元 ${id} 的学习内容`);
 
-    // 构建查询条件 - 处理两种可能的格式
-    let whereClause = {};
+    // 构建查询条件 - 假定id已经包含学科前缀或将其加上
+    const formattedUnitId = id.includes('-') ? id : `${subject}-${id}`;
+    const whereClause = { unitId: formattedUnitId };
 
-    // 情况1: id已经包含学科前缀 (如 "math-1-1")
-    if (id.startsWith(`${subject}-`)) {
-      whereClause.unitId = id;
-    }
-    // 情况2: id是纯数字或无前缀格式 (如 "1-1")
-    else {
-      whereClause.unitId = `${subject}-${id}`;
-    }
-
-    console.log(`查询单元ID: ${whereClause.unitId}`);
+    console.log(`查询单元ID: ${formattedUnitId}`);
 
     // 查询学习内容
     const contents = await LearningContent.findAll({
@@ -60,29 +52,9 @@ router.get('/:subject/:id', async (req, res) => {
     });
 
     if (contents.length === 0) {
-      // 尝试更灵活的查询
-      console.log('未找到精确匹配的内容，尝试更灵活的查询...');
-      const flexibleContents = await LearningContent.findAll({
-        where: {
-          [Op.or]: [
-            { unitId: whereClause.unitId },
-            { unitId: { [Op.like]: `${subject}-%` } }
-          ]
-        },
-        order: [['order', 'ASC']]
-      });
-
-      if (flexibleContents.length > 0) {
-        console.log(`通过灵活查询找到 ${flexibleContents.length} 条学习内容`);
-        return res.json({
-          success: true,
-          data: flexibleContents
-        });
-      }
-
       return res.status(404).json({
         success: false,
-        message: `未找到学科 ${subject} 中单元 ${id} 的学习内容`
+        message: `未找到学科 ${subject} 中单元 ${formattedUnitId} 的学习内容`
       });
     }
 
@@ -114,38 +86,13 @@ router.get('/:unitId', async (req, res) => {
 
     console.log(`获取单元 ${unitId} 的学习内容`);
 
-    // 构建灵活的查询条件以支持不同格式的unitId
-    let whereClause = {};
-    const parts = unitId.split('-');
-
-    // 处理不同格式的单元ID
-    if (parts.length === 2) {
-      // 格式为 "1-1"，需要匹配可能的所有格式：精确匹配和带主题前缀的 "math-1-1" 等
-      console.log(`检测到简短单元ID格式: ${unitId}，尝试匹配所有可能的单元格式`);
-      whereClause[Op.or] = [
-        { unitId }, // 精确匹配 "1-1"
-        { unitId: { [Op.like]: `%-${unitId}` } }, // 匹配 "math-1-1" 等带前缀的格式
-        { unitId: { [Op.like]: `%-${parts[0]}-%` } } // 匹配相同章节的其他单元，如 "math-1-x"
-      ];
-    } else if (parts.length === 3) {
-      // 格式为 "math-1-1"，直接使用精确匹配
-      console.log(`检测到完整单元ID格式: ${unitId}，使用精确匹配`);
-      whereClause.unitId = unitId;
-
-      // 同时获取与该单元相关的其他内容
-      whereClause[Op.or] = [
-        { unitId }, // 精确匹配 "math-1-1"
-        { unitId: { [Op.like]: `${parts[0]}-${parts[1]}-%` } } // 匹配相同章节的单元，如 "math-1-x"
-      ];
-    } else {
-      // 其他格式直接使用精确匹配
-      whereClause.unitId = unitId;
-    }
+    // 假定unitId已包含学科前缀，直接查询
+    const whereClause = { unitId };
 
     // 查询学习内容
     const contents = await LearningContent.findAll({
       where: whereClause,
-      order: [['unitId', 'ASC'], ['order', 'ASC']]
+      order: [['order', 'ASC']]
     });
 
     console.log(`找到 ${contents.length} 条学习内容`);

@@ -179,34 +179,8 @@ router.get('/:unitId', async (req, res) => {
 
     console.log(`获取单元 ${unitId} 的练习题，筛选参数: 用户=${userId}, 过滤已完成=${filterCompleted}, 题型=${types}`);
 
-    // 查询条件 - 基于unitId构建灵活的查询条件
-    let whereClause = {};
-    const parts = unitId.split('-');
-
-    // 处理不同格式的单元ID
-    if (parts.length === 2) {
-      // 格式为 "1-1"，需要匹配可能的所有格式：精确匹配和带主题前缀的 "math-1-1" 等
-      console.log(`检测到简短单元ID格式: ${unitId}，尝试匹配所有可能的单元格式`);
-      whereClause[Op.or] = [
-        { unitId }, // 精确匹配 "1-1"
-        { unitId: { [Op.like]: `%-${unitId}` } }, // 匹配 "math-1-1" 等带前缀的格式
-        { unitId: { [Op.like]: `%-${parts[0]}-%` } } // 匹配相同章节的其他单元，如 "math-1-x"
-      ];
-    } else if (parts.length === 3) {
-      // 格式为 "math-1-1"，直接使用精确匹配
-      console.log(`检测到完整单元ID格式: ${unitId}，使用精确匹配`);
-      whereClause.unitId = unitId;
-
-      // 同时获取与该单元相关的其他题目
-      whereClause[Op.or] = [
-        { unitId }, // 精确匹配 "math-1-1"
-        { unitId: { [Op.like]: `${parts[0]}-${parts[1]}-%` } }, // 匹配相同章节的单元，如 "math-1-x"
-        { id: { [Op.like]: `${unitId}-%` } } // 匹配ID以该单元开头的题目
-      ];
-    } else {
-      // 其他格式直接使用精确匹配
-      whereClause.unitId = unitId;
-    }
+    // 查询条件 - 直接使用unitId，假定所有ID都已包含学科前缀
+    let whereClause = { unitId };
 
     // 根据题型筛选
     if (types) {
@@ -225,7 +199,7 @@ router.get('/:unitId', async (req, res) => {
       const completedExercises = await UserRecord.findAll({
         where: {
           userId,
-          exerciseId: { [Op.like]: `${unitId}-%` }, // 确保只获取当前单元的记录
+          exerciseId: { [Op.like]: `${unitId}-%` }, // 直接使用unitId，假定已包含学科前缀
           isCorrect: true
         },
         attributes: ['exerciseId'],

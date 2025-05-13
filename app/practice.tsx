@@ -48,11 +48,11 @@ const SummaryModal = ({
   const completionRate = totalCount > 0 ? correctCount / totalCount : 0;
   const earnedStars = completionRate >= 0.8 ? 3 : completionRate >= 0.6 ? 2 : completionRate > 0 ? 1 : 0;
   const isThreeStars = earnedStars === 3;
-  
+
   // 计算奖励积分
   // 基础积分：每题1分
   const basePoints = correctCount;
-  
+
   // 额外奖励：全部答对额外2分，80%以上额外1分
   let bonusPoints = 0;
   if (correctCount === totalCount && totalCount > 0) {
@@ -60,7 +60,7 @@ const SummaryModal = ({
   } else if (correctCount >= totalCount * 0.8 && totalCount > 0) {
     bonusPoints = 1;
   }
-  
+
   // 总积分
   const totalPoints = basePoints + bonusPoints;
 
@@ -71,25 +71,14 @@ const SummaryModal = ({
       const iconName = i < earnedStars ? "star" : "star-outline";
       const iconColor = i < earnedStars ? "#FFD700" : "#C0C0C0";
       stars.push(
-        <Ionicons
-          key={i}
-          name={iconName as any}
-          size={36}
-          color={iconColor}
-          style={{ marginHorizontal: 8 }}
-        />
+        <Ionicons key={i} name={iconName as any} size={36} color={iconColor} style={{ marginHorizontal: 8 }} />
       );
     }
     return stars;
   };
 
   return (
-    <Modal
-      animationType="fade"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onExit}
-    >
+    <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onExit}>
       <RNView style={styles.modalOverlay}>
         <RNView style={styles.modalContent}>
           <Text style={styles.modalTitle}>练习完成！</Text>
@@ -105,7 +94,7 @@ const SummaryModal = ({
             <Text style={styles.summaryDetail}>
               正确率：<Text style={styles.summaryHighlight}>{Math.round(completionRate * 100)}%</Text>
             </Text>
-            
+
             {totalPoints > 0 && (
               <RNView style={styles.bonusPointsContainer}>
                 <FontAwesome5 name="gem" size={16} color="#1CB0F6" solid />
@@ -131,16 +120,10 @@ const SummaryModal = ({
           )}
 
           <RNView style={styles.modalButtons}>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.retryButton]}
-              onPress={onRetry}
-            >
+            <TouchableOpacity style={[styles.modalButton, styles.retryButton]} onPress={onRetry}>
               <Text style={styles.modalButtonText}>重新练习</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modalButton, styles.exitButton]}
-              onPress={onExit}
-            >
+            <TouchableOpacity style={[styles.modalButton, styles.exitButton]} onPress={onExit}>
               <Text style={styles.modalButtonText}>完成</Text>
             </TouchableOpacity>
           </RNView>
@@ -236,49 +219,40 @@ export default function PracticeScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
 
   // 从URL参数中获取单元ID和学科代码
-// 同时支持id和unitId参数，兼容两种URL参数形式
-let lessonId = typeof params.id === 'string' && params.id.trim() ? 
-              params.id.trim() : 
-              (typeof params.unitId === 'string' && params.unitId.trim() ? 
-              params.unitId.trim() : '');
-// 先使用URL参数中的学科代码，如果没有则使用全局当前学科代码
-const subjectCode = typeof params.subject === 'string' && params.subject.trim() ? 
-                    params.subject.trim() : currentSubject?.code || 'math';
+  // 同时支持id和unitId参数，兼容两种URL参数形式
+  let lessonId =
+    typeof params.id === "string" && params.id.trim()
+      ? params.id.trim()
+      : typeof params.unitId === "string" && params.unitId.trim()
+      ? params.unitId.trim()
+      : "";
+  // 获取学科代码参数，用于记录
+  const subjectCode =
+    typeof params.subject === "string" && params.subject.trim()
+      ? params.subject.trim()
+      : currentSubject?.code || "math";
 
-// 处理可能的混合格式 (如 "math-1-1")
-if (lessonId.includes('-') && lessonId.split('-').length > 2) {
-  const parts = lessonId.split('-');
-  // 如果ID中已包含学科代码，则需要提取纯单元号部分
-  if (parts[0] === subjectCode) {
-    // 移除学科前缀，保留单元号部分 (如 "1-1")
-    lessonId = parts.slice(1).join('-');
-  }
-}
+  // 假定lessonId已包含学科前缀，不再需要格式化
 
-// 获取其他参数用于界面显示
-const unitTitle = typeof params.unitTitle === 'string' ? params.unitTitle : '练习';
-const color = typeof params.color === 'string' ? params.color : '#5EC0DE';
+  // 获取其他参数用于界面显示
+  const unitTitle = typeof params.unitTitle === "string" ? params.unitTitle : "练习";
+  const color = typeof params.color === "string" ? params.color : "#5EC0DE";
 
   // 获取练习题
-const fetchExercises = async () => {
-  try {
-    setLoading(true);
-    
-    // 检查必要参数
-    if (!lessonId) {
-      console.error("缺少必要参数：lessonId");
-      throw new Error("无法加载练习题：缺少单元ID");
-    }
-    
-    // 确保subjectCode和lessonId都有效，避免发送无效的API请求
-    if (!subjectCode) {
-      throw new Error("无法加载练习题：缺少学科代码");
-    }
-    
-    // 构建API URL，确保包含学科代码和lessonId
-    const apiUrl = `${API_BASE_URL}/api/exercises/${subjectCode}/${lessonId}?userId=${USER_ID}&filterCompleted=true`;
-    
-    console.log("请求练习题URL:", apiUrl);
+  const fetchExercises = async () => {
+    try {
+      setLoading(true);
+
+      // 检查必要参数
+      if (!lessonId) {
+        console.error("缺少必要参数：lessonId");
+        throw new Error("无法加载练习题：缺少单元ID");
+      }
+
+      // 构建API URL，直接使用lessonId
+      const apiUrl = `${API_BASE_URL}/api/exercises/${lessonId}?userId=${USER_ID}&filterCompleted=true`;
+
+      console.log("请求练习题URL:", apiUrl);
 
       const response = await fetch(apiUrl);
 
@@ -291,7 +265,7 @@ const fetchExercises = async () => {
 
       if (result.success && result.data) {
         console.log(`获取到 ${result.data.length} 道练习题`);
-        
+
         if (result.data.length === 0 && result.allCompleted) {
           // 所有题目都已完成
           setError("您已经完成了所有练习题！");
@@ -333,7 +307,7 @@ const fetchExercises = async () => {
     fillBlankAnswers?: string[]
   ) => {
     console.log(`接收到用户答案: exerciseId=${exerciseId}, optionIndex=${optionIndex}`);
-    
+
     // 保存临时答案，等待确认
     setPendingAnswer({
       exerciseId,
@@ -399,7 +373,7 @@ const fetchExercises = async () => {
       exerciseType: exercise.type,
       correctAnswer: exercise.correctAnswer,
       userAnswer: userAnswer,
-      hasUserSelection: hasUserSelection
+      hasUserSelection: hasUserSelection,
     });
 
     // 使用统一处理函数判断答案正确性
@@ -428,6 +402,9 @@ const fetchExercises = async () => {
   const submitAnswerToServer = async (exerciseId: string, isCorrect: boolean) => {
     try {
       const apiUrl = `${API_BASE_URL}/api/users/${USER_ID}/submit`;
+
+      // 记录提交的答题结果
+      console.log(`提交答题结果: 练习ID=${exerciseId}, 单元ID=${lessonId}, 是否正确=${isCorrect}`);
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -479,7 +456,7 @@ const fetchExercises = async () => {
   // 退出练习返回学习页面
   const handleExit = () => {
     // 移除重复增加积分的代码，依赖服务器端的自动积分增加
-    
+
     router.replace({
       pathname: "/study",
       params: {
@@ -495,14 +472,14 @@ const fetchExercises = async () => {
   const awardPoints = async (points: number) => {
     try {
       const apiUrl = `${API_BASE_URL}/api/users/${USER_ID}/points/add`;
-      
+
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          points
+          points,
         }),
       });
 
@@ -564,24 +541,17 @@ const fetchExercises = async () => {
           </RNView>
         ) : error ? (
           <RNView style={styles.errorContainer}>
-            <Ionicons name={error.includes("完成了所有练习题") ? "checkmark-circle" : "alert-circle"} 
-                    size={24} 
-                    color={error.includes("完成了所有练习题") ? "#58CC02" : "red"} />
-            <Text style={[
-              styles.errorText, 
-              error.includes("完成了所有练习题") && styles.successText
-            ]}>
-              {error}
-            </Text>
-            <TouchableOpacity 
-              style={[
-                styles.retryButton, 
-                error.includes("完成了所有练习题") && styles.successButton
-              ]} 
-              onPress={error.includes("完成了所有练习题") ? handleExit : fetchExercises}>
-              <Text style={styles.modalButtonText}>
-                {error.includes("完成了所有练习题") ? "返回课程" : "重试"}
-              </Text>
+            <Ionicons
+              name={error.includes("完成了所有练习题") ? "checkmark-circle" : "alert-circle"}
+              size={24}
+              color={error.includes("完成了所有练习题") ? "#58CC02" : "red"}
+            />
+            <Text style={[styles.errorText, error.includes("完成了所有练习题") && styles.successText]}>{error}</Text>
+            <TouchableOpacity
+              style={[styles.retryButton, error.includes("完成了所有练习题") && styles.successButton]}
+              onPress={error.includes("完成了所有练习题") ? handleExit : fetchExercises}
+            >
+              <Text style={styles.modalButtonText}>{error.includes("完成了所有练习题") ? "返回课程" : "重试"}</Text>
             </TouchableOpacity>
           </RNView>
         ) : currentExercise ? (

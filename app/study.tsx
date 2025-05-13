@@ -39,19 +39,9 @@ const VIDEO_RESOURCES = {
 export default function StudyScreen() {
   const params = useLocalSearchParams();
   const { id, unitTitle, color, subject } = params;
-  // 获取单元ID - 分离学科代码和单元号
+  // 获取单元ID - 假定包含学科代码前缀，不再需要分离
   let lessonId = Array.isArray(id) ? id[0] : id || "";
   const subjectCode = Array.isArray(subject) ? subject[0] : subject || "math"; // 获取学科代码，默认为math
-  
-  // 处理可能的混合格式 (如 "math-1-1")
-  if (lessonId.includes('-') && lessonId.split('-').length > 2) {
-    const parts = lessonId.split('-');
-    // 如果ID中已包含学科代码，则需要提取纯单元号部分
-    if (parts[0] === subjectCode) {
-      // 移除学科前缀，保留单元号部分 (如 "1-1")
-      lessonId = parts.slice(1).join('-');
-    }
-  }
 
   const router = useRouter();
   const [videoStatus, setVideoStatus] = React.useState<any>({});
@@ -75,15 +65,8 @@ export default function StudyScreen() {
           return;
         }
 
-        // 根据是否有学科代码选择合适的API路径
-        let apiUrl = "";
-        if (subjectCode) {
-          // 使用新的API格式
-          apiUrl = `${API_BASE_URL}/api/learning/${subjectCode}/${lessonId}`;
-        } else {
-          // 兼容旧API格式
-          apiUrl = `${API_BASE_URL}/api/learning/${lessonId}`;
-        }
+        // 直接使用lessonId，假定已包含学科前缀
+        const apiUrl = `${API_BASE_URL}/api/learning/${lessonId}`;
 
         console.log("调用API:", apiUrl);
         const response = await fetch(apiUrl);
@@ -110,7 +93,7 @@ export default function StudyScreen() {
     };
 
     fetchLearningContents();
-  }, [lessonId, subjectCode]);
+  }, [lessonId]);
 
   // 加载用户积分
   useEffect(() => {

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Exercise, UserRecord, WrongExercise, UserPoints, sequelize } = require('../models');
+const { Exercise, UserRecord, WrongExercise, UserPoints, sequelize, UnitProgress } = require('../models');
 const { Op } = require('sequelize');
 
 // 获取用户的所有答题记录
@@ -200,27 +200,8 @@ router.get('/:userId/progress/:unitId', async (req, res) => {
 
     console.log(`获取用户 ${userId} 在单元 ${unitId} 的进度`);
 
-    // 构建灵活的查询条件以支持不同格式的unitId
-    let whereClause = {};
-    const parts = unitId.split('-');
-
-    // 处理不同格式的单元ID
-    if (parts.length === 2) {
-      // 格式为 "1-1"，需要匹配可能的所有格式：精确匹配和带主题前缀的 "math-1-1" 等
-      console.log(`检测到简短单元ID格式: ${unitId}，尝试匹配所有可能的单元格式`);
-      whereClause[Op.or] = [
-        { unitId }, // 精确匹配 "1-1"
-        { unitId: { [Op.like]: `%-${unitId}` } }, // 匹配 "math-1-1" 等带前缀的格式
-        { unitId: { [Op.like]: `%-${parts[0]}-%` } } // 匹配相同章节的其他单元，如 "math-1-x"
-      ];
-    } else if (parts.length === 3) {
-      // 格式为 "math-1-1"，直接使用精确匹配
-      console.log(`检测到完整单元ID格式: ${unitId}，使用精确匹配`);
-      whereClause.unitId = unitId;
-    } else {
-      // 其他格式直接使用精确匹配
-      whereClause.unitId = unitId;
-    }
+    // 假定unitId已包含学科前缀，直接使用精确匹配
+    const whereClause = { unitId };
 
     // 获取该单元的所有练习题
     const exercises = await Exercise.findAll({
@@ -289,34 +270,23 @@ router.get('/:userId/progress/:unitId', async (req, res) => {
   }
 });
 
-// 强制刷新单元进度（当所有练习题都正确完成时）
-router.post('/:userId/progress/:unitId/refresh', async (req, res) => {
+// 强制更新用户在特定单元的完成进度
+router.post('/:userId/progress', async (req, res) => {
   try {
-    const { userId, unitId } = req.params;
+    const { userId } = req.params;
+    const { unitId, completed = true } = req.body;
+
+    if (!unitId) {
+      return res.status(400).json({
+        success: false,
+        message: '缺少必要参数'
+      });
+    }
 
     console.log(`强制刷新用户 ${userId} 在单元 ${unitId} 的进度`);
 
-    // 构建灵活的查询条件以支持不同格式的unitId
-    let whereClause = {};
-    const parts = unitId.split('-');
-
-    // 处理不同格式的单元ID
-    if (parts.length === 2) {
-      // 格式为 "1-1"，需要匹配可能的所有格式：精确匹配和带主题前缀的 "math-1-1" 等
-      console.log(`检测到简短单元ID格式: ${unitId}，尝试匹配所有可能的单元格式`);
-      whereClause[Op.or] = [
-        { unitId }, // 精确匹配 "1-1"
-        { unitId: { [Op.like]: `%-${unitId}` } }, // 匹配 "math-1-1" 等带前缀的格式
-        { unitId: { [Op.like]: `%-${parts[0]}-%` } } // 匹配相同章节的其他单元，如 "math-1-x"
-      ];
-    } else if (parts.length === 3) {
-      // 格式为 "math-1-1"，直接使用精确匹配
-      console.log(`检测到完整单元ID格式: ${unitId}，使用精确匹配`);
-      whereClause.unitId = unitId;
-    } else {
-      // 其他格式直接使用精确匹配
-      whereClause.unitId = unitId;
-    }
+    // 假定unitId已包含学科前缀，直接使用精确匹配
+    const whereClause = { unitId };
 
     // 获取该单元的所有练习题
     const exercises = await Exercise.findAll({
@@ -356,7 +326,7 @@ router.post('/:userId/progress/:unitId/refresh', async (req, res) => {
         where: { id: { [Op.in]: missingExerciseIds } },
         attributes: ['id', 'subject']
       });
-      
+
       // 创建ID到subject的映射
       const exerciseSubjectMap = {};
       exerciseDetails.forEach(ex => {
@@ -473,6 +443,71 @@ router.get('/:userId/subject/:subject/progress', async (req, res) => {
     });
   } catch (error) {
     console.error(`获取学科 ${req.params.subject} 进度出错:`, error);
+    res.status(500).json({
+      success: false,
+      message: '服务器错误'
+    });
+  }
+});
+
+// 标记用户完成单元
+router.post('/:userId/complete-unit/:unitId', async (req, res) => {
+  try {
+    const { userId, unitId } = req.params;
+    console.log(`标记用户 ${userId} 完成单元 ${unitId}`);
+
+    // 更新或创建UnitProgress记录
+    const [unitProgress, created] = await UnitProgress.findOrCreate({
+      where: { userId, unitId },
+      defaults: {
+        completed: true,
+        completedAt: new Date(),
+        stars: req.body.stars || 3 // 默认三星
+      }
+    });
+
+    if (!created) {
+      // 如果记录已存在，更新它
+      unitProgress.completed = true;
+      unitProgress.completedAt = new Date();
+      unitProgress.stars = req.body.stars || unitProgress.stars;
+      await unitProgress.save();
+    }
+
+    // 增加用户积分奖励
+    const starsToPoints = {
+      1: 5,
+      2: 10,
+      3: 15
+    };
+    const pointsToAdd = starsToPoints[unitProgress.stars] || 0;
+
+    if (pointsToAdd > 0) {
+      const [userPoints, pointsCreated] = await UserPoints.findOrCreate({
+        where: { userId },
+        defaults: { points: pointsToAdd }
+      });
+
+      if (!pointsCreated) {
+        // 如果积分记录已存在，增加相应积分
+        userPoints.points += pointsToAdd;
+        await userPoints.save();
+      }
+    }
+
+    // 不再使用额外的查询，直接返回成功
+    res.json({
+      success: true,
+      message: `已标记完成单元 ${unitId}`,
+      data: {
+        unitId,
+        stars: unitProgress.stars,
+        completedAt: unitProgress.completedAt,
+        pointsAdded: pointsToAdd
+      }
+    });
+  } catch (error) {
+    console.error('标记完成单元出错:', error);
     res.status(500).json({
       success: false,
       message: '服务器错误'

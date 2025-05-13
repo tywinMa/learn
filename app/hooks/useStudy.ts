@@ -11,7 +11,7 @@ const API_BASE_URL = "http://localhost:3000"; // 直接使用固定URL
 /**
  * 学习页面业务逻辑Hook
  */
-export function useStudy(lessonId: string) {
+export function useStudy(lessonId: string, subjectCode: string = "math") {
   const [exercises, setExercises] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,8 +31,9 @@ export function useStudy(lessonId: string) {
         // 调试日志
         console.log(`开始加载${lessonId}单元的练习题列表`);
 
-        // 构建API URL
+        // 构建API URL，假定lessonId已包含学科前缀
         const apiUrl = `${API_BASE_URL}/api/exercises/${lessonId}`;
+
         console.log(`API URL: ${apiUrl}`);
 
         const response = await fetch(apiUrl);
@@ -41,15 +42,22 @@ export function useStudy(lessonId: string) {
         }
 
         const data = await response.json();
-        console.log(`成功获取到${data.length}道练习题`);
+        console.log(`成功获取到${data.data ? data.data.length : 0}道练习题`);
 
-        if (Array.isArray(data) && data.length > 0) {
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          setExercises(data.data);
+        } else if (data.success && data.data && data.data.length === 0 && data.allCompleted) {
+          console.log("所有练习题已完成");
+          setExercises([]);
+          setError("所有练习题已完成!");
+        } else if (Array.isArray(data) && data.length > 0) {
+          // 兼容旧的API格式，直接返回数组
           setExercises(data);
         } else {
           console.log("服务器返回的练习题为空数组或无效数据");
           setExercises([]);
+          setError("没有找到练习题");
         }
-        setError(null);
       } catch (err: any) {
         console.error("加载练习题失败:", err.message);
         setError(`加载练习题失败: ${err.message}`);
@@ -162,7 +170,10 @@ export function useStudy(lessonId: string) {
   // 更新学习进度
   const updateProgress = async () => {
     try {
+      // 直接使用lessonId，假定已包含学科前缀
       const apiUrl = `${API_BASE_URL}/api/users/${USER_ID}/progress`;
+      console.log(`更新进度: 单元ID=${lessonId}`);
+
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
