@@ -24,9 +24,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { getUserUnitProgress, getMultipleUnitProgress, USER_ID as PROGRESS_USER_ID } from "../services/progressService";
+import {
+  getUserUnitProgress,
+  getMultipleUnitProgress,
+  USER_ID as PROGRESS_USER_ID,
+  type UnitProgress,
+} from "../services/progressService";
 import { getUserPoints } from "../services/pointsService";
-import UnlockModal from "../../components/UnlockModal";
+// import UnlockModal from "../../components/UnlockModal"; // Commented out UnlockModal
 import SubjectModal from "../../components/SubjectModal";
 import { useSubject, Subject } from "@/hooks/useSubject";
 import { API_BASE_URL } from "@/@constants/apiConfig";
@@ -68,6 +73,7 @@ const Level = ({
   previousLevelUnlocked,
   courses,
   currentSubject,
+  progressData,
 }: {
   level: any;
   color: string;
@@ -77,8 +83,9 @@ const Level = ({
   previousLevelUnlocked?: boolean;
   courses: any[];
   currentSubject: any;
+  progressData: Record<string, UnitProgress>;
 }) => {
-  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  // const [showUnlockModal, setShowUnlockModal] = useState(false); // Commented out
   const [previousLevelInfo, setPreviousLevelInfo] = useState({ title: "" });
 
   // @ts-ignore - 添加router变量
@@ -148,7 +155,96 @@ const Level = ({
   // 处理关卡点击
   const handleLevelPress = () => {
     if (isLocked) {
-      setShowUnlockModal(true);
+      // setShowUnlockModal(true); // Original line for showing modal
+      // return; // Original return
+
+      const targetUnitId = level.id;
+      const subjectCode = currentSubject.code;
+
+      const allSubjectUnitsSorted = courses
+        .flatMap((course) => course.levels)
+        .filter((lvl) => lvl && lvl.id && lvl.id.startsWith(subjectCode + "-"))
+        .sort((a, b) => {
+          const orderA = parseInt(a.id.split("-").pop() || "0", 10);
+          const orderB = parseInt(b.id.split("-").pop() || "0", 10);
+          const mainLevelA = parseInt(a.id.split("-")[1] || "0", 10);
+          const mainLevelB = parseInt(b.id.split("-")[1] || "0", 10);
+          if (mainLevelA !== mainLevelB) {
+            return mainLevelA - mainLevelB;
+          }
+          return orderA - orderB;
+        });
+
+      let lastFullyUnlockedUnitId: string | null = null;
+      let lastFullyUnlockedUnitOrderCombined = -1;
+
+      // Find the latest unit that has stars (meaning it's properly unlocked and completed to some extent)
+      for (const unit of allSubjectUnitsSorted) {
+        const unitProgress = progressData[unit.id];
+        const unitMainLevel = parseInt(unit.id.split("-")[1] || "0", 10);
+        const unitSubOrder = parseInt(unit.id.split("-").pop() || "0", 10);
+        const combinedOrder = unitMainLevel * 1000 + unitSubOrder; // Use a larger factor for main level if sub-orders can be large
+
+        const targetUnitMainLevel = parseInt(targetUnitId.split("-")[1] || "0", 10);
+        const targetUnitSubOrder = parseInt(targetUnitId.split("-").pop() || "0", 10);
+        const targetUnitOrderCombined = targetUnitMainLevel * 1000 + targetUnitSubOrder;
+
+        if (unitProgress && unitProgress.stars > 0 && combinedOrder < targetUnitOrderCombined) {
+          if (combinedOrder > lastFullyUnlockedUnitOrderCombined) {
+            lastFullyUnlockedUnitOrderCombined = combinedOrder;
+            lastFullyUnlockedUnitId = unit.id;
+          }
+        }
+      }
+
+      let startUnitIdForTestRange: string | null = null;
+      if (allSubjectUnitsSorted.length > 0) {
+        startUnitIdForTestRange = allSubjectUnitsSorted[0].id; // Default to the first unit of the subject
+        if (lastFullyUnlockedUnitId) {
+          const lastUnlockedIdx = allSubjectUnitsSorted.findIndex((u) => u.id === lastFullyUnlockedUnitId);
+          if (lastUnlockedIdx !== -1 && lastUnlockedIdx + 1 < allSubjectUnitsSorted.length) {
+            // Start from the unit *after* the last fully unlocked one
+            startUnitIdForTestRange = allSubjectUnitsSorted[lastUnlockedIdx + 1].id;
+          } else if (lastUnlockedIdx !== -1 && lastUnlockedIdx + 1 >= allSubjectUnitsSorted.length) {
+            // Last unlocked unit is the last unit in the sorted list, implies no range for test or target is already unlocked (which contradicts isLocked)
+            // This case should ideally not happen if isLocked is true and targetUnitId is after lastFullyUnlockedUnitId.
+            // If it does, it might mean targetUnitId is the one to start with, or there's nothing to test to unlock it.
+            // For now, if targetUnitId is right after lastFullyUnlockedUnitId, then startUnitIdForTestRange will be targetUnitId itself.
+            // This would mean the test range includes only the target unit.
+            startUnitIdForTestRange = targetUnitId; // Fallback or specific handling needed.
+          }
+        }
+      }
+
+      // If startUnitIdForTestRange is somehow still null (e.g. no units in subject), abort.
+      if (!startUnitIdForTestRange) {
+        console.error("Cannot determine start unit for unlock test.");
+        Alert.alert("错误", "无法确定测试范围，请稍后重试。");
+        return;
+      }
+
+      const targetLevelDetails = allSubjectUnitsSorted.find((lvl) => lvl && lvl.id === targetUnitId);
+      const courseForTargetLevel = courses.find((course) =>
+        course.levels.some((lvl: any) => lvl && lvl.id === targetUnitId)
+      );
+
+      const levelColorForTarget = courseForTargetLevel ? courseForTargetLevel.color : color;
+      const levelSecondaryColorForTarget = courseForTargetLevel ? courseForTargetLevel.secondaryColor : color;
+      const unitTitleForTarget = targetLevelDetails
+        ? `${courseForTargetLevel?.title || unitTitle} - ${targetLevelDetails.title}`
+        : unitTitle;
+
+      router.push({
+        pathname: "/unlock-test", // This will be created as app/unlock-test.tsx
+        params: {
+          targetUnitId: targetUnitId,
+          startUnitIdForTestRange: startUnitIdForTestRange,
+          subjectCode: subjectCode,
+          unitTitle: unitTitleForTarget,
+          color: levelColorForTarget,
+          secondaryColor: levelSecondaryColorForTarget,
+        },
+      });
       return;
     }
 
@@ -278,11 +374,11 @@ const Level = ({
       )}
 
       {/* 解锁关卡的模态窗口 */}
-      <UnlockModal
+      {/* <UnlockModal
         visible={showUnlockModal}
         onClose={() => setShowUnlockModal(false)}
         previousLevelTitle={previousLevelInfo.title}
-      />
+      /> */}
     </RNView>
   );
 };
@@ -301,7 +397,7 @@ export default function HomeScreen() {
   const [xp, setXp] = useState(0);
   const [hearts, setHearts] = useState(5);
   const [loading, setLoading] = useState(true);
-  const [progressData, setProgressData] = useState<Record<string, any>>({});
+  const [progressData, setProgressData] = useState<Record<string, UnitProgress>>({});
   const [error, setError] = useState<string | null>(null);
   const [showFixedBanner, setShowFixedBanner] = useState(true);
 
@@ -824,17 +920,34 @@ export default function HomeScreen() {
             {/* 课程关卡路径 */}
             <RNView style={styles.levelsPath}>
               {course.levels.map((level: any, index: number) => {
-                // 获取当前关卡的进度数据
-                const levelProgress = progressData[level.id];
+                const currentLevelProgress = progressData[level.id];
+                let prevLevelFullyUnlocked = false; // Default for first level in a course or overall
 
-                // 获取前一个关卡的解锁状态
-                // 第一个关卡默认解锁，其他关卡需要前一个关卡达到3星才解锁
-                let previousLevelUnlocked = index === 0;
                 if (index > 0) {
-                  const prevLevelId = course.levels[index - 1].id;
-                  const prevLevelProgress = progressData[prevLevelId];
-                  previousLevelUnlocked = prevLevelProgress?.stars === 3;
+                  // If not the first level in its own course section
+                  const prevLevelInSection = course.levels[index - 1];
+                  if (prevLevelInSection) {
+                    const prevLevelProgress = progressData[prevLevelInSection.id];
+                    prevLevelFullyUnlocked = prevLevelProgress?.stars >= 3 || prevLevelProgress?.completed === true;
+                  }
+                } else if (courseIndex > 0) {
+                  // If it's the first level of the current course (courseIndex > 0), but not the first course (index > 0)
+                  const prevCourse = courses[courseIndex - 1];
+                  if (prevCourse && prevCourse.levels && prevCourse.levels.length > 0) {
+                    const lastLevelOfPrevCourse = prevCourse.levels[prevCourse.levels.length - 1];
+                    if (lastLevelOfPrevCourse) {
+                      const prevLevelProgress = progressData[lastLevelOfPrevCourse.id];
+                      prevLevelFullyUnlocked = prevLevelProgress?.stars >= 3 || prevLevelProgress?.completed === true;
+                    }
+                  }
+                } else {
+                  // Very first level of the very first course
+                  prevLevelFullyUnlocked = true; // The very first level is always considered to have its prerequisite met
                 }
+
+                // A level is locked if its preceding level is NOT fully unlocked.
+                // The Level component itself uses `isLocked = previousLevelUnlocked === false`.
+                // So we pass `prevLevelFullyUnlocked` as `previousLevelUnlocked` prop.
 
                 return (
                   <Level
@@ -843,10 +956,11 @@ export default function HomeScreen() {
                     color={course.color}
                     isLast={index === course.levels.length - 1}
                     unitTitle={course.title}
-                    progress={levelProgress}
-                    previousLevelUnlocked={previousLevelUnlocked}
+                    progress={currentLevelProgress}
+                    previousLevelUnlocked={prevLevelFullyUnlocked}
                     courses={courses}
                     currentSubject={currentSubject}
+                    progressData={progressData}
                   />
                 );
               })}

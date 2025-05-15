@@ -5,6 +5,7 @@ const UserPoints = require('./UserPoints');
 const LearningContent = require('./LearningContent');
 const Subject = require('./Subject');
 const Unit = require('./Unit');
+const UnitProgress = require('./UnitProgress');
 const { sequelize } = require('../config/database');
 
 // 定义模型之间的关系
@@ -43,6 +44,10 @@ UserRecord.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 // Subject 和 WrongExercise 之间的关系
 Subject.hasMany(WrongExercise, { foreignKey: 'subject', sourceKey: 'code' });
 WrongExercise.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
+
+// Unit and UnitProgress relationship
+Unit.hasMany(UnitProgress, { foreignKey: 'unitId', sourceKey: 'id' });
+UnitProgress.belongsTo(Unit, { foreignKey: 'unitId', targetKey: 'id' });
 
 // 同步所有模型到数据库
 const syncDatabase = async () => {
@@ -87,6 +92,7 @@ module.exports = {
   LearningContent,
   Subject,
   Unit,
+  UnitProgress,
   sequelize,
   syncDatabase
 };

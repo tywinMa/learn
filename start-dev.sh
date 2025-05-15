@@ -1,5 +1,17 @@
 #!/bin/bash
 
+PORT_PIDS1=$(lsof -t -i:3000 2>/dev/null)
+if [ -n "$PORT_PIDS1" ]; then
+  echo -e "${YELLOW}发现占用3000端口的进程: $PORT_PIDS1，正在终止...${NC}"
+  kill -9 $PORT_PIDS1 2>/dev/null
+fi
+
+PORT_PIDS2=$(lsof -t -i:8082 2>/dev/null)
+if [ -n "$PORT_PIDS2" ]; then
+  echo -e "${YELLOW}发现占用3000端口的进程: $PORT_PIDS2，正在终止...${NC}"
+  kill -9 $PORT_PIDS2 2>/dev/null
+fi
+
 # 设置颜色
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -8,17 +20,6 @@ NC='\033[0m' # No Color
 
 # 检查并终止已有的服务器进程
 echo -e "${YELLOW}检查并终止已有的服务器进程...${NC}"
-
-# 终止可能占用3000端口的进程
-PORT_PIDS=$(lsof -t -i:3000 2>/dev/null)
-if [ -n "$PORT_PIDS" ]; then
-  echo -e "${YELLOW}发现占用3000端口的进程: $PORT_PIDS，正在终止...${NC}"
-  kill -9 $PORT_PIDS 2>/dev/null
-fi
-
-# 终止已有的服务器进程
-pkill -f "node.*server/node_modules/.bin/nodemon" 2>/dev/null || true
-pkill -f "node.*server/src/index.js" 2>/dev/null || true
 
 # 等待进程完全终止
 sleep 1

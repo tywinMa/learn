@@ -18,16 +18,16 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
-  
+
   // 添加状态控制是否显示欢迎界面
   const [showWelcome, setShowWelcome] = useState(true);
 
   useEffect(() => {
     console.log("RootLayout挂载，showWelcome:", showWelcome);
-    
+
     if (loaded) {
       console.log("字体加载完成，隐藏SplashScreen");
-      SplashScreen.hideAsync().catch(e => console.log("隐藏SplashScreen错误:", e));
+      SplashScreen.hideAsync().catch((e) => console.log("隐藏SplashScreen错误:", e));
     }
   }, [loaded, showWelcome]);
 
@@ -46,11 +46,11 @@ export default function RootLayout() {
 function RootLayoutNav({ initialShowWelcome }: { initialShowWelcome: boolean }) {
   const colorScheme = useColorScheme();
   const { currentSubject } = useSubject();
-  
+
   useEffect(() => {
     console.log("RootLayoutNav挂载，initialShowWelcome:", initialShowWelcome);
   }, [initialShowWelcome]);
-  
+
   // 创建自定义主题，包含当前学科颜色
   const customTheme = {
     ...DefaultTheme,
@@ -71,11 +71,11 @@ function RootLayoutNav({ initialShowWelcome }: { initialShowWelcome: boolean }) 
   return (
     <ThemeProvider value={colorScheme === "dark" ? customDarkTheme : customTheme}>
       <Stack>
-        <Stack.Screen 
-          name="welcome" 
-          options={{ 
+        <Stack.Screen
+          name="welcome"
+          options={{
             headerShown: false,
-            presentation: 'transparentModal',
+            presentation: "transparentModal",
           }}
         />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />

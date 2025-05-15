@@ -1,7 +1,86 @@
 const express = require('express');
 const router = express.Router();
-const { Exercise, UserRecord, WrongExercise, UserPoints, sequelize, UnitProgress } = require('../models');
+const { Exercise, UserRecord, WrongExercise, UserPoints, sequelize, Unit, UnitProgress } = require('../models');
 const { Op } = require('sequelize');
+
+// Helper function to get progress details for a single unit
+async function getUnitProgressDetails(userId, unitId) {
+  // 1. Check UnitProgress table first
+  const unitProgressEntry = await UnitProgress.findOne({ where: { userId, unitId } });
+
+  if (unitProgressEntry && unitProgressEntry.completed) {
+    const exercisesInUnit = await Exercise.count({ where: { unitId } });
+    const unlockNextStatus = unitProgressEntry.stars === 3;
+
+    console.log(`[Progress Details] From UnitProgress: ${unitId}, Stars: ${unitProgressEntry.stars}, Completed: ${unitProgressEntry.completed}`);
+    return {
+      unitId,
+      totalExercises: exercisesInUnit,
+      completedExercises: (unitProgressEntry.stars > 0 && exercisesInUnit > 0) ? exercisesInUnit : 0,
+      completionRate: (unitProgressEntry.stars > 0 && exercisesInUnit > 0) ? 1.0 : 0,
+      stars: unitProgressEntry.stars,
+      unlockNext: unlockNextStatus,
+      completed: unitProgressEntry.completed, // Ensure completed status is from UnitProgress
+      source: 'UnitProgressTable'
+    };
+  }
+
+  // 2. If not in UnitProgress or not marked as completed there, fallback to UserRecord-based calculation
+  console.log(`[Progress Details] UnitProgress miss or not completed for ${unitId}, falling back to UserRecord calc`);
+  const exercises = await Exercise.findAll({
+    where: { unitId },
+    attributes: ['id']
+  });
+
+  if (exercises.length === 0) {
+    // No exercises means we can't calculate progress based on them.
+    // If there was no UnitProgress entry, this unit effectively has no progress.
+    console.warn(`[Progress Details] No exercises found for unit ${unitId}, returning default empty progress.`);
+    return {
+      unitId,
+      totalExercises: 0,
+      completedExercises: 0,
+      completionRate: 0,
+      stars: 0,
+      unlockNext: false,
+      completed: false, // Not in UnitProgress and no exercises to base completion on
+      source: 'NoDataOrNoExercises'
+    };
+  }
+
+  const exerciseIds = exercises.map(ex => ex.id);
+  const userRecords = await UserRecord.findAll({
+    where: {
+      userId,
+      exerciseId: { [Op.in]: exerciseIds },
+      isCorrect: true
+    }
+  });
+
+  const totalExercises = exercises.length;
+  const completedExercises = userRecords.length;
+  const completionRate = totalExercises > 0 ? completedExercises / totalExercises : 0;
+
+  let stars = 0;
+  if (completionRate >= 0.8) stars = 3;
+  else if (completionRate >= 0.6) stars = 2;
+  else if (completionRate > 0) stars = 1;
+
+  const unlockNext = stars === 3;
+  const calculatedCompleted = stars > 0; // Or based on a more specific logic if needed
+
+  console.log(`[Progress Details] From UserRecord calc for ${unitId}: Stars: ${stars}, Completed: ${calculatedCompleted}`);
+  return {
+    unitId,
+    totalExercises,
+    completedExercises,
+    completionRate,
+    stars,
+    unlockNext,
+    completed: calculatedCompleted,
+    source: 'UserRecordCalculation'
+  };
+}
 
 // 获取用户的所有答题记录
 router.get('/:userId/records', async (req, res) => {
@@ -193,191 +272,94 @@ router.delete('/:userId/wrong-exercises/:exerciseId', async (req, res) => {
   }
 });
 
-// 获取用户在特定单元的完成情况
+// GET user progress for a specific unit (refactored to use the helper)
 router.get('/:userId/progress/:unitId', async (req, res) => {
   try {
     const { userId, unitId } = req.params;
+    console.log(`API: GET /:userId/progress/:unitId - User: ${userId}, Unit: ${unitId}`);
 
-    console.log(`获取用户 ${userId} 在单元 ${unitId} 的进度`);
+    const progressData = await getUnitProgressDetails(userId, unitId);
 
-    // 假定unitId已包含学科前缀，直接使用精确匹配
-    const whereClause = { unitId };
-
-    // 获取该单元的所有练习题
-    const exercises = await Exercise.findAll({
-      where: whereClause,
-      attributes: ['id']
-    });
-
-    if (exercises.length === 0) {
-      console.warn(`未找到单元 ${unitId} 的练习题`);
-      return res.status(404).json({
-        success: false,
-        message: `未找到单元 ${unitId} 的练习题`
-      });
+    if (progressData.source === 'NoDataOrNoExercises' && progressData.totalExercises === 0) {
+      // Optionally, you could return 404 if unitId itself is invalid / has no exercises at all
+      // For now, returning the default empty progress is consistent.
     }
-
-    // 获取用户在该单元的所有答题记录
-    const exerciseIds = exercises.map(ex => ex.id);
-    console.log(`单元 ${unitId} 包含 ${exerciseIds.length} 道练习题: ${exerciseIds.join(', ')}`);
-
-    const userRecords = await UserRecord.findAll({
-      where: {
-        userId,
-        exerciseId: { [Op.in]: exerciseIds },
-        isCorrect: true // 只计算正确的答题记录
-      }
-    });
-
-    console.log(`用户 ${userId} 完成了 ${userRecords.length} 道练习题`);
-
-    // 计算完成率和星星数
-    const totalExercises = exercises.length;
-    const completedExercises = userRecords.length;
-    const completionRate = totalExercises > 0 ? completedExercises / totalExercises : 0;
-
-    // 根据完成率计算星星数
-    let stars = 0;
-    if (completionRate >= 0.8) {
-      stars = 3; // 完成80%以上，3颗星
-    } else if (completionRate >= 0.6) {
-      stars = 2; // 完成60%以上，2颗星
-    } else if (completionRate > 0) {
-      stars = 1; // 只要完成了题目，至少1颗星
-    }
-
-    // 判断是否解锁下一个单元
-    const unlockNext = stars === 3;
 
     res.json({
       success: true,
-      data: {
-        unitId,
-        totalExercises,
-        completedExercises,
-        completionRate,
-        stars,
-        unlockNext
-      }
+      data: progressData
     });
   } catch (error) {
-    console.error('获取用户进度出错:', error);
+    console.error(`Error in GET /:userId/progress/:unitId for unit ${req.params.unitId}:`, error);
     res.status(500).json({
       success: false,
-      message: '获取用户进度失败，可能是数据库有问题',
+      message: '获取用户单元进度失败',
       error: error.message
     });
   }
 });
 
-// 强制更新用户在特定单元的完成进度
-router.post('/:userId/progress', async (req, res) => {
+// NEW: POST route for batch fetching unit progress
+router.post('/:userId/progress/batch', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { unitId, completed = true } = req.body;
+    const { unitIds } = req.body;
 
-    if (!unitId) {
+    console.log(`API: POST /:userId/progress/batch - User: ${userId}, Unit Count: ${unitIds ? unitIds.length : 0}`);
+
+    if (!unitIds || !Array.isArray(unitIds) || unitIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: '缺少必要参数'
+        message: '请求体中必须包含一个非空的 unitIds 数组。'
       });
     }
 
-    console.log(`强制刷新用户 ${userId} 在单元 ${unitId} 的进度`);
-
-    // 假定unitId已包含学科前缀，直接使用精确匹配
-    const whereClause = { unitId };
-
-    // 获取该单元的所有练习题
-    const exercises = await Exercise.findAll({
-      where: whereClause,
-      attributes: ['id']
-    });
-
-    if (exercises.length === 0) {
-      console.warn(`未找到单元 ${unitId} 的练习题`);
-      return res.status(404).json({
+    // Limit batch size to prevent abuse or performance issues, e.g., 100 units at a time
+    const MAX_BATCH_SIZE = 100;
+    if (unitIds.length > MAX_BATCH_SIZE) {
+      return res.status(400).json({
         success: false,
-        message: `未找到单元 ${unitId} 的练习题`
+        message: `批量请求的单元数量不能超过 ${MAX_BATCH_SIZE}。`
       });
     }
 
-    // 获取用户在该单元的所有答题记录
-    const exerciseIds = exercises.map(ex => ex.id);
-
-    // 查询用户已完成的练习题
-    const userRecords = await UserRecord.findAll({
-      where: {
-        userId,
-        exerciseId: { [Op.in]: exerciseIds }
+    const results = {};
+    // Consider Promise.all for parallel fetching if getUnitProgressDetails is I/O bound and can run in parallel.
+    // For now, sequential to be safe and simple. If DB queries are heavy, parallel might be better.
+    for (const unitId of unitIds) {
+      if (typeof unitId !== 'string' || unitId.trim() === '') {
+        console.warn(`[Batch Progress] Invalid unitId found: '${unitId}', skipping.`);
+        results[unitId] = { // Provide a consistent error structure for this ID
+          unitId,
+          error: 'Invalid unitId provided',
+          source: 'BatchRequestError'
+        };
+        continue;
       }
-    });
-
-    // 对于没有记录的题目，创建正确的记录
-    const completedExerciseIds = userRecords.map(record => record.exerciseId);
-    const missingExerciseIds = exerciseIds.filter(id => !completedExerciseIds.includes(id));
-
-    console.log(`单元 ${unitId} 需要补充 ${missingExerciseIds.length} 道练习题记录`);
-
-    // 添加缺失的记录
-    if (missingExerciseIds.length > 0) {
-      // 获取每个练习题的subject值
-      const exerciseDetails = await Exercise.findAll({
-        where: { id: { [Op.in]: missingExerciseIds } },
-        attributes: ['id', 'subject']
-      });
-
-      // 创建ID到subject的映射
-      const exerciseSubjectMap = {};
-      exerciseDetails.forEach(ex => {
-        exerciseSubjectMap[ex.id] = ex.subject;
-      });
-
-      const recordsToCreate = missingExerciseIds.map(exerciseId => ({
-        userId,
-        exerciseId,
-        unitId,
-        subject: exerciseSubjectMap[exerciseId] || unitId.split('-')[0], // 从映射获取subject，或从unitId推断
-        isCorrect: true,
-        attemptCount: 1
-      }));
-
-      await UserRecord.bulkCreate(recordsToCreate);
-      console.log(`为用户 ${userId} 创建了 ${recordsToCreate.length} 条答题记录`);
-    }
-
-    // 确保所有记录都标记为正确
-    for (const record of userRecords) {
-      if (!record.isCorrect) {
-        record.isCorrect = true;
-        await record.save();
-        console.log(`更新记录 ${record.id} 为正确`);
+      try {
+        results[unitId] = await getUnitProgressDetails(userId, unitId);
+      } catch (error) {
+        console.error(`[Batch Progress] Error fetching progress for unit ${unitId}:`, error.message);
+        results[unitId] = {
+          unitId,
+          error: error.message || 'Failed to fetch progress for this unit',
+          stars: 0, // Default error state
+          completed: false,
+          source: 'BatchUnitError'
+        };
       }
     }
-
-    // 返回最新的进度信息
-    const totalExercises = exercises.length;
-    const completionRate = 1.0; // 100% 完成
-    const stars = 3; // 全部完成，3颗星
-    const unlockNext = true;
 
     res.json({
       success: true,
-      data: {
-        unitId,
-        totalExercises,
-        completedExercises: totalExercises,
-        completionRate,
-        stars,
-        unlockNext
-      },
-      message: '进度已强制更新为完成状态'
+      data: results
     });
+
   } catch (error) {
-    console.error('强制刷新用户进度出错:', error);
+    console.error('Error in POST /:userId/progress/batch:', error);
     res.status(500).json({
       success: false,
-      message: '刷新用户进度失败',
+      message: '批量获取用户进度失败',
       error: error.message
     });
   }

@@ -3,26 +3,34 @@ import { API_BASE_URL } from "@/@constants/apiConfig";
 // 临时用户ID，实际应用中应该从认证系统获取
 export const USER_ID = "user1";
 
-// 添加超时处理函数
-const withTimeout = <T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> => {
-  let timeoutHandle: NodeJS.Timeout;
-  const timeoutPromise = new Promise<T>((_, reject) => {
-    timeoutHandle = setTimeout(() => {
-      console.warn(`请求超时(${timeoutMs}ms)`);
-      // 不抛出错误，而是返回fallback值
-      reject(new Error("请求超时"));
-    }, timeoutMs);
-  });
+// Define and export UnitProgress type
+export interface UnitProgress {
+  unitId: string;
+  totalExercises: number;
+  completedExercises: number;
+  completionRate: number;
+  stars: number;
+  unlockNext: boolean; // This field might be part of it
+  completed?: boolean; // Add completed field, make it optional for now to ensure compatibility
+  // Add other fields if they exist based on actual API response
+}
 
-  return Promise.race([
-    promise.then((result) => {
-      clearTimeout(timeoutHandle);
-      return result;
-    }),
-    timeoutPromise,
-  ]).catch(() => {
-    clearTimeout(timeoutHandle);
-    return fallback;
+// Helper function for promise timeout, ensuring it resolves with expected type or rejects
+const withTimeout = <T, E extends Error>(promise: Promise<T>, ms: number, timeoutErrorInstance: E): Promise<T> => {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(timeoutErrorInstance);
+    }, ms);
+
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timer);
+        reject(error); // Pass through original error if promise rejects before timeout
+      });
   });
 };
 
@@ -49,7 +57,7 @@ export async function getSubjectUnits(subjectCode: string) {
 }
 
 // 获取用户在特定单元的完成情况
-export async function getUserUnitProgress(unitId: string, timeoutMs: number = 5000) {
+export async function getUserUnitProgress(unitId: string, timeoutMs: number = 5000): Promise<UnitProgress> {
   try {
     // 添加重试逻辑
     const MAX_RETRIES = 2;
@@ -107,42 +115,98 @@ export async function getUserUnitProgress(unitId: string, timeoutMs: number = 50
   }
 }
 
-// 获取多个单元的完成情况，增加超时和优先级功能
-export async function getMultipleUnitProgress(unitIds: string[], options: { timeout?: number } = {}) {
-  try {
-    // 设置默认超时时间
-    const timeout = options.timeout || 5000;
-
-    // 默认返回值对象
-    const defaultProgress = (unitId: string) => ({
-      unitId,
-      totalExercises: 0,
-      completedExercises: 0,
-      completionRate: 0,
-      stars: 0,
-      unlockNext: false,
-    });
-
-    // 并行获取所有进度，但添加错误处理和超时控制
-    const progressPromises = unitIds.map((unitId) =>
-      withTimeout(getUserUnitProgress(unitId), timeout, defaultProgress(unitId)).catch((err) => {
-        console.error(`获取单元 ${unitId} 进度失败:`, err);
-        return defaultProgress(unitId);
-      })
-    );
-
-    const progressResults = await Promise.all(progressPromises);
-
-    // 将结果转换为以unitId为键的对象
-    const progressMap: Record<string, any> = {};
-    progressResults.forEach((progress) => {
-      progressMap[progress.unitId] = progress;
-    });
-
-    return progressMap;
-  } catch (error) {
-    console.error("获取多个单元进度时发生错误:", error);
+// 获取多个单元的完成情况，使用新的批量API
+export async function getMultipleUnitProgress(
+  unitIds: string[],
+  options: { timeout?: number } = {}
+): Promise<Record<string, UnitProgress>> {
+  if (!unitIds || unitIds.length === 0) {
+    console.log("[getMultipleUnitProgress] No unitIds provided, returning empty map.");
     return {};
+  }
+
+  const timeout = options.timeout || 20000;
+  const defaultProgressFallback = (unitId: string): UnitProgress => ({
+    unitId,
+    totalExercises: 0,
+    completedExercises: 0,
+    completionRate: 0,
+    stars: 0,
+    unlockNext: false,
+    completed: false,
+  });
+
+  try {
+    console.log(`[getMultipleUnitProgress] Fetching progress for ${unitIds.length} units via batch API.`);
+    const fetchPromise = fetch(`${API_BASE_URL}/api/users/${USER_ID}/progress/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ unitIds }),
+    });
+
+    // The promise from withTimeout will either resolve with a Response or reject with an Error (either timeout or fetch error)
+    const response = await withTimeout(fetchPromise, timeout, new Error(`批量获取单元进度请求超时 (${timeout}ms)`));
+
+    // If we reach here, 'response' is guaranteed to be a Response object because errors would be caught by the catch block.
+    // However, the linter might not infer this perfectly across await boundaries with generic helpers.
+    // To be absolutely explicit for the linter and type safety:
+    if (response instanceof Error) {
+      // This block should ideally not be reached if withTimeout rejects on error as intended
+      console.error(
+        "[getMultipleUnitProgress] withTimeout resolved with an Error object, this is unexpected.",
+        response
+      );
+      throw response;
+    }
+
+    if (!response.ok) {
+      let errorBody = null;
+      try {
+        errorBody = await response.json();
+      } catch (e) {
+        /* ignore parsing error */
+      }
+      console.error(
+        `[getMultipleUnitProgress] Batch API request failed (HTTP ${response.status})`,
+        response.statusText,
+        errorBody
+      );
+      throw new Error(
+        `批量获取进度失败 (HTTP ${response.status}${errorBody?.message ? ": " + errorBody.message : ""})`
+      );
+    }
+
+    const result = await response.json();
+
+    if (result.success && result.data) {
+      const progressMap: Record<string, UnitProgress> = {};
+      for (const unitId of unitIds) {
+        if (result.data[unitId] && !result.data[unitId].error) {
+          progressMap[unitId] = result.data[unitId];
+        } else {
+          if (result.data[unitId] && result.data[unitId].error) {
+            console.warn(
+              `[getMultipleUnitProgress] Error for unit ${unitId} in batch response: ${result.data[unitId].error}`
+            );
+          }
+          progressMap[unitId] = defaultProgressFallback(unitId);
+        }
+      }
+      console.log(
+        `[getMultipleUnitProgress] Successfully processed batch response for ${Object.keys(progressMap).length} units.`
+      );
+      return progressMap;
+    } else {
+      console.error("[getMultipleUnitProgress] Batch API call was not successful or data is missing:", result.message);
+      throw new Error(result.message || "批量获取进度失败：服务器返回了非成功状态或无效数据");
+    }
+  } catch (error: any) {
+    console.error("[getMultipleUnitProgress] Error during batch progress fetch:", error.message);
+    const errorProgressMap: Record<string, UnitProgress> = {};
+    unitIds.forEach((unitId) => {
+      errorProgressMap[unitId] = defaultProgressFallback(unitId);
+    });
+    return errorProgressMap;
   }
 }
 

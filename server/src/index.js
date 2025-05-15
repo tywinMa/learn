@@ -8,6 +8,7 @@ const userRecordsRoutes = require('./routes/userRecords');
 const userPointsRoutes = require('./routes/userPoints');
 const learningContentRoutes = require('./routes/learningContent');
 const subjectsRoutes = require('./routes/subjects');
+const unitsRouter = require('./routes/units');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,6 +34,7 @@ app.use('/api/users', userRecordsRoutes);
 app.use('/api/users', userPointsRoutes);
 app.use('/api/learning', learningContentRoutes);
 app.use('/api/subjects', subjectsRoutes);
+app.use('/api/units', unitsRouter);
 
 // 添加额外的练习题根路径路由，将/exercises请求也映射到/api/exercises处理程序
 app.use('/exercises', exercisesRoutes);
