@@ -34,11 +34,6 @@
         }
       ]
     ],
-    "extra": {
-      "devServer": {
-        "port": 8082
-      }
-    },
     "experiments": {
       "typedRoutes": true
     }
