@@ -9,6 +9,8 @@ const duoBlue = "#1CB0F6"; // 多邻国蓝色
 const duoOrange = "#FF9600"; // 多邻国橙色
 const duoRed = "#FF4B4B"; // 多邻国红色
 
+export const WELCOME_SCREEN_KEY = "hasSeenWelcomeScreen_v1";
+
 export default {
   light: {
     text: "#4b4b4b", // 深灰色文字

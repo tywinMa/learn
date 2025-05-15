@@ -1,123 +1,92 @@
-import { useEffect, useState } from "react";
-import {
-  StyleSheet,
-  View,
-  Text,
-  Image,
-  Animated,
-  Platform,
-  TouchableOpacity,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { StatusBar } from "expo-status-bar";
+import React from "react";
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter, Stack } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons"; // Assuming you have this or similar for icons
+import { WELCOME_SCREEN_KEY } from "@/constants/Colors";
 
-export default function Welcome() {
+const WelcomeScreen = () => {
   const router = useRouter();
-  const [fadeAnim] = useState(new Animated.Value(0));
-  const [buttonFadeAnim] = useState(new Animated.Value(0));
 
-  useEffect(() => {
-    // 播放淡入动画
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 1500,
-      useNativeDriver: true,
-    }).start();
-
-    // 延迟显示按钮，让它在内容显示后再淡入
-    const buttonTimer = setTimeout(() => {
-      Animated.timing(buttonFadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }).start();
-    }, 1000);
-
-    return () => clearTimeout(buttonTimer);
-  }, [fadeAnim, buttonFadeAnim]);
-
-  // 处理按钮点击，跳转到主界面
-  const handleStartPress = () => {
-    router.replace("/(tabs)");
+  const handleGetStarted = async () => {
+    try {
+      await AsyncStorage.setItem(WELCOME_SCREEN_KEY, "true");
+      console.log(`[WelcomeScreen] Flag '${WELCOME_SCREEN_KEY}' set to true.`);
+      router.replace("/(tabs)"); // Adjust if your main route is different
+    } catch (error) {
+      console.error("[WelcomeScreen] Failed to save welcome screen status:", error);
+      // Still navigate, but log the error. User experience is to proceed.
+      router.replace("/(tabs)");
+    }
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="auto" />
-      <Animated.View style={[styles.contentContainer, { opacity: fadeAnim }]}>
-        <Text style={styles.debugText}>欢迎界面正在显示</Text>
-        <Image
-          source={require("../assets/images/icon.png")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.title}>欢迎使用</Text>
-        <Text style={styles.subtitle}>学习成长的好伙伴</Text>
-        
-        <Animated.View style={{ opacity: buttonFadeAnim, marginTop: 50 }}>
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleStartPress}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.buttonText}>开始使用</Text>
+    <LinearGradient
+      colors={["#6e48eb", "#4b2c9a"]} // Example gradient, adjust as needed
+      style={styles.container}
+    >
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.contentContainer}>
+          <Ionicons name="rocket-outline" size={100} color="white" style={styles.icon} />
+          <Text style={styles.title}>欢迎使用!</Text>
+          <Text style={styles.subtitle}>准备好开始您的学习之旅了吗？</Text>
+          <TouchableOpacity style={styles.button} onPress={handleGetStarted}>
+            <Text style={styles.buttonText}>开始探索</Text>
           </TouchableOpacity>
-        </Animated.View>
-      </Animated.View>
-    </View>
+        </View>
+      </SafeAreaView>
+    </LinearGradient>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
+  },
+  safeArea: {
+    flex: 1,
     justifyContent: "center",
+    alignItems: "center",
   },
   contentContainer: {
     alignItems: "center",
+    paddingHorizontal: 30,
   },
-  logo: {
-    width: 200,
-    height: 200,
+  icon: {
     marginBottom: 30,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: "bold",
-    marginBottom: 10,
+    color: "white",
+    marginBottom: 15,
+    textAlign: "center",
   },
   subtitle: {
     fontSize: 18,
-    color: "#666",
-  },
-  debugText: {
-    position: "absolute",
-    top: -100,
-    color: "blue",
-    fontSize: 16,
-  },
-  errorText: {
-    color: "red",
-    fontSize: 16,
-    marginBottom: 30,
+    color: "rgba(255, 255, 255, 0.85)",
+    textAlign: "center",
+    marginBottom: 50,
+    lineHeight: 26,
   },
   button: {
-    backgroundColor: "#3498db",
-    paddingVertical: 12,
-    paddingHorizontal: 40,
-    borderRadius: 25,
-    elevation: 3,
+    backgroundColor: "white",
+    paddingVertical: 16,
+    paddingHorizontal: 45,
+    borderRadius: 30,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 5,
   },
   buttonText: {
-    color: "#fff",
     fontSize: 18,
+    color: "#4b2c9a", // Matching one of the gradient colors
     fontWeight: "bold",
-    textAlign: "center",
   },
 });
+
+export default WelcomeScreen;
