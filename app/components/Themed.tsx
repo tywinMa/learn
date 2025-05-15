@@ -1,16 +1,10 @@
-/**
- * 主题组件
- * 这些组件用于支持应用程序的暗/亮模式主题系统
- */
-import { Text as DefaultText, View as DefaultView } from "react-native";
-import Colors from "../constants/Colors";
-import { useColorScheme } from "./useColorScheme";
+import { Text as DefaultText, View as DefaultView, useColorScheme } from "react-native";
 
 export function useThemeColor(
   props: { light?: string; dark?: string },
   colorName: keyof typeof Colors.light & keyof typeof Colors.dark
 ) {
-  const theme = useColorScheme();
+  const theme = useColorScheme() ?? "light";
   const colorFromProps = props[theme];
 
   if (colorFromProps) {
@@ -41,3 +35,6 @@ export function View(props: ViewProps) {
 
   return <DefaultView style={[{ backgroundColor }, style]} {...otherProps} />;
 }
+
+// 引入颜色定义
+import Colors from "../constants/Colors";

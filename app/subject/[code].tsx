@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, View as RNView, FlatList } from "react-native";
-import { Text, View } from "../../components/Themed";
+import { Text, View } from "@/components/Themed";
 import { Ionicons } from "@expo/vector-icons";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { useSubject } from "@/hooks/useSubject";
-import { API_BASE_URL } from "@/@constants/apiConfig";
+import { API_BASE_URL } from "@/constants/apiConfig";
 
 export default function SubjectScreen() {
   const router = useRouter();

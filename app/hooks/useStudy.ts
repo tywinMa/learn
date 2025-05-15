@@ -3,7 +3,7 @@ import { Alert } from "react-native";
 import { ScrollView } from "react-native";
 import { processAnswer } from "../utils/exerciseUtils";
 import { USER_ID } from "../services/progressService";
-import { API_BASE_URL } from "@/@constants/apiConfig";
+import { API_BASE_URL } from "@/constants/apiConfig";
 
 /**
  * 学习页面业务逻辑Hook

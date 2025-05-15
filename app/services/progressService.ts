@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/@constants/apiConfig";
+import { API_BASE_URL } from "@/constants/apiConfig";
 
 // 临时用户ID，实际应用中应该从认证系统获取
 export const USER_ID = "user1";

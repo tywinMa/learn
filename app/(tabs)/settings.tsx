@@ -1,6 +1,6 @@
 import { StyleSheet, Switch, TouchableOpacity } from "react-native";
-import { Text, View } from "../../components/Themed";
-import Colors from "../../constants/Colors";
+import { Text, View } from "@/components/Themed";
+import Colors from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";

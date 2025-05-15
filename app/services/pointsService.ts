@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/@constants/apiConfig";
+import { API_BASE_URL } from "@/constants/apiConfig";
 
 // 获取用户积分
 export const getUserPoints = async (userId: string): Promise<number> => {

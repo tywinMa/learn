@@ -9,7 +9,7 @@ import {
   Modal,
   ScrollView,
 } from "react-native";
-import { Text, View } from "../components/Themed";
+import { Text, View } from "@/components/Themed";
 import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore
@@ -22,7 +22,7 @@ import { processAnswer } from "./utils/exerciseUtils";
 import { Exercise } from "./components/Exercise";
 import { useSubject } from "@/hooks/useSubject";
 import { LinearGradient } from "expo-linear-gradient";
-import { API_BASE_URL } from "@/@constants/apiConfig";
+import { API_BASE_URL } from "@/constants/apiConfig";
 
 // 总结弹窗组件
 const SummaryModal = ({

@@ -2,9 +2,9 @@ import { Tabs } from "expo-router";
 import React from "react";
 import { Platform, View, StyleSheet } from "react-native";
 import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
-import Colors from "../../constants/Colors";
+import Colors from "@/constants/Colors";
 import { useColorScheme } from "react-native";
-import { Text } from "../../components/Themed";
+import { Text } from "@/components/Themed";
 
 // 定义标签图标属性的类型
 type TabBarIconProps = {

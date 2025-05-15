@@ -20,7 +20,7 @@ export default function RootLayout() {
   const [initialRoute, setInitialRoute] = useState<string | null>(null); // To store the determined initial route
 
   const [loaded, fontError] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
+    SpaceMono: require("./assets/fonts/SpaceMono-Regular.ttf"),
     // Add other fonts here if you have them
   });
 

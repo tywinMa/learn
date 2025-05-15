@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { StyleSheet, TouchableOpacity, ScrollView, Image } from "react-native";
-import { Text, View } from "../../components/Themed";
+import { Text, View } from "@/components/Themed";
 import { Ionicons } from "@expo/vector-icons";
-import Colors from "../../constants/Colors";
+import Colors from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 
 // 练习数据

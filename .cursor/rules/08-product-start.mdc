@@ -19,15 +19,15 @@ alwaysApply: true
 这是一个基于React Native和Expo的跨平台移动应用，支持iOS和Android平台。并且有服务端的代码
 
 # 数据重置
-使用`./reset-data.sh`重置数据
+使用`reset-data.sh`重置数据
 
 # 项目启动
-如果需要重启服务，请关闭当前终端的服务后，使用`./start-dev.sh`启动开发前端和后端服务器，确保正常运行
+如果需要重启服务，请关闭当前终端的服务后，使用`start-dev.sh`启动开发前端和后端服务器，确保正常运行
 
 ## 目录结构
-- @app/ - 应用程序入口和页面
-- @components/ - 可复用组件
-- @constants/ - 常量定义
-- @assets/ - 静态资源
-- @hooks/ - 自定义React钩子
-- @server/ - 服务端内容和数据库内容
+- app - 应用程序入口和页面
+- components - 可复用组件
+- constants - 常量定义
+- assets - 静态资源
+- hooks - 自定义React钩子
+- server - 服务端内容和数据库内容

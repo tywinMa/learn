@@ -10,7 +10,7 @@ import {
   FlatList,
   Image,
 } from "react-native";
-import { Text, View } from "../components/Themed";
+import { Text, View } from "@/components/Themed";
 import { Ionicons } from "@expo/vector-icons";
 import { Video, ResizeMode } from "expo-av";
 // TypeScript暂时忽略 expo-router 导出错误
@@ -20,7 +20,7 @@ import { getUserPoints } from "../app/services/pointsService";
 import { USER_ID } from "../app/services/progressService";
 import RenderHtml from "react-native-render-html";
 import { LinearGradient } from "expo-linear-gradient";
-import { API_BASE_URL } from "@/@constants/apiConfig";
+import { API_BASE_URL } from "@/constants/apiConfig";
 
 export default function StudyScreen() {
   const params = useLocalSearchParams();
@@ -171,7 +171,7 @@ export default function StudyScreen() {
               style={{ marginLeft: 10 }}
               onPress={() =>
                 router.replace({
-                  pathname: "/",
+                  pathname: "/(tabs)",
                   params: {
                     refresh: Date.now().toString(), // 添加时间戳参数，强制组件刷新
                     currentSubject: subjectCode, // 传递当前学科
@@ -204,7 +204,7 @@ export default function StudyScreen() {
             style={styles.backButton}
             onPress={() =>
               router.replace({
-                pathname: "/",
+                pathname: "/(tabs)",
                 params: {
                   refresh: Date.now().toString(),
                   currentSubject: subjectCode,

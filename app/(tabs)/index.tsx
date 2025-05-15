@@ -15,9 +15,9 @@ import {
   Linking,
   Platform,
 } from "react-native";
-import { Text, View } from "../../components/Themed";
+import { Text, View } from "@/components/Themed";
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
-import Colors from "../../constants/Colors";
+import Colors from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -32,9 +32,9 @@ import {
 } from "../services/progressService";
 import { getUserPoints } from "../services/pointsService";
 // import UnlockModal from "../../components/UnlockModal"; // Commented out UnlockModal
-import SubjectModal from "../../components/SubjectModal";
+import SubjectModal from "@/components/SubjectModal";
 import { useSubject, Subject } from "@/hooks/useSubject";
-import { API_BASE_URL } from "@/@constants/apiConfig";
+import { API_BASE_URL } from "@/constants/apiConfig";
 
 // 学科信息存储键
 const CURRENT_SUBJECT_KEY = "currentSubject";
@@ -851,19 +851,6 @@ export default function HomeScreen() {
         </LinearGradient>
       </RNView>
     );
-  };
-
-  // 退出本单元
-  const handleExit = () => {
-    setShowFixedBanner(false);
-
-    // 强制重新获取用户进度数据，使用expo-router刷新
-    router.replace({
-      pathname: "/",
-      params: {
-        refresh: Date.now().toString(), // 添加时间戳参数，强制组件刷新
-      },
-    });
   };
 
   // 渲染课程内容或加载状态

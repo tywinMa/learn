@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/@constants/apiConfig";
+import { API_BASE_URL } from "@/constants/apiConfig";
 import { USER_ID } from "./progressService";
 
 // 本地存储的键名

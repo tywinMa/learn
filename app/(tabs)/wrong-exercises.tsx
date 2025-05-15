@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { StyleSheet, ScrollView, View as RNView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
-import { Text, View } from "../../components/Themed";
+import { Text, View } from "@/components/Themed";
 import { Ionicons } from "@expo/vector-icons";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore

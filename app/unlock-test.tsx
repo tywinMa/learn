@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity } from "react-native";
 import { Stack, useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { API_BASE_URL } from "@/@constants/apiConfig";
+import { API_BASE_URL } from "@/constants/apiConfig";
 import { USER_ID } from "./services/progressService"; // Assuming unlock-test.tsx is in app/ and services is in app/services/
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -220,7 +220,10 @@ const UnlockTestScreen = () => {
         {
           text: "返回主页",
           onPress: () =>
-            router.replace({ pathname: "/", params: { refresh: Date.now().toString(), currentSubject: subjectCode } }),
+            router.replace({
+              pathname: "/(tabs)",
+              params: { refresh: Date.now().toString(), currentSubject: subjectCode },
+            }),
         },
       ]);
       setIsLoading(false);
@@ -248,7 +251,7 @@ const UnlockTestScreen = () => {
             text: "好的",
             onPress: () => {
               router.replace({
-                pathname: "/",
+                pathname: "/(tabs)",
                 params: { refresh: Date.now().toString(), currentSubject: subjectCode },
               });
             },
@@ -275,7 +278,7 @@ const UnlockTestScreen = () => {
               text: "太棒了!",
               onPress: () => {
                 router.replace({
-                  pathname: "/",
+                  pathname: "/(tabs)",
                   params: { refresh: Date.now().toString(), currentSubject: subjectCode },
                 });
               },
@@ -295,7 +298,10 @@ const UnlockTestScreen = () => {
         {
           text: "返回主页",
           onPress: () => {
-            router.replace({ pathname: "/", params: { refresh: Date.now().toString(), currentSubject: subjectCode } });
+            router.replace({
+              pathname: "/(tabs)",
+              params: { refresh: Date.now().toString(), currentSubject: subjectCode },
+            });
           },
         },
       ]);
@@ -387,7 +393,7 @@ const UnlockTestScreen = () => {
               onPress={() => {
                 if (testFinished && !isLoading) {
                   router.replace({
-                    pathname: "/",
+                    pathname: "/(tabs)",
                     params: { refresh: Date.now().toString(), currentSubject: subjectCode },
                   });
                 } else if (!isLoading) {
@@ -456,7 +462,7 @@ const UnlockTestScreen = () => {
               style={[styles.button, { backgroundColor: color || Colors.light.tint, marginTop: 20 }]}
               onPress={() =>
                 router.replace({
-                  pathname: "/",
+                  pathname: "/(tabs)",
                   params: { refresh: Date.now().toString(), currentSubject: subjectCode },
                 })
               }

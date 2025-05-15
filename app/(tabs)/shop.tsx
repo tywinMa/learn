@@ -10,9 +10,9 @@ import {
   Modal,
   Dimensions,
 } from "react-native";
-import { Text, View } from "../../components/Themed";
+import { Text, View } from "@/components/Themed";
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
-import Colors from "../../constants/Colors";
+import Colors from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 

@@ -12,7 +12,7 @@ import { Text, View } from "./Themed";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { useSubject, Subject } from "@/hooks/useSubject";
-import { API_BASE_URL } from "@/@constants/apiConfig";
+import { API_BASE_URL } from "@/constants/apiConfig";
 
 interface SubjectModalProps {
   visible: boolean;
