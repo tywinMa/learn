@@ -48,5 +48,15 @@ echo -e "${GREEN}启动前端应用...${NC}"
 npm run web
 
 # 当前端应用关闭时，也关闭后端服务器
-echo -e "${YELLOW}关闭服务器...${NC}"
-kill $SERVER_PID 2>/dev/null || true
+
+PORT_PIDS1=$(lsof -t -i:3000 2>/dev/null)
+if [ -n "$PORT_PIDS1" ]; then
+  echo -e "${YELLOW}发现占用3000端口的进程: $PORT_PIDS1，正在终止...${NC}"
+  kill -9 $PORT_PIDS1 2>/dev/null
+fi
+
+PORT_PIDS2=$(lsof -t -i:8082 2>/dev/null)
+if [ -n "$PORT_PIDS2" ]; then
+  echo -e "${YELLOW}发现占用8082端口的进程: $PORT_PIDS2，正在终止...${NC}"
+  kill -9 $PORT_PIDS2 2>/dev/null
+fi
