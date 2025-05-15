@@ -14,6 +14,8 @@ alwaysApply: true
 - 若认为可能无正确答案，需明确说明；若不确定，应说明而非猜测
 - 只编写实现功能必需的最小代码量
 - 使用React Native和Expo等跨平台包，支持iOS和Android平台
+- 输出代码后需要验证代码是否正确，包括自我检测以及用户配合检测
+- 项目代码逻辑在`PROJECT_LOGIC.md`中描述，每次修改代码后分析逻辑，必须更新
 
 # 项目概述
 这是一个基于React Native和Expo的跨平台移动应用，支持iOS和Android平台。并且有服务端的代码
@@ -26,8 +28,4 @@ alwaysApply: true
 
 ## 目录结构
 - app - 应用程序入口和页面
-- components - 可复用组件
-- constants - 常量定义
-- assets - 静态资源
-- hooks - 自定义React钩子
 - server - 服务端内容和数据库内容
