@@ -8,7 +8,7 @@ fi
 
 PORT_PIDS2=$(lsof -t -i:8082 2>/dev/null)
 if [ -n "$PORT_PIDS2" ]; then
-  echo -e "${YELLOW}发现占用3000端口的进程: $PORT_PIDS2，正在终止...${NC}"
+  echo -e "${YELLOW}发现占用8082端口的进程: $PORT_PIDS2，正在终止...${NC}"
   kill -9 $PORT_PIDS2 2>/dev/null
 fi
 
