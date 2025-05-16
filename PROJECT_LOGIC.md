@@ -40,8 +40,6 @@
   - `Exercise.tsx`: 练习题渲染和交互组件。
   - `SubjectModal.tsx`: 学科选择弹窗组件。
 - `app/services/`: 存放与后端 API 交互的服务模块 (如 `progressService.ts`, `pointsService.ts`, `errorBookService.ts`)。
-- `app/contexts/`: (空目录, 未来可用于存放其他 React Context 定义)。
-- `app/lesson/`: (空目录, 未来可用于存放课程相关模块)。
 - `app/assets/`: 存放静态资源 (图片、字体等)。
   - `images/`: 应用图标、启动图等。
   - `fonts/`: 应用字体。
