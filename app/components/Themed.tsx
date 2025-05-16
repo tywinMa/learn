@@ -1,18 +1,6 @@
-import { Text as DefaultText, View as DefaultView, useColorScheme } from "react-native";
-
-export function useThemeColor(
-  props: { light?: string; dark?: string },
-  colorName: keyof typeof Colors.light & keyof typeof Colors.dark
-) {
-  const theme = useColorScheme() ?? "light";
-  const colorFromProps = props[theme];
-
-  if (colorFromProps) {
-    return colorFromProps;
-  } else {
-    return Colors[theme][colorName];
-  }
-}
+import { Text as DefaultText, View as DefaultView } from "react-native";
+import { useThemeColor } from "@/hooks/useThemeColor";
+import Colors from "@/constants/Colors";
 
 type ThemeProps = {
   lightColor?: string;
@@ -35,6 +23,3 @@ export function View(props: ViewProps) {
 
   return <DefaultView style={[{ backgroundColor }, style]} {...otherProps} />;
 }
-
-// 引入颜色定义
-import Colors from "../constants/Colors";

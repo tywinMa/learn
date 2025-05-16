@@ -21,7 +21,7 @@
 - `app/(tabs)/`: 包含底部标签导航的页面和布局。
   - `_layout.tsx`: 定义标签导航栏本身和各个标签页。
   - `index.tsx`: "课程" 标签页。
-  - `practice.tsx`: "练习" 标签页 (也可能对应根目录的 `app/practice.tsx`，取决于上下文)。
+  - `practice.tsx`: "练习" 标签页 (练习中心，区别于 `app/practice.tsx` 的答题页)。
   - `settings.tsx`: "个人" 标签页。
   - `wrong-exercises.tsx`: "错题本" 标签页。
   - `shop.tsx`: "积分商城" 标签页。
@@ -31,11 +31,20 @@
 - `app/subject/[code].tsx`: 学科详情页面 (动态路由)。
 - `app/hooks/`: 存放自定义 React Hooks。
   - `useSubject.tsx`: 管理当前选中的学科状态 (ID, 名称, 颜色, 图标等)，并将选择持久化到 AsyncStorage。学科颜色会影响应用主题。
-  - `useColorScheme.ts`: 获取设备颜色方案 (深色/浅色)。
-- `app/constants/`: 存放应用常量 (如 `Colors.ts`, AsyncStorage 键等)。
-- `app/components/`: 存放可复用的小组件 (如 `Themed.tsx` 中的主题化组件)。
-- `app/services/`: (推测) 存放与后端 API 交互的服务模块。
-- `app/contexts/`: (推测) 存放其他 React Context 定义。
+  - `useColorScheme.ts`: 获取设备颜色方案 (深色/浅色)，并适配 web 平台。
+  - `useThemeColor.ts`: 根据当前颜色方案和传入的颜色属性（light/dark）返回合适的颜色值。
+- `app/constants/`: 存放应用常量 (如 `Colors.ts`, `apiConfig.ts`, AsyncStorage 键等)。
+- `app/components/`: 存放可复用的小组件。
+  - `Themed.tsx`: 提供基础的主题化 `Text` 和 `View` 组件，它们会根据当前颜色方案自动调整颜色。
+  - `ThemedText.tsx`: 提供带额外类型样式（如 title, subtitle, link）的主题化文本组件。
+  - `Exercise.tsx`: 练习题渲染和交互组件。
+  - `SubjectModal.tsx`: 学科选择弹窗组件。
+- `app/services/`: 存放与后端 API 交互的服务模块 (如 `progressService.ts`, `pointsService.ts`, `errorBookService.ts`)。
+- `app/contexts/`: (空目录, 未来可用于存放其他 React Context 定义)。
+- `app/lesson/`: (空目录, 未来可用于存放课程相关模块)。
+- `app/assets/`: 存放静态资源 (图片、字体等)。
+  - `images/`: 应用图标、启动图等。
+  - `fonts/`: 应用字体。
 
 #### 2.2. 导航 (Expo Router)
 
