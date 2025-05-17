@@ -2,12 +2,12 @@
 
 ### 1. 项目概览
 
-本项目是一个基于 React Native 和 Expo 构建的跨平台移动学习应用，支持 iOS 和 Android。后端服务使用 Node.js 和 Express.js 构建，通过 RESTful API 与前端进行数据交互。数据库操作可能通过 Sequelize ORM 进行。
+本项目是一个基于 React Native 和 Expo 构建的跨平台移动学习应用，支持 iOS 和 Android。后端服务使用 Node.js 和 Express.js 构建，通过 RESTful API 与前端进行数据交互。数据库操作通过 Sequelize ORM 进行。
 
 **主要技术栈:**
 
 - **前端**: React Native, Expo, TypeScript, Expo Router
-- **后端**: Node.js, Express.js, Sequelize (推测), SQLite (或可配置的其他数据库)
+- **后端**: Node.js, Express.js, Sequelize, SQLite (或可配置的其他数据库)
 - **状态管理 (前端)**: React Context API (例如 `SubjectProvider`)
 - **数据持久化 (前端)**: `@react-native-async-storage/async-storage`
 
@@ -27,7 +27,7 @@
   - `shop.tsx`: "积分商城" 标签页。
 - `app/study.tsx`: 学习内容展示页面。
 - `app/practice.tsx`: 练习答题页面。
-- `app/unlock-test.tsx`: 单元解锁测试页面。
+- `app/unlock-test.tsx`: **(前端页面存在，但对应的后端解锁测试API未在当前代码中找到)**。
 - `app/subject/[code].tsx`: 学科详情页面 (动态路由)。
 - `app/hooks/`: 存放自定义 React Hooks。
   - `useSubject.tsx`: 管理当前选中的学科状态 (ID, 名称, 颜色, 图标等)，并将选择持久化到 AsyncStorage。学科颜色会影响应用主题。
@@ -35,34 +35,33 @@
   - `useThemeColor.ts`: 根据当前颜色方案和传入的颜色属性（light/dark）返回合适的颜色值。
 - `app/constants/`: 存放应用常量 (如 `Colors.ts`, `apiConfig.ts`, AsyncStorage 键等)。
 - `app/components/`: 存放可复用的小组件。
-  - `Themed.tsx`: 提供基础的主题化 `Text` 和 `View` 组件，它们会根据当前颜色方案自动调整颜色。
-  - `ThemedText.tsx`: 提供带额外类型样式（如 title, subtitle, link）的主题化文本组件。
+  - `Themed.tsx`: 提供基础的主题化 `Text` 和 `View` 组件。
+  - `ThemedText.tsx`: 提供带额外类型样式的主题化文本组件。
   - `Exercise.tsx`: 练习题渲染和交互组件。
   - `SubjectModal.tsx`: 学科选择弹窗组件。
-- `app/services/`: 存放与后端 API 交互的服务模块 (如 `progressService.ts`, `pointsService.ts`, `errorBookService.ts`)。
+- `app/services/`: 存放与后端 API 交互的服务模块。
 - `app/assets/`: 存放静态资源 (图片、字体等)。
-  - `images/`: 应用图标、启动图等。
-  - `fonts/`: 应用字体。
 
 #### 2.2. 导航 (Expo Router)
 
 - **根导航 (`app/_layout.tsx`)**:
   - 使用 `Stack.Navigator` 作为主导航容器。
-  - 管理 `welcome`, `(tabs)`, `study`, `practice`, `subject/[code]` 等屏幕的导航。
-  - 动态判断初始路由：如果是首次打开，导航到 `/welcome`；否则导航到 `/(tabs)`。
+  - 管理 `welcome`, `(tabs)`, `study`, `practice`, `subject/[code]` 等屏幕。
+  - 动态判断初始路由：首次打开导航到 `/welcome`；否则导航到 `/(tabs)`。
 - **标签导航 (`app/(tabs)/_layout.tsx`)**:
   - 使用 `Tabs` Navigator 定义底部标签栏。
   - 包含 "课程", "练习", "错题本", "积分商城", "个人" 五个标签。
-  - 自定义了标签图标和样式。
+  - 自定义了标签图标和样式。活动标签颜色 `tabBarActiveTintColor` 来自 `Colors[colorScheme].tint`。
+  - "练习" 标签具有特殊的居中突出样式，其背景色和图标颜色会根据是否 `focused` 而变化。
 
 #### 2.3. 状态管理
 
 - **学科状态 (`app/hooks/useSubject.tsx`)**:
   - 通过 `SubjectContext` 和 `SubjectProvider` 实现全局学科状态共享。
   - `currentSubject` 对象包含学科的 `id`, `name`, `code`, `description`, `color`, `iconName`。
-  - 学科选择会持久化到 `AsyncStorage`。
+  - 学科选择会持久化到 `AsyncStorage` (`CURRENT_SUBJECT_KEY`)。
   - `currentSubject.color` 用于动态改变应用的主题颜色（通过 `@react-navigation/native` 的 `ThemeProvider` 和自定义主题实现）。
-- **本地持久化**: 使用 `@react-native-async-storage/async-storage` 存储如 "是否已看过欢迎页" (`WELCOME_SCREEN_KEY`) 和 "当前学科" (`CURRENT_SUBJECT_KEY`) 等信息。
+- **本地持久化**: 使用 `@react-native-async-storage/async-storage` 存储如 "是否已看过欢迎页" (`WELCOME_SCREEN_KEY`) 和 "当前学科" 等信息。
 
 #### 2.4. 主要页面逻辑简介
 
@@ -70,134 +69,135 @@
   - 展示欢迎信息和 "开始探索" 按钮。
   - 点击按钮后，在 `AsyncStorage` 中设置 `WELCOME_SCREEN_KEY` 为 `true`，并导航到 `/(tabs)`。
 - **`app/(tabs)/index.tsx` ("课程"页)**:
-  - (推测) 展示学科列表或当前学科的单元列表。
-  - 用户可以选择学科，触发 `useSubject` 更新当前学科。
-  - 用户可以选择单元进入学习或练习。
+  - 展示学科列表或当前学科的单元列表。用户可选择学科和单元。单元的解锁状态可能需要前端结合从 `/api/users/:userId/progress/batch` 或 `/api/users/:userId/progress/:unitId` 获取的进度数据判断。
 - **`app/study.tsx` ("学习"页)**:
-  - 接收 `unitId` (可能还有 `subjectCode`) 参数。
-  - 调用后端 API (如 `GET /api/learning/:subject/:unitId`) 获取该单元的学习内容。
-  - 按顺序展示学习材料 (文本、图片、视频等)。
+  - 接收 `unitId` (通常格式为 `subjectCode-unitIdentifier`) 和 `subjectCode` 参数。
+  - 调用后端 API (如 `GET /api/learning/:subjectCode/:unitIdentifier`) 获取该单元的学习内容。
 - **`app/practice.tsx` ("练习"页 - 通用单元练习)**:
-  - 接收 `unitId` (可能还有 `subjectCode`) 参数。
-  - 调用后端 API (如 `GET /api/exercises/:subject/:unitId`) 获取该单元的练习题。
-  - 可能传递 `userId` 以便后端判断题目完成状态，并根据 `filterCompleted` 决定是否过滤已做题目。
-  - 用户答题，提交答案到后端 (如 `POST /api/users/:userId/submit`)。
+  - 接收 `unitId` (格式为 `subjectCode-unitIdentifier`) 和 `subjectCode` 参数。
+  - 调用后端 API (如 `GET /api/exercises/:subjectCode/:unitIdentifier`) 获取练习题，可传递 `userId` 和 `filterCompleted`。
+  - 用户答题，提交答案到后端 (`POST /api/users/:userId/submit`)。
 - **`app/unlock-test.tsx` ("解锁测试"页)**:
-  - 接收 `targetUnitId` 参数。
-  - 调用后端 API (`GET /api/exercises/for-unlock-test?targetUnitId=xxx`) 获取解锁测试的题目。
-  - 用户完成测试后，(推测) 前端或后端判断测试是否通过。
-  - 如果通过，调用后端 API (`POST /api/units/:targetUnitId/attempt-unlock`) 来正式解锁该单元。
+  - 前端页面存在，用于进行单元解锁前的测试。
+  - **当前分析的后端代码中未找到专门用于获取解锁测试题的API (如 `GET /api/exercises/for-unlock-test`) 和尝试解锁特定单元的API (如 `POST /api/units/:targetUnitId/attempt-unlock`)。** 因此，此页面的完整功能可能依赖于未找到的API或不同的实现逻辑。
 - **`app/(tabs)/wrong-exercises.tsx` ("错题本"页)**:
-  - 调用后端 API (如 `GET /api/users/:userId/wrong-exercises`) 获取用户的错题列表。
-  - 展示错题，允许用户重新练习。
+  - 调用后端 API (`GET /api/users/:userId/wrong-exercises`) 获取用户的错题列表（包含题目详情）。
 - **`app/(tabs)/shop.tsx` ("积分商城"页)**:
+  - 调用后端 API (`GET /api/users/:userId/points`) 显示用户当前积分。
   - (推测) 调用后端 API 获取商品列表。
-  - 显示用户当前积分 (通过 `GET /api/users/:userId/points`)。
   - 用户兑换商品时，调用后端 API (`POST /api/users/:userId/points/deduct`) 扣除积分。
 - **`app/(tabs)/settings.tsx` ("个人"页)**:
   - (推测) 显示用户信息，如总积分、学习统计等。
-  - 可能包含退出登录、设置等功能。
 
 ### 3. 后端架构
 
 #### 3.1. 目录结构 (server/src/)
 
 - `server/src/index.js`: Express 应用入口，配置服务器、中间件、路由。
-- `server/src/config/database.js`: (推测) 数据库连接配置 (如 Sequelize 实例)。
-- `server/src/models/`: (推测) Sequelize 模型定义 (如 `Subject`, `Unit`, `Exercise`, `UserRecord`, `UserPoints`, `LearningContent`, `UnitProgress`, `WrongExercise`)。
-- `server/src/routes/`: 存放各模块的路由定义文件。
-  - `subjects.js`: 学科相关 API。
-  - `exercises.js`: 练习题相关 API。
-  - `userRecords.js`: 用户答题记录、进度、错题本等 API。
-  - `userPoints.js`: 用户积分相关 API。
-  - `units.js`: 单元操作相关 API (实际逻辑在 Controller)。
-  - `learningContent.js`: 学习内容相关 API。
-- `server/src/controllers/`: 存放控制器逻辑 (如 `unitActionsController.js`)。
-- `server/src/middleware/`: (推测) 存放自定义中间件 (如认证 `authMiddleware.js`，虽然部分被注释掉了)。
+- `server/src/config/database.js`: 数据库连接配置 (Sequelize 实例)。
+- `server/src/models/`: Sequelize 模型定义 (如 `Subject`, `Unit`, `Exercise`, `UserRecord`, `UserPoints`, `LearningContent`, `UnitProgress`, `WrongExercise`)。
+- `server/src/routes/`: 各模块的路由定义文件。
+- `server/src/controllers/`: 控制器逻辑 (如 `unitActionsController.js`)。
+- `server/src/middleware/`: 自定义中间件 (如认证，当前代码中部分被注释)。
 
-#### 3.2. Express 应用设置
+#### 3.2. Express 应用设置 (`server/src/index.js`)
 
-- 使用 `express` 框架。
 - 中间件:
-  - `cors`: 允许跨域请求。
+  - `cors`: 允许跨域请求 (配置为 `origin: '*'`)。同时通过 `app.options('*', cors())` 处理预检请求。
   - `express.json()`: 解析 JSON 请求体。
   - `morgan('dev')`: HTTP 请求日志。
-  - `express.static`: 托管 `dist/` 目录下的静态文件 (用于前端构建产物)。
+  - `express.static(path.join(__dirname, '..', '..', 'dist'))`: 托管 `dist/` 目录下的静态文件 (用于前端构建产物)。
+- 路由注册: `/api/users` 路径被 `userRecordsRoutes` 和 `userPointsRoutes` 共享，依赖各自文件内定义的具体子路径进行区分。
 - 端口: 默认 3000，可配置。
-- 数据库: 启动时测试数据库连接 (`testConnection`)。
+- 数据库: 启动时通过 `testConnection()` 测试数据库连接。
 - 错误处理: 全局错误处理中间件。
-- 端口占用处理: 服务器启动时，如果端口被占用，会尝试自动杀死占用进程 (macOS/Linux)。
+- 端口占用处理: 服务器启动时，若端口被占用，会尝试自动终止占用进程 (macOS/Linux)。
 
 #### 3.3. API 端点详解
 
-##### 3.3.1. 学科 (`/api/subjects`, `/subjects`)
+##### 3.3.1. 学科 (`/api/subjects` 或 `/subjects`)
 
 - **`GET /`**: 获取所有学科列表。
-  - 返回数据包含 `id`, `name`, `code`, `description`, `color`, `iconName`。
-  - 后端会根据学科 `code` 附加预定义的 `color` 和 `iconName`。
-- **`GET /:code`**: 获取特定学科的详细信息 (通过学科代码)。
+  - 返回数据包含 `id`, `name`, `code`, `description`, `color` (基于学科代码硬编码映射), `iconName` (通过 `getIconNameByCode` 函数生成)。按 `order` 排序。
+- **`GET /:code`**: 获取特定学科的详细信息 (通过学科代码)。包含 `iconName`。
 - **`GET /:code/units`**: 获取特定学科下的所有单元。
   - 可选查询参数 `level` 筛选单元级别。
-  - `userId` (暂时硬编码) 用于判断单元的 `isCompleted` 和 `isLocked` 状态。
-  - 实现线性解锁逻辑：前一个单元完成后，下一个单元才解锁。
-  - 返回的单元信息包含 `exercisesCount`, `isChallenge`, `iconUrl`, `color` 等增强属性。
+  - 返回的单元信息包含 `id`, `title`, `level`, `order`, `subject` (学科代码), `exercisesCount` (该单元练习题数量), `isChallenge` (根据标题或难度判断), `iconUrl` (通过 `getIconUrlByTitle`), `color` (优先用数据库值，否则按level/order生成), `secondaryColor` (基于主颜色生成), `code` (单元自身的code，如 `1-1`)。按 `level` 和 `order` 排序。
+  - **注意**: 此API本身不直接处理单元的 `isCompleted` 或 `isLocked` 状态。这些状态的判断通常由客户端结合用户进度数据完成。
+- **`GET /units/:unitId`**: 获取特定单元的详细信息 (通过单元主键 `unitId`)。增强逻辑类似 `/:code/units` 中的单个单元。
 
-##### 3.3.2. 练习题 (`/api/exercises`, `/exercises`)
+##### 3.3.2. 练习题 (`/api/exercises` 或 `/exercises`)
 
-- **`GET /for-unlock-test?targetUnitId=<unit_id>`**: 获取用于解锁特定单元的测试题。
-  - 题目范围包括目标单元及其同科目下的所有前序单元。
-  - 返回随机打乱的练习题列表。
-- **`GET /:subject/:unitId`**: 获取指定学科下特定单元的练习题 (推荐)。
-  - 查询参数: `userId` (用于标记已完成), `filterCompleted` ('true' 则过滤已完成的), `types` (逗号分隔的题型)。
+- **`GET /:subject/:unitId` (推荐)**: 获取指定学科 (`subject`) 下特定单元 (`unitId`，不含学科前缀) 的练习题。
+  - 单元ID在后端会组合学科前缀进行查询 (如 `subject-unitId`)。
+  - 查询参数: `userId` (用于标记已完成题目), `filterCompleted` ('true' 则过滤已完成的), `types` (逗号分隔的题型)。
   - 返回的练习题会根据用户完成情况附加 `completed` 标志。
-  - 对特定题型 (`matching`, `application`, `math`) 的 `correctAnswer` 会做特殊处理 (如隐藏或部分隐藏)。
-  - 返回数据还包括 `allCompleted` (是否全部完成) 和 `typeStats` (题型统计)。
-- **`GET /`**: 获取所有包含练习题的单元 ID 列表 (较少使用)。
-- _(其他未详细分析的端点可能包括获取单个练习题详情，提交练习等)_
+  - 对特定题型 (`matching`, `application`, `math`) 的 `correctAnswer` 会做特殊处理（如未完成则隐藏，应用题始终隐藏）。
+  - 返回数据包括 `allCompleted` (布尔值) 和 `typeStats` (题型统计)。
+- **`GET /:unitId` (兼容API)**: 获取特定单元的练习题，`unitId` 参数应为已包含学科前缀的完整单元ID。功能类似推荐API。
+- **`GET /`**: 获取所有包含练习题的单元ID列表 (不重复的 `unitId` 列表)。
+- **`GET /for-unlock-test?targetUnitId=<unit_id>`**: **(在当前代码中未找到此API实现)**。原设计用于获取解锁特定单元的测试题。
 
 ##### 3.3.3. 用户记录与进度 (`/api/users`)
 
+- **核心辅助函数 `getUnitProgressDetails(userId, unitId)` (内部使用)**:
+  - 优先查询 `UnitProgress` 表获取单元进度 (`stars`, `completed`, `unlockNext` 基于 `stars === 3`)。
+  - 若 `UnitProgress` 无记录或未完成，则根据 `UserRecord` 表中用户对该单元练习题的正确作答情况计算进度：
+    - `completionRate` (已答题目数 / 总题目数)。
+    - `stars` (基于 `completionRate`: >=0.8 -> 3星, >=0.6 -> 2星, >0 -> 1星)。
+    - `unlockNext` (基于 `stars === 3`)。
+    - `completed` (基于 `stars > 0`)。
+  - 返回详细进度对象，包含来源 (`UnitProgressTable` 或 `UserRecordCalculation`)。
+
 - **`POST /:userId/submit`** (由 `userRecords.js` 处理): 提交用户答题结果。
   - 请求体: `exerciseId`, `unitId`, `isCorrect`。
-  - 记录到 `UserRecord` 表 (查找或创建，更新则增加尝试次数)。
-  - 如果答错，记录到 `WrongExercise` 表 (查找或创建/更新尝试次数)。
-  - 如果答对：
-    - 从 `WrongExercise` 表移除。
-    - 如果是首次答对该题，则为用户增加积分 (通过 `UserPoints` 表)。
-- **`GET /:userId/records`** (由 `userRecords.js` 处理): 获取用户所有答题记录，包含练习题详情。
-- **`GET /:userId/progress`** (由 `userRecords.js` 处理，未详细分析): 获取用户整体学习进度。
-- **`GET /:userId/progress/:unitId`** (由 `userRecords.js` 处理，未详细分析): 获取用户在特定单元的详细进度，可能使用 `getUnitProgressDetails` 辅助函数，该函数会优先查询 `UnitProgress` 表，若无则根据 `UserRecord` 计算。
-- **`GET /:userId/wrong-exercises`** (由 `userRecords.js` 处理，未详细分析): 获取用户的错题列表。
+  - 记录到 `UserRecord` 表 (查找或创建，更新则增加 `attemptCount`)。
+  - 如果答错 (`!isCorrect`): 记录到 `WrongExercise` 表 (查找或创建，更新则增加 `attempts`)。
+  - 如果答对 (`isCorrect`):
+    - 从 `WrongExercise` 表移除该题。
+    - **首次答对此题时** (新记录且答对，或从错误更新为正确)，用户增加1积分 (更新 `UserPoints` 表)。
+- **`GET /:userId/records`** (由 `userRecords.js` 处理): 获取用户所有答题记录，包含练习题详情 (`Exercise` model)，按 `updatedAt` 降序。
+- **`GET /:userId/progress/:unitId`** (由 `userRecords.js` 处理): 获取用户在特定单元的详细进度。
+  - 内部调用 `getUnitProgressDetails(userId, unitId)`。
+- **`POST /:userId/progress/batch`** (由 `userRecords.js` 处理): 批量获取多个单元的进度。
+  - 请求体: `{ unitIds: string[] }`。
+  - 对每个 `unitId` 调用 `getUnitProgressDetails`。最大批量大小为100。
+- **`GET /:userId/wrong-exercises`** (由 `userRecords.js` 处理): 获取用户的错题列表。
+  - 返回包含 `exerciseData` (题目详情), `unitId`, `attempts`, `timestamp` 的数组。
+- **`DELETE /:userId/wrong-exercises/:exerciseId`** (由 `userRecords.js` 处理): 从错题本中删除指定题目。
+- **`GET /:userId/subject/:subject/progress`** (由 `userRecords.js` 处理): 获取用户在特定学科的所有单元进度。
+  - 基于 `UserRecord` 计算每个单元的 `totalExercises`, `correctExercises`, `completedExercises`。
+  - 星星数根据**正确率**计算 (`>=90%` -> 3星, `>=70%` -> 2星, `>=50%` -> 1星)。**此星星计算逻辑与 `getUnitProgressDetails` 不同，且不使用 `UnitProgress` 表。**
+- **`POST /:userId/complete-unit/:unitId`** (由 `userRecords.js` 处理): 标记用户完成单元。
+  - 在 `UnitProgress` 表中查找或创建记录，标记为 `completed: true`。
+  - 可在请求体中传入 `stars`，默认为3星。
+  - 根据获得的星级奖励用户积分 (1星:5分, 2星:10分, 3星:15分)，更新 `UserPoints` 表。
+- **`GET /:userId/progress`**: **(在当前代码中未找到此通用整体进度API实现)**。
 
 ##### 3.3.4. 用户积分 (`/api/users`)
 
-- **`GET /:userId/points`** (由 `userPoints.js` 处理): 获取用户当前的总积分。
+- **`GET /:userId/points`** (由 `userPoints.js` 处理): 获取用户当前的总积分。若无记录则创建并返回0分。
 - **`POST /:userId/points/add`** (由 `userPoints.js` 处理): 增加用户积分。
-  - 请求体: `points` (要增加的数量)。
-  - 用于通用加分场景。
+  - 请求体: `points` (要增加的正整数)。
 - **`POST /:userId/points/deduct`** (由 `userPoints.js` 处理): 扣除用户积分。
-  - 请求体: `points` (要扣除的数量)。
-  - 用于积分商城兑换等场景。
+  - 请求体: `points` (要扣除的正整数)。检查积分是否足够。
 
 ##### 3.3.5. 单元操作 (`/api/units`)
 
 - **`POST /batch-unlock`** (控制器: `unitActionsController.batchUnlockUnits`): 批量解锁单元。
   - 请求体: `unitIds` (数组), `userId`。
-  - 将指定单元在 `UnitProgress` 表中标记为 `completed: true` (通常 `stars: 0`)。
-- **`POST /:targetUnitId/attempt-unlock`** (控制器: `unitActionsController.attemptUnlockUnit`): 尝试解锁特定单元（通过测试后）。
-  - URL 参数: `targetUnitId`。请求体: `userId`。
-  - 解锁条件：用户在目标单元及其前序单元的解锁测试范围内至少答对一道题。
-  - 如果满足条件，在 `UnitProgress` 表中将目标单元标记为 `completed: true`, `stars: 1` (或更高)。
+  - 在 `UnitProgress` 表中将指定单元标记为 `completed: true`, `stars: 0`。
+- **`POST /:targetUnitId/attempt-unlock`**: **(在当前代码中未找到此API路由及对应控制器方法 `unitActionsController.attemptUnlockUnit`)**。原设计用于用户通过测试后尝试解锁单元。
 
-##### 3.3.6. 学习内容 (`/api/learning`, `/learning`)
+##### 3.3.6. 学习内容 (`/api/learning` 或 `/learning`)
 
-- **`GET /:subject/:id`**: 获取指定学科下特定单元的所有学习内容 (推荐)。
-  - 返回学习内容列表，按 `order` 排序。包含 `id`, `unitId`, `title`, `type`, `order`, `content`, `mediaUrl`, `metadata` 等。
-- **`GET /detail/:id`**: 获取特定学习内容条目的完整详情 (通过学习内容的主键 `id`)。
-- **`GET /`**: 获取所有学习内容的概览列表 (不含详细 `content`)。
-- **`POST /`**: 创建新的学习内容条目 (管理员权限)。
-- **`PUT /:id`**: 更新指定 ID 的学习内容 (管理员权限)。
-- **`DELETE /:id`**: 删除指定 ID 的学习内容 (管理员权限)。
+- **`GET /:subject/:id` (推荐)**: 获取指定学科 (`subject`) 下特定单元 (`id`，不含学科前缀) 的所有学习内容。按 `order` 排序。
+- **`GET /:unitId` (兼容API)**: 获取特定单元的学习内容，`unitId` 参数应为已包含学科前缀的完整单元ID。
+- **`GET /detail/:id`**: 获取特定学习内容条目的完整详情 (通过学习内容主键 `id`)。
+- **`GET /`**: 获取所有学习内容的概览列表 (仅 `id, unitId, title, type, order`)。
+- **`POST /`**: 创建新的学习内容条目。**(当前无实际管理员权限校验)**
+- **`PUT /:id`**: 更新指定 ID 的学习内容。**(当前无实际管理员权限校验)**
+- **`DELETE /:id`**: 删除指定 ID 的学习内容。**(当前无实际管理员权限校验)**
 
 ### 4. 核心业务流程串联
 
@@ -227,41 +227,28 @@
 
 #### 4.3. 单元学习与练习流程
 
-1.  **用户在 "课程" 页选择一个单元 (假设已解锁)**。
+1.  **用户在 "课程" 页选择一个单元**。单元是否可访问（解锁状态）由前端根据从 `/api/users/:userId/progress/batch` 或 `/api/users/:userId/progress/:unitId` 获取的进度数据判断。
 2.  **进入学习界面 (`app/study.tsx`)**:
-    - 传入 `unitId` 和 `subjectCode`。
-    - 调用 `GET /api/learning/:subjectCode/:unitId` 获取学习内容列表。
-    - 前端渲染学习材料。
+    - 调用 `GET /api/learning/:subjectCode/:unitIdentifier` 获取学习内容。
 3.  **进入练习界面 (`app/practice.tsx`)**:
-    - 传入 `unitId` 和 `subjectCode`。
-    - 调用 `GET /api/exercises/:subjectCode/:unitId?userId=xxx` 获取练习题。
-    - 前端渲染题目。
+    - 调用 `GET /api/exercises/:subjectCode/:unitIdentifier?userId=xxx` 获取练习题。
 4.  **用户答题并提交**:
-    - 前端将答案 (题号 `exerciseId`, 所属单元 `unitId`, 是否正确 `isCorrect`) `POST` 到 `/api/users/:userId/submit`。
+    - 前端将答案 `POST` 到 `/api/users/:userId/submit`。
 5.  **后端处理提交**:
-    - 记录到 `UserRecord`。
-    - 更新错题本 (`WrongExercise`)。
-    - 如果首次答对，更新用户积分 (`UserPoints`)。
-    - (后端可能会有逻辑，在特定条件下更新 `UnitProgress`，例如当单元内所有题目完成时，或达到一定正确率时，将单元标记为完成并给予星级评价)。
+    - 更新 `UserRecord`, `WrongExercise`, 并根据是否首次答对更新 `UserPoints`。
+6.  **(可选) 完成单元**:
+    - 当用户完成一个单元的所有学习/练习后，前端或后端逻辑（例如，在所有练习都完成后）可能会调用 `POST /api/users/:userId/complete-unit/:unitId` 来正式标记单元完成并获得星级和积分奖励。
 
 #### 4.4. 单元解锁流程
 
-1.  **用户在 "课程" 页遇到一个锁定的单元**。
-2.  **点击 "解锁测试" (或类似按钮)**。
-3.  **进入解锁测试页 (`app/unlock-test.tsx`)**:
-    - 传入 `targetUnitId`。
-    - 调用 `GET /api/exercises/for-unlock-test?targetUnitId=xxx` 获取该单元解锁所需的测试题。
-    - 前端渲染测试题。
-4.  **用户完成测试并提交**:
-    - (前端可能先在本地判断是否有答对，或者直接依赖后端 `attempt-unlock` 接口的判断逻辑)。
-    - 前端调用 `POST /api/units/:targetUnitId/attempt-unlock`，请求体中包含 `userId`。
-5.  **后端处理解锁尝试 (`unitActionsController.attemptUnlockUnit`)**:
-    - 验证用户在解锁测试范围内的题目中是否至少答对一题。
-    - 如果满足条件：
-      - 更新 `UnitProgress` 表，将该 `targetUnitId` 标记为 `completed: true`, `stars: 1` (或更高)。
-      - 返回成功响应。
-    - 如果不满足条件，返回失败响应。
-6.  **前端更新 UI**: 如果解锁成功，课程页该单元状态更新为已解锁。
+**基于当前代码分析，原文档描述的通过"解锁测试"来解锁单元的流程，其后端API (`GET /api/exercises/for-unlock-test` 和 `POST /api/units/:targetUnitId/attempt-unlock`) 未找到明确实现。**
+
+当前的单元解锁/完成机制主要包括：
+1.  **批量解锁 (管理操作)**: 通过 `POST /api/units/batch-unlock`，管理员可以批量为用户解锁单元（标记为完成，0星）。
+2.  **用户完成单元**: 用户通过学习和练习，当满足特定条件后 (例如前端判断或特定交互触发)，可以调用 `POST /api/users/:userId/complete-unit/:unitId`。此接口会将单元在 `UnitProgress` 表中标记为完成，并赋予星级（可由前端在请求中指定，或默认为3星），同时用户会获得相应的积分奖励。
+3.  **线性解锁推断**: 严格的"前一单元完成才能解锁下一单元"的逻辑，如果需要，更可能是在前端基于从 `getUnitProgressDetails` (通过 `/api/users/:userId/progress/:unitId` 或批处理接口) 获取的各单元 `completed` 和 `unlockNext` 状态来实现的。`unlockNext` 标志 (通常在获得3星时为true) 可以作为前端判断是否解锁后续单元的依据。
+
+**因此，`app/unlock-test.tsx` 页面的具体功能和流程需要重新审视或确认其后端支持情况。**
 
 #### 4.5. 错题本
 
