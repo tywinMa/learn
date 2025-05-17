@@ -27,7 +27,6 @@
   - `shop.tsx`: "积分商城" 标签页。
 - `app/study.tsx`: 学习内容展示页面。
 - `app/practice.tsx`: 练习答题页面。
-- `app/unlock-test.tsx`: **(前端页面存在，但对应的后端解锁测试API未在当前代码中找到)**。
 - `app/subject/[code].tsx`: 学科详情页面 (动态路由)。
 - `app/hooks/`: 存放自定义 React Hooks。
   - `useSubject.tsx`: 管理当前选中的学科状态 (ID, 名称, 颜色, 图标等)，并将选择持久化到 AsyncStorage。学科颜色会影响应用主题。
@@ -77,9 +76,6 @@
   - 接收 `unitId` (格式为 `subjectCode-unitIdentifier`) 和 `subjectCode` 参数。
   - 调用后端 API (如 `GET /api/exercises/:subjectCode/:unitIdentifier`) 获取练习题，可传递 `userId` 和 `filterCompleted`。
   - 用户答题，提交答案到后端 (`POST /api/users/:userId/submit`)。
-- **`app/unlock-test.tsx` ("解锁测试"页)**:
-  - 前端页面存在，用于进行单元解锁前的测试。
-  - **当前分析的后端代码中未找到专门用于获取解锁测试题的API (如 `GET /api/exercises/for-unlock-test`) 和尝试解锁特定单元的API (如 `POST /api/units/:targetUnitId/attempt-unlock`)。** 因此，此页面的完整功能可能依赖于未找到的API或不同的实现逻辑。
 - **`app/(tabs)/wrong-exercises.tsx` ("错题本"页)**:
   - 调用后端 API (`GET /api/users/:userId/wrong-exercises`) 获取用户的错题列表（包含题目详情）。
 - **`app/(tabs)/shop.tsx` ("积分商城"页)**:
@@ -136,7 +132,6 @@
   - 返回数据包括 `allCompleted` (布尔值) 和 `typeStats` (题型统计)。
 - **`GET /:unitId` (兼容API)**: 获取特定单元的练习题，`unitId` 参数应为已包含学科前缀的完整单元ID。功能类似推荐API。
 - **`GET /`**: 获取所有包含练习题的单元ID列表 (不重复的 `unitId` 列表)。
-- **`GET /for-unlock-test?targetUnitId=<unit_id>`**: **(在当前代码中未找到此API实现)**。原设计用于获取解锁特定单元的测试题。
 
 ##### 3.3.3. 用户记录与进度 (`/api/users`)
 
@@ -241,14 +236,12 @@
 
 #### 4.4. 单元解锁流程
 
-**基于当前代码分析，原文档描述的通过"解锁测试"来解锁单元的流程，其后端API (`GET /api/exercises/for-unlock-test` 和 `POST /api/units/:targetUnitId/attempt-unlock`) 未找到明确实现。**
-
-当前的单元解锁/完成机制主要包括：
-1.  **批量解锁 (管理操作)**: 通过 `POST /api/units/batch-unlock`，管理员可以批量为用户解锁单元（标记为完成，0星）。
-2.  **用户完成单元**: 用户通过学习和练习，当满足特定条件后 (例如前端判断或特定交互触发)，可以调用 `POST /api/users/:userId/complete-unit/:unitId`。此接口会将单元在 `UnitProgress` 表中标记为完成，并赋予星级（可由前端在请求中指定，或默认为3星），同时用户会获得相应的积分奖励。
-3.  **线性解锁推断**: 严格的"前一单元完成才能解锁下一单元"的逻辑，如果需要，更可能是在前端基于从 `getUnitProgressDetails` (通过 `/api/users/:userId/progress/:unitId` 或批处理接口) 获取的各单元 `completed` 和 `unlockNext` 状态来实现的。`unlockNext` 标志 (通常在获得3星时为true) 可以作为前端判断是否解锁后续单元的依据。
-
-**因此，`app/unlock-test.tsx` 页面的具体功能和流程需要重新审视或确认其后端支持情况。**
+**根据当前代码分析：**
+- 学科-单元-关卡结构中，同一个学科下有多个单元（如数学下有初级、中级、高级），每个单元下有多个关卡（具体的学习内容）。
+- 单元解锁有两种方式：
+  1. **常规解锁**：完成前一个单元的全部关卡后解锁下一个单元。首个单元默认解锁。
+  2. **跳级解锁**：大单元的第一个小单元（格式为x-y-1，其中y是大单元编号，1是小单元编号）可以直接点击进入，不受前面单元限制。在UI上以虚线边框特殊样式显示。当用户完成该单元练习题并获得至少1星后，将自动解锁该大单元前面的所有单元。
+- 关卡解锁逻辑：单元内部的关卡是线性解锁的；必须完成当前关卡才能解锁下一个关卡。
 
 #### 4.5. 错题本
 

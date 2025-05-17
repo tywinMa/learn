@@ -93,7 +93,9 @@ const Level = ({
 
   // 计算关卡是否锁定
   // 第一个关卡默认解锁，其他关卡需要前一个关卡达到3星才解锁
-  const isLocked = previousLevelUnlocked === false;
+  // 但大单元的第一个小单元（格式为x-1）也可以访问
+  const isFirstLessonOfUnit = level && level.id && level.id.split("-").length === 3 && level.id.split("-")[2] === "1";
+  const isLocked = previousLevelUnlocked === false && !isFirstLessonOfUnit;
 
   // 获取星星数量
   const stars = progress?.stars || 0;
@@ -155,95 +157,38 @@ const Level = ({
   // 处理关卡点击
   const handleLevelPress = () => {
     if (isLocked) {
-      // setShowUnlockModal(true); // Original line for showing modal
-      // return; // Original return
+      // 原有的锁定提示逻辑
+      console.log("解锁测试功能已被移除");
+      Alert.alert("提示", "您需要先完成前面的单元才能解锁此内容。");
+      return;
+    }
 
-      const targetUnitId = level.id;
-      const subjectCode = currentSubject.code;
+    // 检查当前关卡是否是某个大单元的第一个小单元
+    if (isFirstLessonOfUnit && previousLevelUnlocked === false) {
+      console.log("访问大单元的第一个小单元:", level.id);
+      
+      // 获取当前单元的完整颜色信息
+      const courseIndex = parseInt(level.id.split("-")[1]) - 1;
+      const course = courses.find((c) => c.id === `unit${courseIndex + 1}`);
 
-      const allSubjectUnitsSorted = courses
-        .flatMap((course) => course.levels)
-        .filter((lvl) => lvl && lvl.id && lvl.id.startsWith(subjectCode + "-"))
-        .sort((a, b) => {
-          const orderA = parseInt(a.id.split("-").pop() || "0", 10);
-          const orderB = parseInt(b.id.split("-").pop() || "0", 10);
-          const mainLevelA = parseInt(a.id.split("-")[1] || "0", 10);
-          const mainLevelB = parseInt(b.id.split("-")[1] || "0", 10);
-          if (mainLevelA !== mainLevelB) {
-            return mainLevelA - mainLevelB;
-          }
-          return orderA - orderB;
-        });
+      // 使用关卡所属单元的颜色，或默认使用当前学科颜色
+      const levelColor = course ? course.color : color;
+      const levelSecondaryColor = course ? course.secondaryColor : color;
 
-      let lastFullyUnlockedUnitId: string | null = null;
-      let lastFullyUnlockedUnitOrderCombined = -1;
-
-      // Find the latest unit that has stars (meaning it's properly unlocked and completed to some extent)
-      for (const unit of allSubjectUnitsSorted) {
-        const unitProgress = progressData[unit.id];
-        const unitMainLevel = parseInt(unit.id.split("-")[1] || "0", 10);
-        const unitSubOrder = parseInt(unit.id.split("-").pop() || "0", 10);
-        const combinedOrder = unitMainLevel * 1000 + unitSubOrder; // Use a larger factor for main level if sub-orders can be large
-
-        const targetUnitMainLevel = parseInt(targetUnitId.split("-")[1] || "0", 10);
-        const targetUnitSubOrder = parseInt(targetUnitId.split("-").pop() || "0", 10);
-        const targetUnitOrderCombined = targetUnitMainLevel * 1000 + targetUnitSubOrder;
-
-        if (unitProgress && unitProgress.stars > 0 && combinedOrder < targetUnitOrderCombined) {
-          if (combinedOrder > lastFullyUnlockedUnitOrderCombined) {
-            lastFullyUnlockedUnitOrderCombined = combinedOrder;
-            lastFullyUnlockedUnitId = unit.id;
-          }
-        }
-      }
-
-      let startUnitIdForTestRange: string | null = null;
-      if (allSubjectUnitsSorted.length > 0) {
-        startUnitIdForTestRange = allSubjectUnitsSorted[0].id; // Default to the first unit of the subject
-        if (lastFullyUnlockedUnitId) {
-          const lastUnlockedIdx = allSubjectUnitsSorted.findIndex((u) => u.id === lastFullyUnlockedUnitId);
-          if (lastUnlockedIdx !== -1 && lastUnlockedIdx + 1 < allSubjectUnitsSorted.length) {
-            // Start from the unit *after* the last fully unlocked one
-            startUnitIdForTestRange = allSubjectUnitsSorted[lastUnlockedIdx + 1].id;
-          } else if (lastUnlockedIdx !== -1 && lastUnlockedIdx + 1 >= allSubjectUnitsSorted.length) {
-            // Last unlocked unit is the last unit in the sorted list, implies no range for test or target is already unlocked (which contradicts isLocked)
-            // This case should ideally not happen if isLocked is true and targetUnitId is after lastFullyUnlockedUnitId.
-            // If it does, it might mean targetUnitId is the one to start with, or there's nothing to test to unlock it.
-            // For now, if targetUnitId is right after lastFullyUnlockedUnitId, then startUnitIdForTestRange will be targetUnitId itself.
-            // This would mean the test range includes only the target unit.
-            startUnitIdForTestRange = targetUnitId; // Fallback or specific handling needed.
-          }
-        }
-      }
-
-      // If startUnitIdForTestRange is somehow still null (e.g. no units in subject), abort.
-      if (!startUnitIdForTestRange) {
-        console.error("Cannot determine start unit for unlock test.");
-        Alert.alert("错误", "无法确定测试范围，请稍后重试。");
-        return;
-      }
-
-      const targetLevelDetails = allSubjectUnitsSorted.find((lvl) => lvl && lvl.id === targetUnitId);
-      const courseForTargetLevel = courses.find((course) =>
-        course.levels.some((lvl: any) => lvl && lvl.id === targetUnitId)
-      );
-
-      const levelColorForTarget = courseForTargetLevel ? courseForTargetLevel.color : color;
-      const levelSecondaryColorForTarget = courseForTargetLevel ? courseForTargetLevel.secondaryColor : color;
-      const unitTitleForTarget = targetLevelDetails
-        ? `${courseForTargetLevel?.title || unitTitle} - ${targetLevelDetails.title}`
-        : unitTitle;
+      // 导航到学习页面并带上解锁参数
+      const params = {
+        id: level.id,
+        unitTitle: `${unitTitle} - ${level.title}`,
+        color: levelColor,
+        secondaryColor: levelSecondaryColor,
+        subject: currentSubject.code,
+        isUnlockingTest: "true", // 标记这是一个解锁测试
+        unlockPreviousUnits: "true", // 标记需要解锁之前的单元
+      };
 
       router.push({
-        pathname: "/unlock-test", // This will be created as app/unlock-test.tsx
-        params: {
-          targetUnitId: targetUnitId,
-          startUnitIdForTestRange: startUnitIdForTestRange,
-          subjectCode: subjectCode,
-          unitTitle: unitTitleForTarget,
-          color: levelColorForTarget,
-          secondaryColor: levelSecondaryColorForTarget,
-        },
+        pathname: "/study",
+        params,
       });
       return;
     }
@@ -291,6 +236,16 @@ const Level = ({
       };
     }
 
+    if (isFirstLessonOfUnit && previousLevelUnlocked === false) {
+      // 大单元的第一个小单元特殊样式，显示为可点击但有特殊标记
+      return {
+        backgroundColor: "white",
+        borderColor: color,
+        borderWidth: 2,
+        borderStyle: "dashed" as "dashed",
+      };
+    }
+
     if (level.type === "challenge") {
       return {
         backgroundColor: isCompleted ? "#FFD900" : "#FFC800",
@@ -316,6 +271,11 @@ const Level = ({
     if (isLocked) {
       return "lock";
     }
+    
+    if (isFirstLessonOfUnit && previousLevelUnlocked === false) {
+      return "flag"; // 使用旗帜图标表示这是大单元的入口点
+    }
+    
     if (level.type === "challenge") {
       return "crown";
     }
@@ -329,6 +289,11 @@ const Level = ({
     if (isLocked) {
       return "#AAAAAA";
     }
+    
+    if (isFirstLessonOfUnit && previousLevelUnlocked === false) {
+      return "#FF9600"; // 使用橙色表示特殊入口点
+    }
+    
     if (level.type === "challenge") {
       return "white";
     }

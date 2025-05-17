@@ -1,6 +1,8 @@
 const { sequelize } = require("../config/database");
 const initSubjectsAndUnits = require("./initSubjectsAndUnits");
 const addUnit1_1Exercises = require("./addUnit1_1Exercises");
+const addGeometryExercises = require("./addGeometryExercises");
+const addGeometryLearningContent = require("./addGeometryLearningContent");
 const initLearningContent = require("./initLearningContent");
 
 /**
@@ -20,6 +22,10 @@ const initData = async () => {
     await initLearningContent();
     // 添加单元1-1的练习题
     await addUnit1_1Exercises();
+    // 添加几何单元的练习题
+    await addGeometryExercises();
+    // 添加几何单元的学习内容
+    await addGeometryLearningContent();
 
     console.log("数据初始化完成！");
   } catch (error) {

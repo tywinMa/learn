@@ -24,10 +24,14 @@ import { API_BASE_URL } from "@/constants/apiConfig";
 
 export default function StudyScreen() {
   const params = useLocalSearchParams();
-  const { id, unitTitle, color, secondaryColor, subject } = params;
+  const { id, unitTitle, color, secondaryColor, subject, isUnlockingTest, unlockPreviousUnits } = params;
   // 获取单元ID - 假定包含学科代码前缀，不再需要分离
   let lessonId = Array.isArray(id) ? id[0] : id || "";
   const subjectCode = Array.isArray(subject) ? subject[0] : subject || "math"; // 获取学科代码，默认为math
+  
+  // 解析解锁测试参数
+  const isTestForUnlocking = isUnlockingTest === "true";
+  const shouldUnlockPreviousUnits = unlockPreviousUnits === "true";
 
   const router = useRouter();
   const [videoStatus, setVideoStatus] = React.useState<any>({});
@@ -304,6 +308,8 @@ export default function StudyScreen() {
                     unitTitle: Array.isArray(unitTitle) ? unitTitle[0] : unitTitle || "课后练习",
                     color: primaryColor,
                     subject: subjectCode, // 传递学科代码
+                    isUnlockingTest: isTestForUnlocking ? "true" : "false",
+                    unlockPreviousUnits: shouldUnlockPreviousUnits ? "true" : "false"
                   },
                 });
               }}

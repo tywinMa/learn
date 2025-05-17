@@ -31,12 +31,16 @@ const SummaryModal = ({
   totalCount,
   onRetry,
   onExit,
+  isTestForUnlocking,
+  shouldUnlockPreviousUnits,
 }: {
   visible: boolean;
   correctCount: number;
   totalCount: number;
   onRetry: () => void;
   onExit: () => void;
+  isTestForUnlocking: boolean;
+  shouldUnlockPreviousUnits: boolean;
 }) => {
   // 计算完成率和星星数
   const completionRate = totalCount > 0 ? correctCount / totalCount : 0;
@@ -110,6 +114,13 @@ const SummaryModal = ({
             <RNView style={styles.unlockMessage}>
               <Ionicons name="checkmark-circle" size={18} color="#58CC02" />
               <Text style={styles.unlockText}>恭喜！您已解锁下一单元</Text>
+            </RNView>
+          )}
+
+          {isTestForUnlocking && shouldUnlockPreviousUnits && earnedStars >= 1 && (
+            <RNView style={styles.unlockMessage}>
+              <Ionicons name="flag" size={18} color="#FF9600" />
+              <Text style={[styles.unlockText, {color: '#FF9600'}]}>恭喜！您将解锁所有之前的单元</Text>
             </RNView>
           )}
 
@@ -211,6 +222,10 @@ export default function PracticeScreen() {
   } | null>(null);
   const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // 解析解锁测试参数
+  const isTestForUnlocking = params.isUnlockingTest === "true";
+  const shouldUnlockPreviousUnits = params.unlockPreviousUnits === "true";
 
   // 从URL参数中获取单元ID和学科代码
   // 同时支持id和unitId参数，兼容两种URL参数形式
@@ -449,16 +464,74 @@ export default function PracticeScreen() {
   };
 
   // 退出练习返回学习页面
-  const handleExit = () => {
-    // 移除重复增加积分的代码，依赖服务器端的自动积分增加
+  const handleExit = async () => {
+    // 检查是否为解锁测试且需要解锁之前的单元
+    const correctCount = getCorrectCount();
+    const totalCount = exercises.length;
+    const completionRate = totalCount > 0 ? correctCount / totalCount : 0;
+    const earnedStars = completionRate >= 0.8 ? 3 : completionRate >= 0.6 ? 2 : completionRate > 0 ? 1 : 0;
+    
+    // 如果这是解锁测试，并且需要解锁之前的单元，并且获得了至少1星
+    if (isTestForUnlocking && shouldUnlockPreviousUnits && earnedStars >= 1) {
+      try {
+        // 获取当前单元ID的信息
+        const parts = lessonId.split("-");
+        if (parts.length === 3) {
+          const currentSubject = parts[0];
+          const currentMainUnit = parseInt(parts[1]);
+          
+          // 创建要解锁的单元ID列表
+          let unitsToUnlock = [];
+          
+          // 获取所有当前学科下的单元
+          const allUnitsResponse = await fetch(`${API_BASE_URL}/api/subjects/${currentSubject}/units`);
+          const allUnitsData = await allUnitsResponse.json();
+          
+          if (allUnitsData.success && Array.isArray(allUnitsData.data)) {
+            // 查找所有当前大单元之前的单元
+            for (const unit of allUnitsData.data) {
+              const unitParts = unit.code.split("-");
+              if (unitParts.length === 2) {
+                const unitMainLevel = parseInt(unitParts[0]);
+                if (unitMainLevel < currentMainUnit) {
+                  unitsToUnlock.push(`${currentSubject}-${unit.code}`);
+                }
+              }
+            }
+            
+            // 批量解锁所有这些单元
+            if (unitsToUnlock.length > 0) {
+              const batchUnlockResponse = await fetch(`${API_BASE_URL}/api/units/batch-unlock`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  unitIds: unitsToUnlock,
+                  userId: USER_ID
+                })
+              });
+              
+              const unlockResult = await batchUnlockResponse.json();
+              console.log("批量解锁结果:", unlockResult);
+              
+              if (unlockResult.success) {
+                // 解锁成功，显示提示
+                alert(`恭喜！您已成功解锁${unitsToUnlock.length}个单元！`);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error("解锁前面单元失败:", error);
+      }
+    }
 
     router.replace({
-      pathname: "/study",
+      pathname: "/(tabs)",
       params: {
-        id: lessonId,
-        unitTitle: unitTitle || "",
-        color: color || "#5EC0DE",
-        subject: subjectCode, // 确保传递学科代码
+        refresh: Date.now().toString(),
+        currentSubject: subjectCode,
       },
     });
   };
@@ -605,6 +678,8 @@ export default function PracticeScreen() {
         totalCount={exercises.length}
         onRetry={handleRetry}
         onExit={handleExit}
+        isTestForUnlocking={isTestForUnlocking}
+        shouldUnlockPreviousUnits={shouldUnlockPreviousUnits}
       />
     </View>
   );
