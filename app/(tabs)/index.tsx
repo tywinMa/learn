@@ -2,36 +2,30 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   StyleSheet,
   ScrollView,
-  Image,
   TouchableOpacity,
   View as RNView,
-  Animated,
-  Dimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
   Alert,
   ActivityIndicator,
-  FlatList,
-  Linking,
-  Platform,
 } from "react-native";
 import { Text, View } from "@/components/Themed";
-import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
-import Colors from "@/constants/Colors";
-import { useColorScheme } from "react-native";
+import {
+  Ionicons,
+  FontAwesome5,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
-  getUserUnitProgress,
   getMultipleUnitProgress,
   USER_ID as PROGRESS_USER_ID,
   type UnitProgress,
 } from "../services/progressService";
 import { getUserPoints } from "../services/pointsService";
-// import UnlockModal from "../../components/UnlockModal"; // Commented out UnlockModal
 import SubjectModal from "@/components/SubjectModal";
 import { useSubject, Subject } from "@/hooks/useSubject";
 import { API_BASE_URL } from "@/constants/apiConfig";
@@ -85,74 +79,21 @@ const Level = ({
   currentSubject: any;
   progressData: Record<string, UnitProgress>;
 }) => {
-  // const [showUnlockModal, setShowUnlockModal] = useState(false); // Commented out
-  const [previousLevelInfo, setPreviousLevelInfo] = useState({ title: "" });
-
   // @ts-ignore - 添加router变量
   const router = useRouter();
 
   // 计算关卡是否锁定
   // 第一个关卡默认解锁，其他关卡需要前一个关卡达到3星才解锁
   // 但大单元的第一个小单元（格式为x-1）也可以访问
-  const isFirstLessonOfUnit = level && level.id && level.id.split("-").length === 3 && level.id.split("-")[2] === "1";
+  const isFirstLessonOfUnit =
+    level &&
+    level.id &&
+    level.id.split("-").length === 3 &&
+    level.id.split("-")[2] === "1";
   const isLocked = previousLevelUnlocked === false && !isFirstLessonOfUnit;
 
   // 获取星星数量
   const stars = progress?.stars || 0;
-
-  // 获取上一个关卡信息
-  useEffect(() => {
-    if (isLocked) {
-      // 在courses中查找当前关卡和前一个关卡
-      const currentLevelId = level?.id;
-      let previousLevel = null;
-
-      // 遍历所有课程
-      for (const course of courses) {
-        if (!course || !course.levels || !Array.isArray(course.levels)) continue;
-
-        // 找到当前关卡的索引
-        const currentLevelIndex = course.levels.findIndex((lvl: any) => lvl && lvl.id === currentLevelId);
-
-        // 如果找到当前关卡且不是第一个
-        if (currentLevelIndex > 0) {
-          previousLevel = course.levels[currentLevelIndex - 1];
-          setPreviousLevelInfo({
-            title: `${course.title} - ${previousLevel.title}`,
-          });
-          break;
-        }
-
-        // 如果是第一个关卡但不是第一个课程
-        if (
-          currentLevelIndex === 0 &&
-          currentLevelId &&
-          currentLevelId.includes("-1") &&
-          !currentLevelId.includes("1-1")
-        ) {
-          // 查找上一个课程的最后一个关卡
-          const courseNumber = parseInt(currentLevelId.split("-")[0]);
-          if (courseNumber > 1) {
-            const previousCourse = courses.find((c) => c && c.id === `unit${courseNumber - 1}`);
-            if (previousCourse && previousCourse.levels && previousCourse.levels.length > 0) {
-              previousLevel = previousCourse.levels[previousCourse.levels.length - 1];
-              setPreviousLevelInfo({
-                title: `${previousCourse.title} - ${previousLevel.title}`,
-              });
-              break;
-            }
-          }
-        }
-      }
-
-      // 如果找不到匹配的关卡，使用默认值
-      if (!previousLevel) {
-        setPreviousLevelInfo({
-          title: "上一关卡",
-        });
-      }
-    }
-  }, [isLocked, level?.id, courses]);
 
   // 处理关卡点击
   const handleLevelPress = () => {
@@ -166,7 +107,7 @@ const Level = ({
     // 检查当前关卡是否是某个大单元的第一个小单元
     if (isFirstLessonOfUnit && previousLevelUnlocked === false) {
       console.log("访问大单元的第一个小单元:", level.id);
-      
+
       // 获取当前单元的完整颜色信息
       const courseIndex = parseInt(level.id.split("-")[1]) - 1;
       const course = courses.find((c) => c.id === `unit${courseIndex + 1}`);
@@ -271,11 +212,11 @@ const Level = ({
     if (isLocked) {
       return "lock";
     }
-    
+
     if (isFirstLessonOfUnit && previousLevelUnlocked === false) {
       return "flag"; // 使用旗帜图标表示这是大单元的入口点
     }
-    
+
     if (level.type === "challenge") {
       return "crown";
     }
@@ -289,11 +230,11 @@ const Level = ({
     if (isLocked) {
       return "#AAAAAA";
     }
-    
+
     if (isFirstLessonOfUnit && previousLevelUnlocked === false) {
       return "#FF9600"; // 使用橙色表示特殊入口点
     }
-    
+
     if (level.type === "challenge") {
       return "white";
     }
@@ -305,7 +246,11 @@ const Level = ({
 
   return (
     <RNView style={styles.levelContainer}>
-      <TouchableOpacity style={[styles.levelBadge, getBadgeStyle()]} disabled={level.locked} onPress={handleLevelPress}>
+      <TouchableOpacity
+        style={[styles.levelBadge, getBadgeStyle()]}
+        disabled={level.locked}
+        onPress={handleLevelPress}
+      >
         <FontAwesome5 name={getIconName()} size={22} color={getIconColor()} />
       </TouchableOpacity>
 
@@ -337,34 +282,24 @@ const Level = ({
           ]}
         />
       )}
-
-      {/* 解锁关卡的模态窗口 */}
-      {/* <UnlockModal
-        visible={showUnlockModal}
-        onClose={() => setShowUnlockModal(false)}
-        previousLevelTitle={previousLevelInfo.title}
-      /> */}
     </RNView>
   );
 };
 
-// 临时用户ID，实际应用中应该从认证系统获取
-// const USER_ID = "user1";  // 使用从服务导入的常量
-
 export default function HomeScreen() {
-  const colorScheme = useColorScheme() ?? "light";
   const router = useRouter();
   // 使用useLocalSearchParams获取路由参数
   const params = useLocalSearchParams();
-
   const [currentUnit, setCurrentUnit] = useState(0);
+  // 心 临时数据，实际数据从后端获取
+  const [hearts, setHearts] = useState(5);
+  // 连续天数 临时数据，实际数据从后端获取
   const [streak, setStreak] = useState(0);
   const [xp, setXp] = useState(0);
-  const [hearts, setHearts] = useState(5);
-  const [loading, setLoading] = useState(true);
-  const [progressData, setProgressData] = useState<Record<string, UnitProgress>>({});
+  const [progressData, setProgressData] = useState<
+    Record<string, UnitProgress>
+  >({});
   const [error, setError] = useState<string | null>(null);
-  const [showFixedBanner, setShowFixedBanner] = useState(true);
 
   // 从expo-router获取刷新触发参数
   const refreshTrigger = params.refresh as string | undefined;
@@ -380,9 +315,7 @@ export default function HomeScreen() {
   // 添加加载状态
   const [loadingCourses, setLoadingCourses] = useState(true);
 
-  // 使用固定高度计算位置（因为直接获取的layout.y值不准确）
-  const unitPositions = useRef<number[]>([]);
-  const lastScrollPosition = useRef(0);
+  const unitHeight = useRef<any>([]);
 
   // 添加课程数据修复函数，确保颜色信息正确
   const ensureCoursesColors = (coursesData: any[]): any[] => {
@@ -393,7 +326,8 @@ export default function HomeScreen() {
       const primaryColor = course.color || currentSubject.color || "#58CC02";
 
       // 确保次要色存在，否则基于主色生成
-      const secondaryColor = course.secondaryColor || getLighterColor(primaryColor);
+      const secondaryColor =
+        course.secondaryColor || getLighterColor(primaryColor);
 
       return {
         ...course,
@@ -443,45 +377,6 @@ export default function HomeScreen() {
     initSubject();
   }, []);
 
-  // 监听课程数据变化，更新位置数据
-  useEffect(() => {
-    // 计算每个单元的绝对位置
-    if (courses.length === 0) return;
-
-    let currentPosition = 60; // 设置起始偏移量，考虑顶部状态栏
-    const positions = [];
-
-    for (let i = 0; i < courses.length; i++) {
-      positions.push(currentPosition);
-      // 动态计算单元高度 - 每个关卡50高度 + 基础高度100
-      const unitHeight = courses[i]?.levels?.length * 50 + 120; // 增加基础高度以改善检测
-      currentPosition += unitHeight;
-    }
-
-    unitPositions.current = positions;
-    console.log("更新单元位置:", positions);
-
-    // 打印课程颜色信息
-    console.log("课程颜色信息:");
-    courses.forEach((course, index) => {
-      console.log(`[${index}] ${course.title}: 主色=${course.color}, 次色=${course.secondaryColor}`);
-    });
-  }, [courses]);
-
-  // 监听currentUnit变化，确保正确的颜色渲染
-  useEffect(() => {
-    if (currentUnit >= 0 && courses.length > 0) {
-      // 确保currentUnit有效
-      const validUnit = Math.min(currentUnit, courses.length - 1);
-      const course = courses[validUnit];
-
-      if (course) {
-        console.log(`当前单元更新: ${validUnit} - ${course.title}`);
-        console.log(`颜色信息: 主色=${course.color}, 次色=${course.secondaryColor}`);
-      }
-    }
-  }, [currentUnit, courses]);
-
   // 修改formatCoursesData返回值，应用颜色修复
   const formatCoursesData = (unitsData: any[], subject: any) => {
     // 验证参数
@@ -514,7 +409,8 @@ export default function HomeScreen() {
 
       // 使用单元自己的颜色或回退到学科颜色
       const unitColor = firstUnit.color || subject.color;
-      const unitSecondaryColor = firstUnit.secondaryColor || getLighterColor(unitColor);
+      const unitSecondaryColor =
+        firstUnit.secondaryColor || getLighterColor(unitColor);
 
       return {
         id: `unit${index + 1}`,
@@ -566,60 +462,32 @@ export default function HomeScreen() {
     const lighterB = Math.min(255, b + 50);
 
     // 转回十六进制
-    return `#${lighterR.toString(16).padStart(2, "0")}${lighterG.toString(16).padStart(2, "0")}${lighterB
+    return `#${lighterR.toString(16).padStart(2, "0")}${lighterG
       .toString(16)
-      .padStart(2, "0")}`;
+      .padStart(2, "0")}${lighterB.toString(16).padStart(2, "0")}`;
   };
 
   // 监听滚动
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const currentScrollY = event.nativeEvent.contentOffset.y;
-    const isScrollingDown = currentScrollY > lastScrollPosition.current;
-    lastScrollPosition.current = currentScrollY;
-
-    // 滚动到顶部显示第一个单元
-    if (currentScrollY <= 0) {
-      setCurrentUnit(0);
-      return;
-    }
-
-    // 确保有位置数据和课程数据
-    if (unitPositions.current.length < courses.length || courses.length === 0) {
-      return;
-    }
-
-    // 计算当前应显示的单元
-    let newCurrentUnit = 0;
-
-    // 找出当前视图中的单元 - 减小偏移量以提高灵敏度
-    const offset = 100; // 减小偏移量，使检测更灵敏
-
-    for (let i = 0; i < unitPositions.current.length; i++) {
-      const unitPosition = unitPositions.current[i];
-      const nextUnitPosition = i < unitPositions.current.length - 1 ? unitPositions.current[i + 1] : Infinity;
-
-      // 如果当前滚动位置在这个单元的显示范围内
-      if (currentScrollY >= unitPosition - offset && currentScrollY < nextUnitPosition - offset) {
-        newCurrentUnit = i;
+    const height = unitHeight.current.reduce(
+      (result: any, current: any, index: any) => {
+        if (index === 0) {
+          return [current];
+        } else {
+          return [...result, result[result.length - 1] + current];
+        }
+      },
+      []
+    );
+    let currentUnit = 0;
+    for (let i = 0; i < height.length; i++) {
+      if (currentScrollY + 200 < height[i]) {
+        currentUnit = i;
         break;
       }
-
-      // 如果已经滚动超过最后一个单元的位置
-      if (i === unitPositions.current.length - 1 && currentScrollY >= unitPosition - offset) {
-        newCurrentUnit = i;
-      }
     }
-
-    // 仅在单元变化时更新状态
-    if (newCurrentUnit !== currentUnit) {
-      const oldCourse = courses[currentUnit];
-      const newCourse = courses[newCurrentUnit];
-      console.log(`滚动更新单元：从 ${currentUnit}(${oldCourse?.title}) 到 ${newCurrentUnit}(${newCourse?.title})`);
-      console.log(`单元颜色信息：旧=${oldCourse?.color || "未知"}, 新=${newCourse?.color || "未知"}`);
-
-      // 设置新的当前单元
-      setCurrentUnit(newCurrentUnit);
-    }
+    setCurrentUnit(currentUnit);
   };
 
   // 处理学科切换
@@ -669,7 +537,6 @@ export default function HomeScreen() {
   const fetchUserData = async (coursesData = courses) => {
     if (coursesData.length === 0) return;
 
-    setLoading(true);
     setError(null);
 
     try {
@@ -695,7 +562,6 @@ export default function HomeScreen() {
       console.error("获取用户数据出错:", error);
       setError(error.message || "获取用户进度时出错，将显示默认进度");
     } finally {
-      setLoading(false);
     }
   };
 
@@ -716,7 +582,10 @@ export default function HomeScreen() {
   }, [refreshTrigger, urlSubjectCode]);
 
   // 按阶段获取进度数据的函数
-  const fetchProgressByStage = async (stageIndex: number, coursesData = courses) => {
+  const fetchProgressByStage = async (
+    stageIndex: number,
+    coursesData = courses
+  ) => {
     if (stageIndex < 0 || stageIndex >= coursesData.length) return;
 
     try {
@@ -750,7 +619,9 @@ export default function HomeScreen() {
 
         try {
           // 获取学科详情
-          const response = await fetch(`${API_BASE_URL}/api/subjects/${urlSubjectCode}`);
+          const response = await fetch(
+            `${API_BASE_URL}/api/subjects/${urlSubjectCode}`
+          );
           if (response.ok) {
             const result = await response.json();
             if (result.success && result.data) {
@@ -791,15 +662,21 @@ export default function HomeScreen() {
     console.log("validUnit", validUnit);
 
     if (!course) {
-      console.error("无法渲染FixedBanner：找不到课程信息", { currentUnit, coursesLength: courses.length });
+      console.error("无法渲染FixedBanner：找不到课程信息", {
+        currentUnit,
+        coursesLength: courses.length,
+      });
       return null;
     }
 
     // 使用默认颜色作为备选方案
     const primaryColor = course.color || "#58CC02";
-    const secondaryColor = course.secondaryColor || getLighterColor(primaryColor);
+    const secondaryColor =
+      course.secondaryColor || getLighterColor(primaryColor);
 
-    console.log(`FixedBanner渲染：单元=${validUnit}, 标题=${course.title}, 颜色=${primaryColor}`);
+    console.log(
+      `FixedBanner渲染：单元=${validUnit}, 标题=${course.title}, 颜色=${primaryColor}`
+    );
 
     return (
       <RNView style={styles.fixedBannerContainer}>
@@ -810,7 +687,7 @@ export default function HomeScreen() {
           end={{ x: 1, y: 1 }}
         >
           <RNView style={styles.unitTitleRow}>
-            <Text style={styles.unitTitle}>第 {validUnit + 1} 阶段，第 1 部分</Text>
+            <Text style={styles.unitTitle}>第 {validUnit + 1} 阶段</Text>
           </RNView>
           <Text style={styles.unitSubtitle}>{course.title}</Text>
         </LinearGradient>
@@ -824,7 +701,9 @@ export default function HomeScreen() {
       return (
         <RNView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={currentSubject.color} />
-          <Text style={styles.loadingText}>正在加载{currentSubject.name}学科内容...</Text>
+          <Text style={styles.loadingText}>
+            正在加载{currentSubject.name}学科内容...
+          </Text>
         </RNView>
       );
     }
@@ -832,10 +711,19 @@ export default function HomeScreen() {
     if (courses.length === 0) {
       return (
         <RNView style={styles.emptyContainer}>
-          <MaterialCommunityIcons name="book-open-variant" size={64} color="#ccc" />
-          <Text style={styles.emptyText}>暂无{currentSubject.name}学科内容</Text>
+          <MaterialCommunityIcons
+            name="book-open-variant"
+            size={64}
+            color="#ccc"
+          />
+          <Text style={styles.emptyText}>
+            暂无{currentSubject.name}学科内容
+          </Text>
           <TouchableOpacity
-            style={[styles.retryButton, { backgroundColor: currentSubject.color }]}
+            style={[
+              styles.retryButton,
+              { backgroundColor: currentSubject.color },
+            ]}
             onPress={() => fetchSubjectCourses(currentSubject.code)}
           >
             <Text style={styles.retryButtonText}>重新加载</Text>
@@ -854,7 +742,14 @@ export default function HomeScreen() {
       >
         {/* 课程列表 */}
         {courses.map((course, courseIndex) => (
-          <RNView key={course.id} style={styles.unitContainer}>
+          <RNView
+            key={course.id}
+            style={styles.unitContainer}
+            onLayout={(event) => {
+              const { height } = event.nativeEvent.layout;
+              unitHeight.current[courseIndex] = height;
+            }}
+          >
             {/* 普通文字标题 */}
             <RNView
               style={styles.collapsedHeader}
@@ -879,17 +774,28 @@ export default function HomeScreen() {
                   // If not the first level in its own course section
                   const prevLevelInSection = course.levels[index - 1];
                   if (prevLevelInSection) {
-                    const prevLevelProgress = progressData[prevLevelInSection.id];
-                    prevLevelFullyUnlocked = prevLevelProgress?.stars >= 3 || prevLevelProgress?.completed === true;
+                    const prevLevelProgress =
+                      progressData[prevLevelInSection.id];
+                    prevLevelFullyUnlocked =
+                      prevLevelProgress?.stars >= 3 ||
+                      prevLevelProgress?.completed === true;
                   }
                 } else if (courseIndex > 0) {
                   // If it's the first level of the current course (courseIndex > 0), but not the first course (index > 0)
                   const prevCourse = courses[courseIndex - 1];
-                  if (prevCourse && prevCourse.levels && prevCourse.levels.length > 0) {
-                    const lastLevelOfPrevCourse = prevCourse.levels[prevCourse.levels.length - 1];
+                  if (
+                    prevCourse &&
+                    prevCourse.levels &&
+                    prevCourse.levels.length > 0
+                  ) {
+                    const lastLevelOfPrevCourse =
+                      prevCourse.levels[prevCourse.levels.length - 1];
                     if (lastLevelOfPrevCourse) {
-                      const prevLevelProgress = progressData[lastLevelOfPrevCourse.id];
-                      prevLevelFullyUnlocked = prevLevelProgress?.stars >= 3 || prevLevelProgress?.completed === true;
+                      const prevLevelProgress =
+                        progressData[lastLevelOfPrevCourse.id];
+                      prevLevelFullyUnlocked =
+                        prevLevelProgress?.stars >= 3 ||
+                        prevLevelProgress?.completed === true;
                     }
                   }
                 } else {
@@ -930,7 +836,9 @@ export default function HomeScreen() {
 
     try {
       // 获取学科的单元数据
-      const response = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}/units`);
+      const response = await fetch(
+        `${API_BASE_URL}/api/subjects/${subjectCode}/units`
+      );
 
       if (!response.ok) {
         throw new Error(`获取${subjectCode}学科单元失败`);
@@ -940,7 +848,9 @@ export default function HomeScreen() {
 
       if (result.success) {
         // 获取学科信息
-        const subjectResponse = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}`);
+        const subjectResponse = await fetch(
+          `${API_BASE_URL}/api/subjects/${subjectCode}`
+        );
         let subject = currentSubject;
 
         if (subjectResponse.ok) {
@@ -976,14 +886,23 @@ export default function HomeScreen() {
     <RNView style={styles.container}>
       {/* 顶部状态栏 */}
       <RNView style={styles.statsBar}>
-        <TouchableOpacity style={styles.statItem} onPress={() => setShowSubjectModal(true)}>
-          <MaterialCommunityIcons name={currentSubject.iconName as any} size={26} color={currentSubject.color} />
+        <TouchableOpacity
+          style={styles.statItem}
+          onPress={() => setShowSubjectModal(true)}
+        >
+          <MaterialCommunityIcons
+            name={currentSubject.iconName as any}
+            size={26}
+            color={currentSubject.color}
+          />
         </TouchableOpacity>
 
         <RNView style={styles.statItem}>
           <RNView style={styles.streakContainer}>
             <Ionicons name="flame" size={22} color="#FF9600" />
-            <Text style={[styles.statText, { color: "#FF9600" }]}>{streak}</Text>
+            <Text style={[styles.statText, { color: "#FF9600" }]}>
+              {streak}
+            </Text>
           </RNView>
         </RNView>
 
@@ -1029,7 +948,7 @@ export default function HomeScreen() {
       )}
 
       {/* 固定在顶部的 banner */}
-      {showFixedBanner && renderFixedBanner()}
+      {renderFixedBanner()}
 
       {/* 课程内容或加载状态 */}
       {renderContent()}
