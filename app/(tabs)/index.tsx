@@ -8,6 +8,7 @@ import {
   NativeScrollEvent,
   Alert,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { Text, View } from "@/components/Themed";
 import {
@@ -68,6 +69,7 @@ const Level = ({
   courses,
   currentSubject,
   progressData,
+  onShowLockTooltip,
 }: {
   level: any;
   color: string;
@@ -78,6 +80,7 @@ const Level = ({
   courses: any[];
   currentSubject: any;
   progressData: Record<string, UnitProgress>;
+  onShowLockTooltip: (levelId: string, event: any) => void;
 }) => {
   // @ts-ignore - 添加router变量
   const router = useRouter();
@@ -96,11 +99,10 @@ const Level = ({
   const stars = progress?.stars || 0;
 
   // 处理关卡点击
-  const handleLevelPress = () => {
+  const handleLevelPress = (event: any) => {
     if (isLocked) {
-      // 原有的锁定提示逻辑
-      console.log("解锁测试功能已被移除");
-      Alert.alert("提示", "您需要先完成前面的单元才能解锁此内容。");
+      // 显示锁定提示tooltip
+      onShowLockTooltip(level.id, event);
       return;
     }
 
@@ -314,6 +316,10 @@ export default function HomeScreen() {
 
   // 添加加载状态
   const [loadingCourses, setLoadingCourses] = useState(true);
+
+  // 添加tooltip相关状态
+  const [showLockTooltip, setShowLockTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
   const unitHeight = useRef<any>([]);
 
@@ -695,6 +701,21 @@ export default function HomeScreen() {
     );
   };
 
+  // 处理显示tooltip的函数
+  const handleShowLockTooltip = (levelId: string, event: any) => {
+    if (showLockTooltip) return;
+    
+    const { pageY } = event.nativeEvent;
+    // 固定水平位置(屏幕左侧)，只使用垂直位置
+    setTooltipPosition({ x: 20, y: pageY }); 
+    setShowLockTooltip(true);
+    
+    // 3秒后自动隐藏tooltip
+    setTimeout(() => {
+      setShowLockTooltip(false);
+    }, 3000);
+  };
+
   // 渲染课程内容或加载状态
   const renderContent = () => {
     if (loadingCourses) {
@@ -737,7 +758,13 @@ export default function HomeScreen() {
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
-        onScroll={handleScroll}
+        onScroll={(e) => {
+          handleScroll(e);
+          // 滚动时隐藏tooltip
+          if (showLockTooltip) {
+            setShowLockTooltip(false);
+          }
+        }}
         scrollEventThrottle={16}
       >
         {/* 课程列表 */}
@@ -819,6 +846,7 @@ export default function HomeScreen() {
                     courses={courses}
                     currentSubject={currentSubject}
                     progressData={progressData}
+                    onShowLockTooltip={handleShowLockTooltip}
                   />
                 );
               })}
@@ -927,6 +955,23 @@ export default function HomeScreen() {
         onClose={() => setShowSubjectModal(false)}
         onSelectSubject={handleSubjectSelect}
       />
+
+      {/* 锁定提示tooltip - 关卡左侧显示 */}
+      {showLockTooltip && (
+        <RNView 
+          style={[
+            styles.lockTooltip,
+            {
+              left: tooltipPosition.x,
+              top: tooltipPosition.y - 30, // 垂直居中对齐关卡
+            },
+          ]}
+        >
+          <RNView style={styles.tooltipArrowRight} />
+          <RNView style={styles.tooltipArrowRightBorder} />
+          <Text style={styles.tooltipText}>完成以上全部等级才可以解锁哦!</Text>
+        </RNView>
+      )}
 
       {/* 显示错误提示 */}
       {error && (
@@ -1201,5 +1246,102 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 16,
     fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  lockModalContainer: {
+    width: "80%",
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 24,
+    alignItems: "center",
+  },
+  lockModalTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    marginBottom: 16,
+    color: "#333",
+  },
+  lockModalDescription: {
+    fontSize: 18,
+    textAlign: "center",
+    marginBottom: 24,
+    color: "#666",
+  },
+  lockModalButton: {
+    width: "100%",
+    padding: 16,
+    backgroundColor: "#E5E5E5",
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  lockModalButtonText: {
+    color: "#999",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  tooltipOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+    pointerEvents: "none", // 允许点击穿透
+  },
+  lockTooltip: {
+    position: "absolute",
+    width: 180,
+    backgroundColor: "#F2F2F2",
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#D0D0D0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    zIndex: 1000,
+  },
+  tooltipArrowRight: {
+    position: "absolute",
+    right: -10,
+    top: 25,
+    width: 0,
+    height: 0,
+    borderTopWidth: 10,
+    borderBottomWidth: 10,
+    borderLeftWidth: 10,
+    borderTopColor: "transparent",
+    borderBottomColor: "transparent",
+    borderLeftColor: "#F2F2F2",
+    zIndex: 2,
+  },
+  tooltipArrowRightBorder: {
+    position: "absolute",
+    right: -11,
+    top: 24,
+    width: 0,
+    height: 0,
+    borderTopWidth: 11,
+    borderBottomWidth: 11,
+    borderLeftWidth: 11,
+    borderTopColor: "transparent",
+    borderBottomColor: "transparent",
+    borderLeftColor: "#D0D0D0",
+    zIndex: 1,
+  },
+  tooltipText: {
+    color: "#333333",
+    fontSize: 14,
+    fontWeight: "500",
+    textAlign: "center",
   },
 });
