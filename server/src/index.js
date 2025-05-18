@@ -36,16 +36,6 @@ app.use('/api/learning', learningContentRoutes);
 app.use('/api/subjects', subjectsRoutes);
 app.use('/api/units', unitsRouter);
 
-// 添加额外的练习题根路径路由，将/exercises请求也映射到/api/exercises处理程序
-app.use('/exercises', exercisesRoutes);
-app.use('/learning', learningContentRoutes);
-app.use('/subjects', subjectsRoutes);
-
-// 根路由
-app.get('/', (req, res) => {
-  res.json({ message: '学习应用API服务器运行中' });
-});
-
 // 添加全局错误处理中间件
 app.use((err, req, res, next) => {
   console.error('服务器错误:', err.stack);
