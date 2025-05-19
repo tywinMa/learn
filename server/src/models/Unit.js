@@ -57,7 +57,19 @@ const Unit = sequelize.define('Unit', {
     type: DataTypes.STRING,
     allowNull: true,
     comment: '单元的次要颜色，用于渐变效果，如果不设置则自动基于主颜色生成'
-  }
+  },
+  unitType: {
+    type: DataTypes.ENUM('normal', 'exercise'),
+    allowNull: false,
+    defaultValue: 'normal',
+    comment: '单元类型：normal-普通学习单元，exercise-练习单元'
+  },
+  position: {
+    type: DataTypes.ENUM('default', 'left', 'right'),
+    allowNull: false,
+    defaultValue: 'default',
+    comment: '特殊单元的位置：default-默认位置，left-左侧，right-右侧'
+  },
 }, {
   timestamps: true,
   comment: '单元表，存储课程单元信息',
