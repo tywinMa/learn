@@ -50,6 +50,8 @@ const loadCurrentSubject = async () => {
   }
 };
 
+const AVERAGE_EXPECTED_ITEM_Y_INCREMENT = 120; // Average height of a regular level item
+
 // 关卡组件
 const Level = ({
   level,
@@ -62,6 +64,9 @@ const Level = ({
   currentSubject,
   progressData,
   onShowLockTooltip,
+  levelIndex,
+  exerciseTop, // New prop for calculated top position for exercise units
+  onNonExerciseLayout, // New prop for reporting layout of non-exercise units
 }: {
   level: any;
   color: string;
@@ -73,6 +78,9 @@ const Level = ({
   currentSubject: any;
   progressData: Record<string, UnitProgress>;
   onShowLockTooltip: (levelId: string, event: any) => void;
+  levelIndex: number;
+  exerciseTop?: number; // Optional: calculated top position for exercise units
+  onNonExerciseLayout?: (levelId: string, layout: { height: number, y: number }) => void; // Optional: callback for layout
 }) => {
   // @ts-ignore - 添加router变量
   const router = useRouter();
@@ -193,20 +201,23 @@ const Level = ({
   };
 
   const getExerciseLevelContainerStyle = () => {
-    if (exerciseUnitPosition === "left") {
-      return {
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-      };
+    const style: any = {
+      position: "absolute",
+      // Use exerciseTop if provided, otherwise fallback to index-based calculation
+      top: typeof exerciseTop === 'number' ? exerciseTop : levelIndex * AVERAGE_EXPECTED_ITEM_Y_INCREMENT,
+      width: 100, // Fixed width for exercise units
+      zIndex: 10, // Ensure it's above other elements if overlapping
+      alignItems: 'center', // Center content within the exercise unit
+    };
+    if (level.position === "left") {
+      style.left = 5; // Small margin from the left edge
+    } else if (level.position === "right") {
+      style.right = 5; // Small margin from the right edge
     } else {
-      return {
-        top: 0,
-        left: 0,
-        right: 0,
-      };
+      // Default to left if position is not specified or invalid
+      style.left = 5;
     }
+    return style;
   };
 
   const getIconName = () => {
@@ -243,9 +254,15 @@ const Level = ({
     <RNView
       style={[
         isExerciseUnit
-          ? { ...styles.exerciseLevelContainer, ...getExerciseLevelContainerStyle() }
+          ? getExerciseLevelContainerStyle() // Use new style for exercise units
           : styles.levelContainer,
       ]}
+      onLayout={(event) => {
+        if (!isExerciseUnit && onNonExerciseLayout) {
+          const { height, y } = event.nativeEvent.layout;
+          onNonExerciseLayout(level.id, { height, y });
+        }
+      }}
     >
       <TouchableOpacity style={[styles.levelBadge, getBadgeStyle()]} disabled={level.locked} onPress={handleLevelPress}>
         <FontAwesome5 name={getIconName()} size={22} color={getIconColor()} />
@@ -296,6 +313,9 @@ export default function HomeScreen() {
   const [progressData, setProgressData] = useState<Record<string, UnitProgress>>({});
   const [error, setError] = useState<string | null>(null);
 
+  // State to store layout information for non-exercise levels
+  const [nonExerciseLevelLayouts, setNonExerciseLevelLayouts] = useState<Record<string, { height: number, y: number }>>({});
+
   // 从expo-router获取刷新触发参数
   const refreshTrigger = params.refresh as string | undefined;
   const urlSubjectCode = params.currentSubject as string | undefined;
@@ -315,6 +335,20 @@ export default function HomeScreen() {
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
   const bigUnitHeight = useRef<any>([]);
+
+  // Fallback height for non-exercise items if layout is not yet known
+  const FALLBACK_NON_EXERCISE_ITEM_VERTICAL_SPACE = 120;
+
+  // Callback to handle layout reporting from non-exercise Level components
+  const handleNonExerciseLayout = (levelId: string, layout: { height: number, y: number }) => {
+    setNonExerciseLevelLayouts(prev => {
+      // Only update if layout data has changed to prevent unnecessary re-renders
+      if (prev[levelId]?.height !== layout.height || prev[levelId]?.y !== layout.y) {
+        return { ...prev, [levelId]: layout };
+      }
+      return prev;
+    });
+  };
 
   // 添加课程数据修复函数，确保颜色信息正确
   const ensureCoursesColors = (coursesData: any[]): any[] => {
@@ -732,73 +766,84 @@ export default function HomeScreen() {
         scrollEventThrottle={16}
       >
         {/* 课程列表 */}
-        {courses.map((course, courseIndex) => (
-          <RNView
-            key={course.id}
-            style={styles.unitContainer}
-            onLayout={(event) => {
-              const { height } = event.nativeEvent.layout;
-              bigUnitHeight.current[courseIndex] = height;
-            }}
-          >
-            {/* 普通文字标题 */}
-            <RNView style={styles.collapsedHeader}>
-              <Text style={styles.collapsedTitle}>
-                第 {courseIndex + 1} 阶段 - {course.title}
-              </Text>
-            </RNView>
+        {courses.map((course, courseIndex) => {
+          let cumulativeHeightInCourse = 0; // Tracks height within the current course for exercise unit positioning
+          return (
+            <RNView
+              key={course.id}
+              style={styles.unitContainer}
+              onLayout={(event) => {
+                const { height } = event.nativeEvent.layout;
+                bigUnitHeight.current[courseIndex] = height;
+              }}
+            >
+              {/* 普通文字标题 */}
+              <RNView style={styles.collapsedHeader}>
+                <Text style={styles.collapsedTitle}>
+                  第 {courseIndex + 1} 阶段 - {course.title}
+                </Text>
+              </RNView>
 
-            {/* 课程关卡路径 */}
-            <RNView style={styles.levelsPath}>
-              {course.levels.map((level: any, index: number) => {
-                const currentLevelProgress = progressData[level.id];
-                let prevLevelFullyUnlocked = false; // Default for first level in a course or overall
+              {/* 课程关卡路径 */}
+              <RNView style={styles.levelsPath}>
+                {course.levels.map((level: any, index: number) => {
+                  const currentLevelProgress = progressData[level.id];
+                  let prevLevelFullyUnlocked = false;
 
-                if (index > 0) {
-                  // If not the first level in its own course section
-                  const prevLevelInSection = course.levels[index - 1];
-                  if (prevLevelInSection) {
-                    const prevLevelProgress = progressData[prevLevelInSection.id];
-                    prevLevelFullyUnlocked = prevLevelProgress?.stars >= 3 || prevLevelProgress?.completed === true;
-                  }
-                } else if (courseIndex > 0) {
-                  // If it's the first level of the current course (courseIndex > 0), but not the first course (index > 0)
-                  const prevCourse = courses[courseIndex - 1];
-                  if (prevCourse && prevCourse.levels && prevCourse.levels.length > 0) {
-                    const lastLevelOfPrevCourse = prevCourse.levels[prevCourse.levels.length - 1];
-                    if (lastLevelOfPrevCourse) {
-                      const prevLevelProgress = progressData[lastLevelOfPrevCourse.id];
+                  if (index > 0) {
+                    const prevLevelInSection = course.levels[index - 1];
+                    if (prevLevelInSection) {
+                      const prevLevelProgress = progressData[prevLevelInSection.id];
                       prevLevelFullyUnlocked = prevLevelProgress?.stars >= 3 || prevLevelProgress?.completed === true;
                     }
+                  } else if (courseIndex > 0) {
+                    const prevCourse = courses[courseIndex - 1];
+                    if (prevCourse && prevCourse.levels && prevCourse.levels.length > 0) {
+                      const lastLevelOfPrevCourse = prevCourse.levels[prevCourse.levels.length - 1];
+                      if (lastLevelOfPrevCourse) {
+                        const prevLevelProgress = progressData[lastLevelOfPrevCourse.id];
+                        prevLevelFullyUnlocked = prevLevelProgress?.stars >= 3 || prevLevelProgress?.completed === true;
+                      }
+                    }
+                  } else {
+                    prevLevelFullyUnlocked = true;
                   }
-                } else {
-                  // Very first level of the very first course
-                  prevLevelFullyUnlocked = true; // The very first level is always considered to have its prerequisite met
-                }
 
-                // A level is locked if its preceding level is NOT fully unlocked.
-                // The Level component itself uses `isLocked = previousLevelUnlocked === false`.
-                // So we pass `prevLevelFullyUnlocked` as `previousLevelUnlocked` prop.
+                  let exerciseTopValue: number | undefined = undefined;
+                  if (level.unitType === "exercise") {
+                    exerciseTopValue = cumulativeHeightInCourse;
+                  } else {
+                    // For non-exercise units, update cumulative height for subsequent exercise units
+                    const layoutInfo = nonExerciseLevelLayouts[level.id];
+                    // Assuming a fixed margin/connector height for non-exercise items for simplicity in accumulation
+                    // A more robust solution might involve measuring the whole item including margins
+                    const itemHeight = layoutInfo?.height ? layoutInfo.height + 20 /* approx margin/connector */ : FALLBACK_NON_EXERCISE_ITEM_VERTICAL_SPACE;
+                    cumulativeHeightInCourse += itemHeight;
+                  }
 
-                return (
-                  <Level
-                    key={level.id}
-                    level={level}
-                    color={course.color}
-                    isLast={index === course.levels.length - 1}
-                    unitTitle={course.title}
-                    progress={currentLevelProgress}
-                    previousLevelUnlocked={prevLevelFullyUnlocked}
-                    courses={courses}
-                    currentSubject={currentSubject}
-                    progressData={progressData}
-                    onShowLockTooltip={handleShowLockTooltip}
-                  />
-                );
-              })}
+                  return (
+                    <Level
+                      key={level.id}
+                      level={level}
+                      color={course.color}
+                      isLast={index === course.levels.length - 1}
+                      unitTitle={course.title}
+                      progress={currentLevelProgress}
+                      previousLevelUnlocked={prevLevelFullyUnlocked}
+                      courses={courses}
+                      currentSubject={currentSubject}
+                      progressData={progressData}
+                      onShowLockTooltip={handleShowLockTooltip}
+                      levelIndex={index}
+                      exerciseTop={exerciseTopValue}
+                      onNonExerciseLayout={level.unitType !== "exercise" ? handleNonExerciseLayout : undefined}
+                    />
+                  );
+                })}
+              </RNView>
             </RNView>
-          </RNView>
-        ))}
+          );
+        })}
       </ScrollView>
     );
   };
@@ -1024,6 +1069,7 @@ const styles = StyleSheet.create({
     padding: 24,
     flexDirection: "column",
     alignItems: "center",
+    position: 'relative',
   },
   levelContainer: {
     alignItems: "center",
