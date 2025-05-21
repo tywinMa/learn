@@ -11,21 +11,13 @@ import {
   Modal,
 } from "react-native";
 import { Text, View } from "@/components/Themed";
-import {
-  Ionicons,
-  FontAwesome5,
-  MaterialCommunityIcons,
-} from "@expo/vector-icons";
+import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore
 import { useRouter, useLocalSearchParams } from "expo-router";
-import {
-  getMultipleUnitProgress,
-  USER_ID as PROGRESS_USER_ID,
-  type UnitProgress,
-} from "../services/progressService";
+import { getMultipleUnitProgress, USER_ID as PROGRESS_USER_ID, type UnitProgress } from "../services/progressService";
 import { getUserPoints } from "../services/pointsService";
 import SubjectModal from "@/components/SubjectModal";
 import { useSubject, Subject } from "@/hooks/useSubject";
@@ -70,6 +62,7 @@ const Level = ({
   currentSubject,
   progressData,
   onShowLockTooltip,
+  unitHeight,
 }: {
   level: any;
   color: string;
@@ -81,6 +74,7 @@ const Level = ({
   currentSubject: any;
   progressData: Record<string, UnitProgress>;
   onShowLockTooltip: (levelId: string, event: any) => void;
+  unitHeight: React.MutableRefObject<any>;
 }) => {
   // @ts-ignore - 添加router变量
   const router = useRouter();
@@ -88,16 +82,13 @@ const Level = ({
   // 计算关卡是否锁定
   // 第一个关卡默认解锁，其他关卡需要前一个关卡达到3星才解锁
   // 但大单元的第一个小单元（格式为x-1）也可以访问
-  const isFirstLessonOfUnit =
-    level &&
-    level.id &&
-    level.id.split("-").length === 3 &&
-    level.id.split("-")[2] === "1";
+  const isFirstLessonOfUnit = level && level.id && level.id.split("-").length === 3 && level.id.split("-")[2] === "1";
   const isLocked = previousLevelUnlocked === false && !isFirstLessonOfUnit;
+  const isExerciseUnit = level.unitType === "exercise";
+  const exerciseUnitPosition = level.position;
 
   // 获取星星数量
   const stars = progress?.stars || 0;
-
   // 处理关卡点击
   const handleLevelPress = (event: any) => {
     if (isLocked) {
@@ -210,6 +201,32 @@ const Level = ({
     };
   };
 
+  const getExerciseLevelContainerStyle = () => {
+    // TODO
+    const topPosition = unitHeight.current.reduce((result: any, current: any, index: any) => {
+      if (index === 0) {
+        return [current];
+      } else {
+        return [...result, result[result.length - 1] + current];
+      }
+    }, []);
+    console.log("topPosition", topPosition);
+    if (exerciseUnitPosition === "left") {
+      return {
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+      };
+    } else {
+      return {
+        top: 0,
+        left: 0,
+        right: 0,
+      };
+    }
+  };
+
   const getIconName = () => {
     if (isLocked) {
       return "lock";
@@ -247,12 +264,19 @@ const Level = ({
   };
 
   return (
-    <RNView style={styles.levelContainer}>
-      <TouchableOpacity
-        style={[styles.levelBadge, getBadgeStyle()]}
-        disabled={level.locked}
-        onPress={handleLevelPress}
-      >
+    <RNView
+      style={[
+        isExerciseUnit
+          ? { ...styles.exerciseLevelContainer, ...getExerciseLevelContainerStyle() }
+          : styles.levelContainer,
+      ]}
+      onLayout={(event) => {
+        const { height } = event.nativeEvent.layout;
+        // 使用level.id作为唯一键记录高度
+        unitHeight.current[level.id] = height;
+      }}
+    >
+      <TouchableOpacity style={[styles.levelBadge, getBadgeStyle()]} disabled={level.locked} onPress={handleLevelPress}>
         <FontAwesome5 name={getIconName()} size={22} color={getIconColor()} />
       </TouchableOpacity>
 
@@ -274,7 +298,7 @@ const Level = ({
       </RNView>
 
       {/* 连接线 */}
-      {!isLast && (
+      {!isLast && !isExerciseUnit && (
         <RNView
           style={[
             styles.connector,
@@ -298,9 +322,7 @@ export default function HomeScreen() {
   // 连续天数 临时数据，实际数据从后端获取
   const [streak, setStreak] = useState(0);
   const [xp, setXp] = useState(0);
-  const [progressData, setProgressData] = useState<
-    Record<string, UnitProgress>
-  >({});
+  const [progressData, setProgressData] = useState<Record<string, UnitProgress>>({});
   const [error, setError] = useState<string | null>(null);
 
   // 从expo-router获取刷新触发参数
@@ -321,7 +343,8 @@ export default function HomeScreen() {
   const [showLockTooltip, setShowLockTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
-  const unitHeight = useRef<any>([]);
+  const bigUnitHeight = useRef<any>([]);
+  const unitHeight = useRef<any>({});
 
   // 添加课程数据修复函数，确保颜色信息正确
   const ensureCoursesColors = (coursesData: any[]): any[] => {
@@ -332,8 +355,7 @@ export default function HomeScreen() {
       const primaryColor = course.color || currentSubject.color || "#58CC02";
 
       // 确保次要色存在，否则基于主色生成
-      const secondaryColor =
-        course.secondaryColor || getLighterColor(primaryColor);
+      const secondaryColor = course.secondaryColor || getLighterColor(primaryColor);
 
       return {
         ...course,
@@ -415,8 +437,7 @@ export default function HomeScreen() {
 
       // 使用单元自己的颜色或回退到学科颜色
       const unitColor = firstUnit.color || subject.color;
-      const unitSecondaryColor =
-        firstUnit.secondaryColor || getLighterColor(unitColor);
+      const unitSecondaryColor = firstUnit.secondaryColor || getLighterColor(unitColor);
 
       return {
         id: `unit${index + 1}`,
@@ -468,24 +489,21 @@ export default function HomeScreen() {
     const lighterB = Math.min(255, b + 50);
 
     // 转回十六进制
-    return `#${lighterR.toString(16).padStart(2, "0")}${lighterG
+    return `#${lighterR.toString(16).padStart(2, "0")}${lighterG.toString(16).padStart(2, "0")}${lighterB
       .toString(16)
-      .padStart(2, "0")}${lighterB.toString(16).padStart(2, "0")}`;
+      .padStart(2, "0")}`;
   };
 
   // 监听滚动
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const currentScrollY = event.nativeEvent.contentOffset.y;
-    const height = unitHeight.current.reduce(
-      (result: any, current: any, index: any) => {
-        if (index === 0) {
-          return [current];
-        } else {
-          return [...result, result[result.length - 1] + current];
-        }
-      },
-      []
-    );
+    const height = bigUnitHeight.current.reduce((result: any, current: any, index: any) => {
+      if (index === 0) {
+        return [current];
+      } else {
+        return [...result, result[result.length - 1] + current];
+      }
+    }, []);
     let currentUnit = 0;
     for (let i = 0; i < height.length; i++) {
       if (currentScrollY + 200 < height[i]) {
@@ -588,10 +606,7 @@ export default function HomeScreen() {
   }, [refreshTrigger, urlSubjectCode]);
 
   // 按阶段获取进度数据的函数
-  const fetchProgressByStage = async (
-    stageIndex: number,
-    coursesData = courses
-  ) => {
+  const fetchProgressByStage = async (stageIndex: number, coursesData = courses) => {
     if (stageIndex < 0 || stageIndex >= coursesData.length) return;
 
     try {
@@ -625,9 +640,7 @@ export default function HomeScreen() {
 
         try {
           // 获取学科详情
-          const response = await fetch(
-            `${API_BASE_URL}/api/subjects/${urlSubjectCode}`
-          );
+          const response = await fetch(`${API_BASE_URL}/api/subjects/${urlSubjectCode}`);
           if (response.ok) {
             const result = await response.json();
             if (result.success && result.data) {
@@ -677,12 +690,9 @@ export default function HomeScreen() {
 
     // 使用默认颜色作为备选方案
     const primaryColor = course.color || "#58CC02";
-    const secondaryColor =
-      course.secondaryColor || getLighterColor(primaryColor);
+    const secondaryColor = course.secondaryColor || getLighterColor(primaryColor);
 
-    console.log(
-      `FixedBanner渲染：单元=${validUnit}, 标题=${course.title}, 颜色=${primaryColor}`
-    );
+    console.log(`FixedBanner渲染：单元=${validUnit}, 标题=${course.title}, 颜色=${primaryColor}`);
 
     return (
       <RNView style={styles.fixedBannerContainer}>
@@ -704,12 +714,12 @@ export default function HomeScreen() {
   // 处理显示tooltip的函数
   const handleShowLockTooltip = (levelId: string, event: any) => {
     if (showLockTooltip) return;
-    
+
     const { pageY } = event.nativeEvent;
     // 固定水平位置(屏幕左侧)，只使用垂直位置
-    setTooltipPosition({ x: 20, y: pageY }); 
+    setTooltipPosition({ x: 20, y: pageY });
     setShowLockTooltip(true);
-    
+
     // 3秒后自动隐藏tooltip
     setTimeout(() => {
       setShowLockTooltip(false);
@@ -722,9 +732,7 @@ export default function HomeScreen() {
       return (
         <RNView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={currentSubject.color} />
-          <Text style={styles.loadingText}>
-            正在加载{currentSubject.name}学科内容...
-          </Text>
+          <Text style={styles.loadingText}>正在加载{currentSubject.name}学科内容...</Text>
         </RNView>
       );
     }
@@ -732,19 +740,10 @@ export default function HomeScreen() {
     if (courses.length === 0) {
       return (
         <RNView style={styles.emptyContainer}>
-          <MaterialCommunityIcons
-            name="book-open-variant"
-            size={64}
-            color="#ccc"
-          />
-          <Text style={styles.emptyText}>
-            暂无{currentSubject.name}学科内容
-          </Text>
+          <MaterialCommunityIcons name="book-open-variant" size={64} color="#ccc" />
+          <Text style={styles.emptyText}>暂无{currentSubject.name}学科内容</Text>
           <TouchableOpacity
-            style={[
-              styles.retryButton,
-              { backgroundColor: currentSubject.color },
-            ]}
+            style={[styles.retryButton, { backgroundColor: currentSubject.color }]}
             onPress={() => fetchSubjectCourses(currentSubject.code)}
           >
             <Text style={styles.retryButtonText}>重新加载</Text>
@@ -774,7 +773,7 @@ export default function HomeScreen() {
             style={styles.unitContainer}
             onLayout={(event) => {
               const { height } = event.nativeEvent.layout;
-              unitHeight.current[courseIndex] = height;
+              bigUnitHeight.current[courseIndex] = height;
             }}
           >
             {/* 普通文字标题 */}
@@ -801,28 +800,17 @@ export default function HomeScreen() {
                   // If not the first level in its own course section
                   const prevLevelInSection = course.levels[index - 1];
                   if (prevLevelInSection) {
-                    const prevLevelProgress =
-                      progressData[prevLevelInSection.id];
-                    prevLevelFullyUnlocked =
-                      prevLevelProgress?.stars >= 3 ||
-                      prevLevelProgress?.completed === true;
+                    const prevLevelProgress = progressData[prevLevelInSection.id];
+                    prevLevelFullyUnlocked = prevLevelProgress?.stars >= 3 || prevLevelProgress?.completed === true;
                   }
                 } else if (courseIndex > 0) {
                   // If it's the first level of the current course (courseIndex > 0), but not the first course (index > 0)
                   const prevCourse = courses[courseIndex - 1];
-                  if (
-                    prevCourse &&
-                    prevCourse.levels &&
-                    prevCourse.levels.length > 0
-                  ) {
-                    const lastLevelOfPrevCourse =
-                      prevCourse.levels[prevCourse.levels.length - 1];
+                  if (prevCourse && prevCourse.levels && prevCourse.levels.length > 0) {
+                    const lastLevelOfPrevCourse = prevCourse.levels[prevCourse.levels.length - 1];
                     if (lastLevelOfPrevCourse) {
-                      const prevLevelProgress =
-                        progressData[lastLevelOfPrevCourse.id];
-                      prevLevelFullyUnlocked =
-                        prevLevelProgress?.stars >= 3 ||
-                        prevLevelProgress?.completed === true;
+                      const prevLevelProgress = progressData[lastLevelOfPrevCourse.id];
+                      prevLevelFullyUnlocked = prevLevelProgress?.stars >= 3 || prevLevelProgress?.completed === true;
                     }
                   }
                 } else {
@@ -847,6 +835,7 @@ export default function HomeScreen() {
                     currentSubject={currentSubject}
                     progressData={progressData}
                     onShowLockTooltip={handleShowLockTooltip}
+                    unitHeight={unitHeight}
                   />
                 );
               })}
@@ -864,9 +853,7 @@ export default function HomeScreen() {
 
     try {
       // 获取学科的单元数据
-      const response = await fetch(
-        `${API_BASE_URL}/api/subjects/${subjectCode}/units`
-      );
+      const response = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}/units`);
 
       if (!response.ok) {
         throw new Error(`获取${subjectCode}学科单元失败`);
@@ -876,9 +863,7 @@ export default function HomeScreen() {
 
       if (result.success) {
         // 获取学科信息
-        const subjectResponse = await fetch(
-          `${API_BASE_URL}/api/subjects/${subjectCode}`
-        );
+        const subjectResponse = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}`);
         let subject = currentSubject;
 
         if (subjectResponse.ok) {
@@ -914,23 +899,14 @@ export default function HomeScreen() {
     <RNView style={styles.container}>
       {/* 顶部状态栏 */}
       <RNView style={styles.statsBar}>
-        <TouchableOpacity
-          style={styles.statItem}
-          onPress={() => setShowSubjectModal(true)}
-        >
-          <MaterialCommunityIcons
-            name={currentSubject.iconName as any}
-            size={26}
-            color={currentSubject.color}
-          />
+        <TouchableOpacity style={styles.statItem} onPress={() => setShowSubjectModal(true)}>
+          <MaterialCommunityIcons name={currentSubject.iconName as any} size={26} color={currentSubject.color} />
         </TouchableOpacity>
 
         <RNView style={styles.statItem}>
           <RNView style={styles.streakContainer}>
             <Ionicons name="flame" size={22} color="#FF9600" />
-            <Text style={[styles.statText, { color: "#FF9600" }]}>
-              {streak}
-            </Text>
+            <Text style={[styles.statText, { color: "#FF9600" }]}>{streak}</Text>
           </RNView>
         </RNView>
 
@@ -958,7 +934,7 @@ export default function HomeScreen() {
 
       {/* 锁定提示tooltip - 关卡左侧显示 */}
       {showLockTooltip && (
-        <RNView 
+        <RNView
           style={[
             styles.lockTooltip,
             {
@@ -1096,6 +1072,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 12,
     width: "100%",
+  },
+  exerciseLevelContainer: {
+    position: "absolute",
   },
   levelBadge: {
     width: 60,
