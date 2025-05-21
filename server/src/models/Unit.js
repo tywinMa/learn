@@ -80,6 +80,12 @@ const Unit = sequelize.define('Unit', {
     defaultValue: 'default',
     comment: '特殊单元的位置：default-默认位置，left-左侧，right-右侧'
   },
+  isMajor: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+    comment: '是否为大单元，true 表示大单元，false 表示小单元'
+  },
 }, {
   timestamps: true,
   comment: '单元表，存储课程单元信息',

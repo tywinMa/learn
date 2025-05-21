@@ -65,8 +65,8 @@ const Level = ({
   progressData,
   onShowLockTooltip,
   levelIndex,
-  exerciseTop, // New prop for calculated top position for exercise units
-  onNonExerciseLayout, // New prop for reporting layout of non-exercise units
+  exerciseTop,
+  onNonExerciseLayout,
 }: {
   level: any;
   color: string;
@@ -79,8 +79,8 @@ const Level = ({
   progressData: Record<string, UnitProgress>;
   onShowLockTooltip: (levelId: string, event: any) => void;
   levelIndex: number;
-  exerciseTop?: number; // Optional: calculated top position for exercise units
-  onNonExerciseLayout?: (levelId: string, layout: { height: number, y: number }) => void; // Optional: callback for layout
+  exerciseTop?: number;
+  onNonExerciseLayout?: (levelId: string, layout: { height: number, y: number }) => void;
 }) => {
   // @ts-ignore - 添加router变量
   const router = useRouter();
@@ -92,6 +92,8 @@ const Level = ({
   const isLocked = previousLevelUnlocked === false && !isFirstLessonOfUnit;
   const isExerciseUnit = level.unitType === "exercise";
   const exerciseUnitPosition = level.position;
+  // 判断是否为大单元
+  const isMajorUnit = level.isMajor === true;
 
   // 获取星星数量
   const stars = progress?.stars || 0;
@@ -169,10 +171,21 @@ const Level = ({
 
   // 根据类型和状态选择样式
   const getBadgeStyle = () => {
+    // 大单元基础样式 - 更大的徽章
+    const badgeBaseStyle = isMajorUnit 
+      ? { 
+          width: 80, 
+          height: 80, 
+          borderRadius: 40,
+          borderWidth: 3
+        } 
+      : {};
+
     if (isLocked) {
       return {
         backgroundColor: "#E5E5E5",
         borderColor: "#CCCCCC",
+        ...badgeBaseStyle
       };
     }
 
@@ -181,8 +194,9 @@ const Level = ({
       return {
         backgroundColor: "white",
         borderColor: color,
-        borderWidth: 2,
+        borderWidth: isMajorUnit ? 3 : 2,
         borderStyle: "dashed" as "dashed",
+        ...badgeBaseStyle
       };
     }
 
@@ -190,13 +204,15 @@ const Level = ({
       return {
         backgroundColor: color,
         borderColor: color,
+        ...badgeBaseStyle
       };
     }
 
     return {
       backgroundColor: "white",
       borderColor: color,
-      borderWidth: 2,
+      borderWidth: isMajorUnit ? 3 : 2,
+      ...badgeBaseStyle
     };
   };
 
@@ -221,6 +237,17 @@ const Level = ({
   };
 
   const getIconName = () => {
+    // 大单元使用特定图标
+    if (isMajorUnit) {
+      if (isLocked) {
+        return "lock";
+      }
+      if (isCompleted) {
+        return "crown";  // 使用皇冠图标表示已完成的大单元
+      }
+      return "bookmark";  // 使用书签图标表示大单元
+    }
+
     if (isLocked) {
       return "lock";
     }
@@ -250,6 +277,18 @@ const Level = ({
     return color;
   };
 
+  const getTitleStyle = () => {
+    // 大单元使用更大、更粗的标题文字
+    return {
+      ...styles.levelTitle,
+      ...(isMajorUnit && { 
+        fontSize: 18, 
+        fontWeight: '700' as 'bold',
+        marginTop: 8  // 增加大单元标题与徽章的间距
+      })
+    };
+  };
+
   return (
     <RNView
       style={[
@@ -265,11 +304,15 @@ const Level = ({
       }}
     >
       <TouchableOpacity style={[styles.levelBadge, getBadgeStyle()]} disabled={level.locked} onPress={handleLevelPress}>
-        <FontAwesome5 name={getIconName()} size={22} color={getIconColor()} />
+        <FontAwesome5 
+          name={getIconName()} 
+          size={isMajorUnit ? 28 : 22} 
+          color={getIconColor()} 
+        />
       </TouchableOpacity>
 
       {/* 关卡标题 */}
-      <Text style={styles.levelTitle}>{level.title}</Text>
+      <Text style={getTitleStyle()}>{level.title}</Text>
 
       {/* 星星评分 */}
       <RNView style={styles.starsContainer}>
@@ -277,7 +320,7 @@ const Level = ({
           <FontAwesome5
             key={i}
             name="star"
-            size={10}
+            size={isMajorUnit ? 14 : 10}
             solid={i < stars}
             color={i < stars ? "#FFD900" : "#E0E0E0"}
             style={{ marginHorizontal: 1 }}
@@ -292,6 +335,7 @@ const Level = ({
             styles.connector,
             {
               backgroundColor: isCompleted ? color : "#E5E5E5",
+              width: isMajorUnit ? 4 : 3,  // 大单元使用更粗的连接线
             },
           ]}
         />
@@ -423,20 +467,38 @@ export default function HomeScreen() {
       return a.order - b.order;
     });
 
-    // 按level分组单元
-    const unitsByLevel: Record<number, any[]> = {};
+    // 按大单元分组
+    // 先找出所有的大单元 (isMajor = true)
+    const majorUnits = sortedUnits.filter(unit => unit.isMajor === true);
+    const unitsByMajor: Record<string, any[]> = {};
 
-    sortedUnits.forEach((unit) => {
-      const level = unit.level;
-      if (!unitsByLevel[level]) {
-        unitsByLevel[level] = [];
+    // 使用每个大单元的ID作为键初始化分组
+    majorUnits.forEach(majorUnit => {
+      unitsByMajor[majorUnit.id] = [majorUnit];
+    });
+
+    // 将小单元添加到对应的大单元组中
+    sortedUnits.forEach(unit => {
+      // 跳过大单元，因为它们已经在分组中了
+      if (unit.isMajor === true) return;
+      
+      // 如果有parentId，将小单元添加到对应的大单元组
+      if (unit.parentId && unitsByMajor[unit.parentId]) {
+        unitsByMajor[unit.parentId].push(unit);
+      } else {
+        // 如果没有找到对应的大单元组，使用level分组的后备逻辑
+        const levelKey = `level-${unit.level}`;
+        if (!unitsByMajor[levelKey]) {
+          unitsByMajor[levelKey] = [];
+        }
+        unitsByMajor[levelKey].push(unit);
       }
-      unitsByLevel[level].push(unit);
     });
 
     // 转换为课程格式
-    const formattedCourses = Object.keys(unitsByLevel).map((level, index) => {
-      const units = unitsByLevel[Number(level)];
+    const formattedCourses = Object.keys(unitsByMajor).map((majorUnitId, index) => {
+      const units = unitsByMajor[majorUnitId];
+      // 第一个单元通常是大单元本身
       const firstUnit = units[0];
 
       // 使用单元自己的颜色或回退到学科颜色
@@ -462,6 +524,7 @@ export default function HomeScreen() {
               title: u.title || "未命名单元",
               unitType: u.unitType || "normal",
               position: u.position || "default",
+              isMajor: u.isMajor || false
             };
           }
 
@@ -473,6 +536,7 @@ export default function HomeScreen() {
             title: u.title || "未命名关卡",
             unitType: u.unitType || "normal",
             position: u.position || "default",
+            isMajor: u.isMajor || false
           };
         }),
       };

@@ -99,7 +99,8 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 1,
         color: chapterColors.math[0].primary,
-        secondaryColor: chapterColors.math[0].secondary
+        secondaryColor: chapterColors.math[0].secondary,
+        isMajor: true
       });
 
       // 小节：一元二次方程
@@ -112,7 +113,8 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 2,
         color: chapterColors.math[0].primary,
-        secondaryColor: chapterColors.math[0].secondary
+        secondaryColor: chapterColors.math[0].secondary,
+        isMajor: false
       });
 
       // 小节：因式分解
@@ -125,7 +127,8 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 3,
         color: chapterColors.math[0].primary,
-        secondaryColor: chapterColors.math[0].secondary
+        secondaryColor: chapterColors.math[0].secondary,
+        isMajor: false
       });
 
       // 小节：配方法
@@ -138,7 +141,8 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 4,
         color: chapterColors.math[0].primary,
-        secondaryColor: chapterColors.math[0].secondary
+        secondaryColor: chapterColors.math[0].secondary,
+        isMajor: false
       });
 
       // 小节：公式法
@@ -151,7 +155,8 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 5,
         color: chapterColors.math[0].primary,
-        secondaryColor: chapterColors.math[0].secondary
+        secondaryColor: chapterColors.math[0].secondary,
+        isMajor: false
       });
 
       // 小节：二次函数
@@ -164,7 +169,8 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 6,
         color: chapterColors.math[0].primary,
-        secondaryColor: chapterColors.math[0].secondary
+        secondaryColor: chapterColors.math[0].secondary,
+        isMajor: false
       });
 
       // 小节：二次函数应用
@@ -177,7 +183,8 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 7,
         color: chapterColors.math[0].primary,
-        secondaryColor: chapterColors.math[0].secondary
+        secondaryColor: chapterColors.math[0].secondary,
+        isMajor: false
       });
 
       // 大章节：几何
@@ -189,7 +196,8 @@ const initSubjectsAndUnits = async () => {
         level: 2,
         order: 1,
         color: chapterColors.math[1].primary,
-        secondaryColor: chapterColors.math[1].secondary
+        secondaryColor: chapterColors.math[1].secondary,
+        isMajor: true
       });
 
       // 小节：三角形
@@ -202,7 +210,8 @@ const initSubjectsAndUnits = async () => {
         level: 2,
         order: 2,
         color: chapterColors.math[1].primary,
-        secondaryColor: chapterColors.math[1].secondary
+        secondaryColor: chapterColors.math[1].secondary,
+        isMajor: false
       });
 
       // 小节：直角三角形
@@ -215,7 +224,8 @@ const initSubjectsAndUnits = async () => {
         level: 2,
         order: 3,
         color: chapterColors.math[1].primary,
-        secondaryColor: chapterColors.math[1].secondary
+        secondaryColor: chapterColors.math[1].secondary,
+        isMajor: false
       });
 
       // 小节：四边形
@@ -228,7 +238,8 @@ const initSubjectsAndUnits = async () => {
         level: 2,
         order: 4,
         color: chapterColors.math[1].primary,
-        secondaryColor: chapterColors.math[1].secondary
+        secondaryColor: chapterColors.math[1].secondary,
+        isMajor: false
       });
 
       // 小节：圆
@@ -241,7 +252,8 @@ const initSubjectsAndUnits = async () => {
         level: 2,
         order: 5,
         color: chapterColors.math[1].primary,
-        secondaryColor: chapterColors.math[1].secondary
+        secondaryColor: chapterColors.math[1].secondary,
+        isMajor: false
       });
 
       // 大章节：统计与概率
@@ -253,7 +265,8 @@ const initSubjectsAndUnits = async () => {
         level: 3,
         order: 1,
         color: chapterColors.math[2].primary,
-        secondaryColor: chapterColors.math[2].secondary
+        secondaryColor: chapterColors.math[2].secondary,
+        isMajor: true
       });
 
       // 小节：数据分析
@@ -266,7 +279,8 @@ const initSubjectsAndUnits = async () => {
         level: 3,
         order: 2,
         color: chapterColors.math[2].primary,
-        secondaryColor: chapterColors.math[2].secondary
+        secondaryColor: chapterColors.math[2].secondary,
+        isMajor: false
       });
 
       // 小节：概率基础
@@ -279,7 +293,8 @@ const initSubjectsAndUnits = async () => {
         level: 3,
         order: 3,
         color: chapterColors.math[2].primary,
-        secondaryColor: chapterColors.math[2].secondary
+        secondaryColor: chapterColors.math[2].secondary,
+        isMajor: false
       });
 
       // 小节：概率论基础
@@ -292,7 +307,8 @@ const initSubjectsAndUnits = async () => {
         level: 3,
         order: 4,
         color: chapterColors.math[2].primary,
-        secondaryColor: chapterColors.math[2].secondary
+        secondaryColor: chapterColors.math[2].secondary,
+        isMajor: false
       });
     }
 
@@ -308,7 +324,8 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 1,
         color: chapterColors.physics[0].primary,
-        secondaryColor: chapterColors.physics[0].secondary
+        secondaryColor: chapterColors.physics[0].secondary,
+        isMajor: true
       });
 
       // 小节：牛顿运动定律
@@ -321,7 +338,8 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 2,
         color: chapterColors.physics[0].primary,
-        secondaryColor: chapterColors.physics[0].secondary
+        secondaryColor: chapterColors.physics[0].secondary,
+        isMajor: false
       });
 
       // 大章节：电磁学
@@ -333,7 +351,8 @@ const initSubjectsAndUnits = async () => {
         level: 2,
         order: 1,
         color: chapterColors.physics[1].primary,
-        secondaryColor: chapterColors.physics[1].secondary
+        secondaryColor: chapterColors.physics[1].secondary,
+        isMajor: true
       });
 
       // 小节：电场
@@ -346,7 +365,8 @@ const initSubjectsAndUnits = async () => {
         level: 2,
         order: 2,
         color: chapterColors.physics[1].primary,
-        secondaryColor: chapterColors.physics[1].secondary
+        secondaryColor: chapterColors.physics[1].secondary,
+        isMajor: false
       });
     }
 
@@ -362,7 +382,8 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 1,
         color: chapterColors.chemistry[0].primary,
-        secondaryColor: chapterColors.chemistry[0].secondary
+        secondaryColor: chapterColors.chemistry[0].secondary,
+        isMajor: true
       });
 
       // 小节：元素周期表
@@ -375,7 +396,8 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 2,
         color: chapterColors.chemistry[0].primary,
-        secondaryColor: chapterColors.chemistry[0].secondary
+        secondaryColor: chapterColors.chemistry[0].secondary,
+        isMajor: false
       });
     }
 
@@ -391,7 +413,8 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 1,
         color: chapterColors.biology[0].primary,
-        secondaryColor: chapterColors.biology[0].secondary
+        secondaryColor: chapterColors.biology[0].secondary,
+        isMajor: true
       });
 
       // 小节：细胞结构
@@ -404,7 +427,8 @@ const initSubjectsAndUnits = async () => {
         level: 1,
         order: 2,
         color: chapterColors.biology[0].primary,
-        secondaryColor: chapterColors.biology[0].secondary
+        secondaryColor: chapterColors.biology[0].secondary,
+        isMajor: false
       });
     }
 

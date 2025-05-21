@@ -118,6 +118,7 @@
 - **`Unit`**: 学习单元，每个单元属于一个学科
   - 新增 `content` 字段：存储单元的详细学习内容文本（富文本格式）
   - 新增 `media` 字段：存储媒体资源数组（如视频、图片），JSON格式
+  - 新增 `isMajor` 字段 (Boolean)：用于区分大单元 (true) 和小单元 (false)。
 - **`Exercise`**: 练习题，每个题目属于一个单元
 - **`UserRecord`**: 用户答题记录
 - **`UserPoints`**: 用户积分
@@ -305,6 +306,7 @@
 - **Unit模型集成学习内容**:
   - 添加 `content` 字段存储单元学习内容（富文本格式）
   - 添加 `media` 字段存储媒体资源数组（JSON格式）
+  - 新增 `isMajor` 字段 (Boolean)：用于区分大单元 (true) 和小单元 (false)。
   - 移除了独立的 `LearningContent` 模型，简化了数据结构
 
 - **API端点更新**:
