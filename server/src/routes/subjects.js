@@ -122,12 +122,6 @@ router.get('/:code/units', async (req, res) => {
         where: { unitId: unit.id }
       });
 
-      // 判断是否为挑战级别
-      const isChallenge = unit.title.includes('挑战') ||
-        unit.title.includes('测试') ||
-        unit.title.includes('考试') ||
-        unit.difficulty > 7;
-
       // 添加单元图标URL
       unitData.iconUrl = getIconUrlByTitle(unit.title);
 
@@ -155,7 +149,6 @@ router.get('/:code/units', async (req, res) => {
       return {
         ...unitData,
         exercisesCount,
-        isChallenge,
         subject: code, // 使用subject字段替代subjectCode
       };
     }));
@@ -195,12 +188,6 @@ router.get('/units/:unitId', async (req, res) => {
     // 获取单元数据
     const unitData = unit.toJSON();
 
-    // 判断是否为挑战级别
-    const isChallenge = unit.title.includes('挑战') ||
-      unit.title.includes('测试') ||
-      unit.title.includes('考试') ||
-      unit.difficulty > 7;
-
     // 添加单元图标URL
     unitData.iconUrl = getIconUrlByTitle(unit.title);
 
@@ -218,7 +205,6 @@ router.get('/units/:unitId', async (req, res) => {
     const enhancedUnit = {
       ...unitData,
       exercisesCount,
-      isChallenge
     };
 
     res.json({
@@ -253,12 +239,6 @@ router.get('/units/:unitId/children', async (req, res) => {
         where: { unitId: unit.id }
       });
 
-      // 判断是否为挑战级别
-      const isChallenge = unit.title.includes('挑战') ||
-        unit.title.includes('测试') ||
-        unit.title.includes('考试') ||
-        unit.difficulty > 7;
-
       // 添加单元图标URL
       unitData.iconUrl = getIconUrlByTitle(unit.title);
 
@@ -276,7 +256,6 @@ router.get('/units/:unitId/children', async (req, res) => {
       return {
         ...unitData,
         exercisesCount,
-        isChallenge
       };
     }));
 

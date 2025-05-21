@@ -141,7 +141,6 @@
 - **`GET /:code/units`**: 获取特定学科下的所有单元。
   - 可选查询参数 `level` 筛选单元级别。
   - 返回的单元信息包含 `id`, `title`, `level`, `order`, `subject` (学科代码), `exercisesCount` (该单元练习题数量), `unitType` (单元类型，值为"normal"或"exercise"), `position` (位置信息), `iconUrl` (通过 `getIconUrlByTitle`), `color` (优先用数据库值，否则按level/order生成), `secondaryColor` (基于主颜色生成), `code` (单元自身的code，如 `1-1`)。按 `level` 和 `order` 排序。
-  - **注意**: 虽然后端仍会返回 `isChallenge` 字段（根据标题或难度判断），但前端已不再使用此字段，而是统一通过 `unitType` 字段区分关卡类型。
   - **注意**: 此API本身不直接处理单元的 `isCompleted` 或 `isLocked` 状态。这些状态的判断通常由客户端结合用户进度数据完成。
 - **`GET /units/:unitId`**: 获取特定单元的详细信息 (通过单元主键 `unitId`)。增强逻辑类似 `/:code/units` 中的单个单元。
 
