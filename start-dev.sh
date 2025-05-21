@@ -1,5 +1,42 @@
 #!/bin/bash
 
+# 设置颜色
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# 清理函数 - 用于终止所有相关进程
+cleanup() {
+  echo -e "\n${YELLOW}正在关闭所有服务...${NC}"
+  
+  # 关闭后端服务
+  if [ -n "$SERVER_PID" ]; then
+    echo -e "${YELLOW}终止后端服务进程: $SERVER_PID${NC}"
+    kill -15 $SERVER_PID 2>/dev/null || kill -9 $SERVER_PID 2>/dev/null
+  fi
+  
+  # 查找并终止所有占用相关端口的进程
+  PORT_PIDS1=$(lsof -t -i:3000 2>/dev/null)
+  if [ -n "$PORT_PIDS1" ]; then
+    echo -e "${YELLOW}终止占用3000端口的进程: $PORT_PIDS1${NC}"
+    kill -9 $PORT_PIDS1 2>/dev/null
+  fi
+
+  PORT_PIDS2=$(lsof -t -i:8082 2>/dev/null)
+  if [ -n "$PORT_PIDS2" ]; then
+    echo -e "${YELLOW}终止占用8082端口的进程: $PORT_PIDS2${NC}"
+    kill -9 $PORT_PIDS2 2>/dev/null
+  fi
+  
+  echo -e "${GREEN}所有服务已关闭${NC}"
+  exit 0
+}
+
+# 注册信号处理程序（捕获Ctrl+C和终止信号）
+trap cleanup SIGINT SIGTERM
+
+# 在启动前清理已有进程
 PORT_PIDS1=$(lsof -t -i:3000 2>/dev/null)
 if [ -n "$PORT_PIDS1" ]; then
   echo -e "${YELLOW}发现占用3000端口的进程: $PORT_PIDS1，正在终止...${NC}"
@@ -11,12 +48,6 @@ if [ -n "$PORT_PIDS2" ]; then
   echo -e "${YELLOW}发现占用8082端口的进程: $PORT_PIDS2，正在终止...${NC}"
   kill -9 $PORT_PIDS2 2>/dev/null
 fi
-
-# 设置颜色
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
 
 # 检查并终止已有的服务器进程
 echo -e "${YELLOW}检查并终止已有的服务器进程...${NC}"
@@ -47,16 +78,5 @@ cd "${0%/*}"
 echo -e "${GREEN}启动前端应用...${NC}"
 npm run web
 
-# 当前端应用关闭时，也关闭后端服务器
-
-PORT_PIDS1=$(lsof -t -i:3000 2>/dev/null)
-if [ -n "$PORT_PIDS1" ]; then
-  echo -e "${YELLOW}发现占用3000端口的进程: $PORT_PIDS1，正在终止...${NC}"
-  kill -9 $PORT_PIDS1 2>/dev/null
-fi
-
-PORT_PIDS2=$(lsof -t -i:8082 2>/dev/null)
-if [ -n "$PORT_PIDS2" ]; then
-  echo -e "${YELLOW}发现占用8082端口的进程: $PORT_PIDS2，正在终止...${NC}"
-  kill -9 $PORT_PIDS2 2>/dev/null
-fi
+# 当前端应用自然结束时也清理所有进程
+cleanup
