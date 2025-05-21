@@ -59,8 +59,8 @@ export default function StudyScreen() {
           return;
         }
 
-        // 直接使用lessonId，假定已包含学科前缀
-        const apiUrl = `${API_BASE_URL}/api/learning/${lessonId}`;
+        // 使用新的API路径
+        const apiUrl = `${API_BASE_URL}/api/unit-content/${lessonId}`;
 
         console.log("调用API:", apiUrl);
         const response = await fetch(apiUrl);
@@ -69,11 +69,43 @@ export default function StudyScreen() {
         }
 
         const data = await response.json();
-        console.log("获取到学习内容:", data);
+        console.log("获取到单元内容:", data);
 
         if (data.success) {
+          // 处理新的数据结构
+          const unitData = data.data;
+          const contentItems = [];
+          
+          // 如果有内容，添加为文本类型项
+          if (unitData.content) {
+            contentItems.push({
+              id: `${unitData.id}-content`,
+              unitId: unitData.id,
+              title: unitData.title,
+              content: unitData.content,
+              order: 1,
+              type: 'text'
+            });
+          }
+          
+          // 如果有媒体内容，将每个媒体添加为单独的项
+          if (unitData.media && Array.isArray(unitData.media)) {
+            unitData.media.forEach((media: { title?: string; url: string; type: string; metadata?: any }, index: number) => {
+              contentItems.push({
+                id: `${unitData.id}-media-${index}`,
+                unitId: unitData.id,
+                title: media.title || `${unitData.title} 媒体 ${index + 1}`,
+                content: '',
+                mediaUrl: media.url,
+                order: index + 2, // 文本内容之后
+                type: media.type,
+                metadata: media.metadata
+              });
+            });
+          }
+          
           // 按order字段排序
-          const sortedContents = data.data.sort((a: any, b: any) => a.order - b.order);
+          const sortedContents = contentItems.sort((a, b) => a.order - b.order);
           setLearningContents(sortedContents);
         } else {
           setError(data.message || "获取学习内容失败");

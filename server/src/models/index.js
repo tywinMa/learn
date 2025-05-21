@@ -2,7 +2,6 @@ const Exercise = require('./Exercise');
 const UserRecord = require('./UserRecord');
 const WrongExercise = require('./WrongExercise');
 const UserPoints = require('./UserPoints');
-const LearningContent = require('./LearningContent');
 const Subject = require('./Subject');
 const Unit = require('./Unit');
 const UnitProgress = require('./UnitProgress');
@@ -18,16 +17,9 @@ Unit.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 Subject.hasMany(Exercise, { foreignKey: 'subject', sourceKey: 'code' });
 Exercise.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 
-// 学科与学习内容之间的关系
-Subject.hasMany(LearningContent, { foreignKey: 'subject', sourceKey: 'code' });
-LearningContent.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
-
-// 单元与练习题、学习内容之间的关系
+// 单元与练习题之间的关系
 Unit.hasMany(Exercise, { foreignKey: 'unitId', sourceKey: 'id' });
 Exercise.belongsTo(Unit, { foreignKey: 'unitId', targetKey: 'id' });
-
-Unit.hasMany(LearningContent, { foreignKey: 'unitId', sourceKey: 'id' });
-LearningContent.belongsTo(Unit, { foreignKey: 'unitId', targetKey: 'id' });
 
 // Exercise 和 UserRecord 之间的关系
 Exercise.hasMany(UserRecord, { foreignKey: 'exerciseId', sourceKey: 'id' });
@@ -89,7 +81,6 @@ module.exports = {
   UserRecord,
   WrongExercise,
   UserPoints,
-  LearningContent,
   Subject,
   Unit,
   UnitProgress,

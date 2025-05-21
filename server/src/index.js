@@ -6,7 +6,7 @@ const { testConnection } = require('./config/database');
 const exercisesRoutes = require('./routes/exercises');
 const userRecordsRoutes = require('./routes/userRecords');
 const userPointsRoutes = require('./routes/userPoints');
-const learningContentRoutes = require('./routes/learningContent');
+const unitContentRoutes = require('./routes/unitContent');
 const subjectsRoutes = require('./routes/subjects');
 const unitsRouter = require('./routes/units');
 
@@ -32,7 +32,7 @@ app.options('*', cors());
 app.use('/api/exercises', exercisesRoutes);
 app.use('/api/users', userRecordsRoutes);
 app.use('/api/users', userPointsRoutes);
-app.use('/api/learning', learningContentRoutes);
+app.use('/api/unit-content', unitContentRoutes);
 app.use('/api/subjects', subjectsRoutes);
 app.use('/api/units', unitsRouter);
 

@@ -25,6 +25,16 @@ const Unit = sequelize.define('Unit', {
     allowNull: true,
     comment: '单元描述'
   },
+  content: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: '单元学习内容，支持富文本'
+  },
+  media: {
+    type: DataTypes.JSON,
+    allowNull: true,
+    comment: '媒体资源数组，包含图片、视频等媒体资源'
+  },
   parentId: {
     type: DataTypes.STRING,
     allowNull: true,

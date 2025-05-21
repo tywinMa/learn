@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Subject, Unit, LearningContent, Exercise } = require('../models');
+const { Subject, Unit, Exercise } = require('../models');
 const { Op } = require('sequelize');
 
 // 获取所有学科 - 增加颜色和图标信息
