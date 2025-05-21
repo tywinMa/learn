@@ -62,7 +62,6 @@ const Level = ({
   currentSubject,
   progressData,
   onShowLockTooltip,
-  unitHeight,
 }: {
   level: any;
   color: string;
@@ -74,7 +73,6 @@ const Level = ({
   currentSubject: any;
   progressData: Record<string, UnitProgress>;
   onShowLockTooltip: (levelId: string, event: any) => void;
-  unitHeight: React.MutableRefObject<any>;
 }) => {
   // @ts-ignore - 添加router变量
   const router = useRouter();
@@ -180,13 +178,6 @@ const Level = ({
       };
     }
 
-    if (level.type === "challenge") {
-      return {
-        backgroundColor: isCompleted ? "#FFD900" : "#FFC800",
-        borderColor: "#E6B800",
-      };
-    }
-
     if (isCompleted) {
       return {
         backgroundColor: color,
@@ -202,15 +193,6 @@ const Level = ({
   };
 
   const getExerciseLevelContainerStyle = () => {
-    // TODO
-    const topPosition = unitHeight.current.reduce((result: any, current: any, index: any) => {
-      if (index === 0) {
-        return [current];
-      } else {
-        return [...result, result[result.length - 1] + current];
-      }
-    }, []);
-    console.log("topPosition", topPosition);
     if (exerciseUnitPosition === "left") {
       return {
         top: 0,
@@ -236,9 +218,6 @@ const Level = ({
       return "flag"; // 使用旗帜图标表示这是大单元的入口点
     }
 
-    if (level.type === "challenge") {
-      return "crown";
-    }
     if (isCompleted) {
       return "star";
     }
@@ -254,9 +233,6 @@ const Level = ({
       return "#FF9600"; // 使用橙色表示特殊入口点
     }
 
-    if (level.type === "challenge") {
-      return "white";
-    }
     if (isCompleted) {
       return "white";
     }
@@ -270,11 +246,6 @@ const Level = ({
           ? { ...styles.exerciseLevelContainer, ...getExerciseLevelContainerStyle() }
           : styles.levelContainer,
       ]}
-      onLayout={(event) => {
-        const { height } = event.nativeEvent.layout;
-        // 使用level.id作为唯一键记录高度
-        unitHeight.current[level.id] = height;
-      }}
     >
       <TouchableOpacity style={[styles.levelBadge, getBadgeStyle()]} disabled={level.locked} onPress={handleLevelPress}>
         <FontAwesome5 name={getIconName()} size={22} color={getIconColor()} />
@@ -344,7 +315,6 @@ export default function HomeScreen() {
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
   const bigUnitHeight = useRef<any>([]);
-  const unitHeight = useRef<any>({});
 
   // 添加课程数据修复函数，确保颜色信息正确
   const ensureCoursesColors = (coursesData: any[]): any[] => {
@@ -456,7 +426,8 @@ export default function HomeScreen() {
             return {
               id: `${subjectCode}-${u.id || index}`,
               title: u.title || "未命名单元",
-              type: u.isChallenge ? "challenge" : "normal",
+              unitType: u.unitType || "normal",
+              position: u.position || "default",
             };
           }
 
@@ -466,7 +437,8 @@ export default function HomeScreen() {
           return {
             id: levelId,
             title: u.title || "未命名关卡",
-            type: u.isChallenge ? "challenge" : "normal",
+            unitType: u.unitType || "normal",
+            position: u.position || "default",
           };
         }),
       };
@@ -585,7 +557,6 @@ export default function HomeScreen() {
     } catch (error: any) {
       console.error("获取用户数据出错:", error);
       setError(error.message || "获取用户进度时出错，将显示默认进度");
-    } finally {
     }
   };
 
@@ -676,10 +647,6 @@ export default function HomeScreen() {
     const validUnit = Math.min(currentUnit, courses.length - 1);
     const course = courses[validUnit];
 
-    console.log("currentUnit", currentUnit);
-    console.log("course", course);
-    console.log("validUnit", validUnit);
-
     if (!course) {
       console.error("无法渲染FixedBanner：找不到课程信息", {
         currentUnit,
@@ -691,8 +658,6 @@ export default function HomeScreen() {
     // 使用默认颜色作为备选方案
     const primaryColor = course.color || "#58CC02";
     const secondaryColor = course.secondaryColor || getLighterColor(primaryColor);
-
-    console.log(`FixedBanner渲染：单元=${validUnit}, 标题=${course.title}, 颜色=${primaryColor}`);
 
     return (
       <RNView style={styles.fixedBannerContainer}>
@@ -777,14 +742,7 @@ export default function HomeScreen() {
             }}
           >
             {/* 普通文字标题 */}
-            <RNView
-              style={styles.collapsedHeader}
-              onLayout={(event) => {
-                // 记录实际位置以便调试比较
-                const layout = event.nativeEvent.layout;
-                console.log(`单元${courseIndex}实际位置: y=${layout.y}`);
-              }}
-            >
+            <RNView style={styles.collapsedHeader}>
               <Text style={styles.collapsedTitle}>
                 第 {courseIndex + 1} 阶段 - {course.title}
               </Text>
@@ -835,7 +793,6 @@ export default function HomeScreen() {
                     currentSubject={currentSubject}
                     progressData={progressData}
                     onShowLockTooltip={handleShowLockTooltip}
-                    unitHeight={unitHeight}
                   />
                 );
               })}

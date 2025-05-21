@@ -140,7 +140,8 @@
 - **`GET /:code`**: 获取特定学科的详细信息 (通过学科代码)。包含 `iconName`。
 - **`GET /:code/units`**: 获取特定学科下的所有单元。
   - 可选查询参数 `level` 筛选单元级别。
-  - 返回的单元信息包含 `id`, `title`, `level`, `order`, `subject` (学科代码), `exercisesCount` (该单元练习题数量), `isChallenge` (根据标题或难度判断), `iconUrl` (通过 `getIconUrlByTitle`), `color` (优先用数据库值，否则按level/order生成), `secondaryColor` (基于主颜色生成), `code` (单元自身的code，如 `1-1`)。按 `level` 和 `order` 排序。
+  - 返回的单元信息包含 `id`, `title`, `level`, `order`, `subject` (学科代码), `exercisesCount` (该单元练习题数量), `unitType` (单元类型，值为"normal"或"exercise"), `position` (位置信息), `iconUrl` (通过 `getIconUrlByTitle`), `color` (优先用数据库值，否则按level/order生成), `secondaryColor` (基于主颜色生成), `code` (单元自身的code，如 `1-1`)。按 `level` 和 `order` 排序。
+  - **注意**: 虽然后端仍会返回 `isChallenge` 字段（根据标题或难度判断），但前端已不再使用此字段，而是统一通过 `unitType` 字段区分关卡类型。
   - **注意**: 此API本身不直接处理单元的 `isCompleted` 或 `isLocked` 状态。这些状态的判断通常由客户端结合用户进度数据完成。
 - **`GET /units/:unitId`**: 获取特定单元的详细信息 (通过单元主键 `unitId`)。增强逻辑类似 `/:code/units` 中的单个单元。
 
@@ -286,6 +287,7 @@
 
 **根据当前代码分析：**
 - 学科-单元-关卡结构中，同一个学科下有多个单元（如数学下有初级、中级、高级），每个单元下有多个关卡（具体的学习内容）。
+- 单元类型由 `unitType` 字段确定，可以是 `"normal"` (普通学习单元) 或 `"exercise"` (练习单元)。
 - 单元解锁有两种方式：
   1. **常规解锁**：完成前一个单元的全部关卡后解锁下一个单元。首个单元默认解锁。
   2. **跳级解锁**：大单元的第一个小单元（格式为x-y-1，其中y是大单元编号，1是小单元编号）可以直接点击进入，不受前面单元限制。在UI上以虚线边框特殊样式显示。当用户完成该单元练习题并获得至少1星后，将自动解锁该大单元前面的所有单元。
