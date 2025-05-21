@@ -23,10 +23,13 @@ import SubjectModal from "@/components/SubjectModal";
 import { useSubject, Subject } from "@/hooks/useSubject";
 import { API_BASE_URL } from "@/constants/apiConfig";
 
-// 学科信息存储键
+// 常量定义
 const CURRENT_SUBJECT_KEY = "currentSubject";
+const AVERAGE_ITEM_Y_INCREMENT = 120;
 
-// 保存当前学科到AsyncStorage
+/**
+ * 保存当前学科到AsyncStorage
+ */
 const saveCurrentSubject = async (subject: any) => {
   try {
     await AsyncStorage.setItem(CURRENT_SUBJECT_KEY, JSON.stringify(subject));
@@ -36,7 +39,9 @@ const saveCurrentSubject = async (subject: any) => {
   }
 };
 
-// 从AsyncStorage加载学科
+/**
+ * 从AsyncStorage加载学科
+ */
 const loadCurrentSubject = async () => {
   try {
     const savedSubject = await AsyncStorage.getItem(CURRENT_SUBJECT_KEY);
@@ -49,8 +54,6 @@ const loadCurrentSubject = async () => {
     return null;
   }
 };
-
-const AVERAGE_EXPECTED_ITEM_Y_INCREMENT = 120; // Average height of a regular level item
 
 // 关卡组件
 const Level = ({
@@ -82,21 +85,14 @@ const Level = ({
   exerciseTop?: number;
   onNonExerciseLayout?: (levelId: string, layout: { height: number, y: number }) => void;
 }) => {
-  // @ts-ignore - 添加router变量
   const router = useRouter();
 
-  // 计算关卡是否锁定
-  // 第一个关卡默认解锁，其他关卡需要前一个关卡达到3星才解锁
-  // 但大单元的第一个小单元（格式为x-1）也可以访问
-  const isFirstLessonOfUnit = level && level.id && level.id.split("-").length === 3 && level.id.split("-")[2] === "1";
-  const isLocked = previousLevelUnlocked === false && !isFirstLessonOfUnit;
-  const isExerciseUnit = level.unitType === "exercise";
-  const exerciseUnitPosition = level.position;
-  // 判断是否为大单元
-  const isMajorUnit = level.isMajor === true;
-
-  // 获取星星数量
+  // 简化状态判断
+  const isLocked = previousLevelUnlocked === false;
+  const isExerciseUnit = level.unitType === "exercise"; 
   const stars = progress?.stars || 0;
+  const isCompleted = stars > 0;
+
   // 处理关卡点击
   const handleLevelPress = (event: any) => {
     if (isLocked) {
@@ -105,98 +101,33 @@ const Level = ({
       return;
     }
 
-    // 检查当前关卡是否是某个大单元的第一个小单元
-    if (isFirstLessonOfUnit && previousLevelUnlocked === false) {
-      console.log("访问大单元的第一个小单元:", level.id);
+    // 获取当前单元的完整颜色信息
+    const courseId = `unit${Math.floor(levelIndex / 10) + 1}`;
+    const course = courses.find((c) => c.id === courseId) || { color, secondaryColor: color };
+    
+    // 使用关卡所属单元的颜色，或默认使用当前学科颜色
+    const levelColor = course.color || color;
+    const levelSecondaryColor = course.secondaryColor || color;
 
-      // 获取当前单元的完整颜色信息
-      const courseIndex = parseInt(level.id.split("-")[1]) - 1;
-      const course = courses.find((c) => c.id === `unit${courseIndex + 1}`);
-
-      // 使用关卡所属单元的颜色，或默认使用当前学科颜色
-      const levelColor = course ? course.color : color;
-      const levelSecondaryColor = course ? course.secondaryColor : color;
-
-      // 导航到学习页面并带上解锁参数
-      const params = {
+    // 导航到学习页面
+    router.push({
+      pathname: "/study",
+      params: {
         id: level.id,
         unitTitle: `${unitTitle} - ${level.title}`,
         color: levelColor,
         secondaryColor: levelSecondaryColor,
         subject: currentSubject.code,
-        isUnlockingTest: "true", // 标记这是一个解锁测试
-        unlockPreviousUnits: "true", // 标记需要解锁之前的单元
-      };
-
-      router.push({
-        pathname: "/study",
-        params,
-      });
-      return;
-    }
-
-    // 确保level.id存在
-    if (!level || !level.id) {
-      console.error("关卡ID不存在", level);
-      Alert.alert("错误", "无法加载该关卡，关卡ID不存在");
-      return;
-    }
-
-    // 获取当前单元的完整颜色信息
-    const courseIndex = parseInt(level.id.split("-")[0]) - 1;
-    const course = courses.find((c) => c.id === `unit${courseIndex + 1}`);
-
-    // 使用关卡所属单元的颜色，或默认使用当前学科颜色
-    const levelColor = course ? course.color : color;
-    const levelSecondaryColor = course ? course.secondaryColor : color;
-
-    // 导航到学习页面（独立页面，不是tab）
-    const params = {
-      id: level.id,
-      unitTitle: `${unitTitle} - ${level.title}`,
-      color: levelColor,
-      secondaryColor: levelSecondaryColor,
-      subject: currentSubject.code,
-    };
-
-    // 使用Expo Router的导航功能，提供更流畅的体验
-    router.push({
-      pathname: "/study",
-      params,
+      }
     });
   };
 
-  // 计算完成状态
-  const isCompleted = stars > 0;
-
-  // 根据类型和状态选择样式
+  // 获取徽章样式
   const getBadgeStyle = () => {
-    // 大单元基础样式 - 更大的徽章
-    const badgeBaseStyle = isMajorUnit 
-      ? { 
-          width: 80, 
-          height: 80, 
-          borderRadius: 40,
-          borderWidth: 3
-        } 
-      : {};
-
     if (isLocked) {
       return {
         backgroundColor: "#E5E5E5",
         borderColor: "#CCCCCC",
-        ...badgeBaseStyle
-      };
-    }
-
-    if (isFirstLessonOfUnit && previousLevelUnlocked === false) {
-      // 大单元的第一个小单元特殊样式，显示为可点击但有特殊标记
-      return {
-        backgroundColor: "white",
-        borderColor: color,
-        borderWidth: isMajorUnit ? 3 : 2,
-        borderStyle: "dashed" as "dashed",
-        ...badgeBaseStyle
       };
     }
 
@@ -204,97 +135,46 @@ const Level = ({
       return {
         backgroundColor: color,
         borderColor: color,
-        ...badgeBaseStyle
       };
     }
 
     return {
       backgroundColor: "white",
       borderColor: color,
-      borderWidth: isMajorUnit ? 3 : 2,
-      ...badgeBaseStyle
+      borderWidth: 2,
     };
   };
 
+  // 获取练习单元容器样式
   const getExerciseLevelContainerStyle = () => {
     const style: any = {
       position: "absolute",
-      // Use exerciseTop if provided, otherwise fallback to index-based calculation
-      top: typeof exerciseTop === 'number' ? exerciseTop : levelIndex * AVERAGE_EXPECTED_ITEM_Y_INCREMENT,
-      width: 100, // Fixed width for exercise units
-      zIndex: 10, // Ensure it's above other elements if overlapping
-      alignItems: 'center', // Center content within the exercise unit
+      top: typeof exerciseTop === 'number' ? exerciseTop : levelIndex * AVERAGE_ITEM_Y_INCREMENT,
+      width: 100,
+      zIndex: 10,
+      alignItems: 'center',
     };
+    
     if (level.position === "left") {
-      style.left = 5; // Small margin from the left edge
+      style.left = 5;
     } else if (level.position === "right") {
-      style.right = 5; // Small margin from the right edge
+      style.right = 5;
     } else {
-      // Default to left if position is not specified or invalid
       style.left = 5;
     }
     return style;
   };
 
-  const getIconName = () => {
-    // 大单元使用特定图标
-    if (isMajorUnit) {
-      if (isLocked) {
-        return "lock";
-      }
-      if (isCompleted) {
-        return "crown";  // 使用皇冠图标表示已完成的大单元
-      }
-      return "bookmark";  // 使用书签图标表示大单元
-    }
-
-    if (isLocked) {
-      return "lock";
-    }
-
-    if (isFirstLessonOfUnit && previousLevelUnlocked === false) {
-      return "flag"; // 使用旗帜图标表示这是大单元的入口点
-    }
-
-    if (isCompleted) {
-      return "star";
-    }
-    return "play";
-  };
-
-  const getIconColor = () => {
-    if (isLocked) {
-      return "#AAAAAA";
-    }
-
-    if (isFirstLessonOfUnit && previousLevelUnlocked === false) {
-      return "#FF9600"; // 使用橙色表示特殊入口点
-    }
-
-    if (isCompleted) {
-      return "white";
-    }
-    return color;
-  };
-
-  const getTitleStyle = () => {
-    // 大单元使用更大、更粗的标题文字
-    return {
-      ...styles.levelTitle,
-      ...(isMajorUnit && { 
-        fontSize: 18, 
-        fontWeight: '700' as 'bold',
-        marginTop: 8  // 增加大单元标题与徽章的间距
-      })
-    };
-  };
+  // 获取图标名称
+  const getIconName = () => isLocked ? "lock" : (isCompleted ? "star" : "play");
+  
+  // 获取图标颜色
+  const getIconColor = () => isLocked ? "#AAAAAA" : (isCompleted ? "white" : color);
 
   return (
     <RNView
       style={[
-        isExerciseUnit
-          ? getExerciseLevelContainerStyle() // Use new style for exercise units
-          : styles.levelContainer,
+        isExerciseUnit ? getExerciseLevelContainerStyle() : styles.levelContainer,
       ]}
       onLayout={(event) => {
         if (!isExerciseUnit && onNonExerciseLayout) {
@@ -303,16 +183,20 @@ const Level = ({
         }
       }}
     >
-      <TouchableOpacity style={[styles.levelBadge, getBadgeStyle()]} disabled={level.locked} onPress={handleLevelPress}>
+      <TouchableOpacity 
+        style={[styles.levelBadge, getBadgeStyle()]} 
+        disabled={level.locked} 
+        onPress={handleLevelPress}
+      >
         <FontAwesome5 
           name={getIconName()} 
-          size={isMajorUnit ? 28 : 22} 
+          size={22} 
           color={getIconColor()} 
         />
       </TouchableOpacity>
 
       {/* 关卡标题 */}
-      <Text style={getTitleStyle()}>{level.title}</Text>
+      <Text style={styles.levelTitle}>{level.title}</Text>
 
       {/* 星星评分 */}
       <RNView style={styles.starsContainer}>
@@ -320,7 +204,7 @@ const Level = ({
           <FontAwesome5
             key={i}
             name="star"
-            size={isMajorUnit ? 14 : 10}
+            size={10}
             solid={i < stars}
             color={i < stars ? "#FFD900" : "#E0E0E0"}
             style={{ marginHorizontal: 1 }}
@@ -335,7 +219,7 @@ const Level = ({
             styles.connector,
             {
               backgroundColor: isCompleted ? color : "#E5E5E5",
-              width: isMajorUnit ? 4 : 3,  // 大单元使用更粗的连接线
+              width: 3,
             },
           ]}
         />
@@ -380,13 +264,12 @@ export default function HomeScreen() {
 
   const bigUnitHeight = useRef<any>([]);
 
-  // Fallback height for non-exercise items if layout is not yet known
-  const FALLBACK_NON_EXERCISE_ITEM_VERTICAL_SPACE = 120;
-
-  // Callback to handle layout reporting from non-exercise Level components
+  /**
+   * 处理布局信息上报，用于定位练习单元
+   */
   const handleNonExerciseLayout = (levelId: string, layout: { height: number, y: number }) => {
     setNonExerciseLevelLayouts(prev => {
-      // Only update if layout data has changed to prevent unnecessary re-renders
+      // 只在布局发生变化时更新，避免不必要的重渲染
       if (prev[levelId]?.height !== layout.height || prev[levelId]?.y !== layout.y) {
         return { ...prev, [levelId]: layout };
       }
@@ -394,14 +277,15 @@ export default function HomeScreen() {
     });
   };
 
-  // 添加课程数据修复函数，确保颜色信息正确
+  /**
+   * 确保课程数据有正确的颜色信息
+   */
   const ensureCoursesColors = (coursesData: any[]): any[] => {
     return coursesData.map((course) => {
       if (!course) return course;
 
       // 确保主色存在，否则使用默认颜色
       const primaryColor = course.color || currentSubject.color || "#58CC02";
-
       // 确保次要色存在，否则基于主色生成
       const secondaryColor = course.secondaryColor || getLighterColor(primaryColor);
 
@@ -498,45 +382,29 @@ export default function HomeScreen() {
     // 转换为课程格式
     const formattedCourses = Object.keys(unitsByMajor).map((majorUnitId, index) => {
       const units = unitsByMajor[majorUnitId];
-      // 第一个单元通常是大单元本身
-      const firstUnit = units[0];
+      // 获取大单元
+      const majorUnit = units.find(unit => unit.isMajor === true) || units[0];
+      // 获取所有小单元（不包括大单元）
+      const minorUnits = units.filter(unit => unit.isMajor !== true);
 
-      // 使用单元自己的颜色或回退到学科颜色
-      const unitColor = firstUnit.color || subject.color;
-      const unitSecondaryColor = firstUnit.secondaryColor || getLighterColor(unitColor);
+      // 使用单元的颜色
+      const unitColor = majorUnit.color || subject.color;
+      const unitSecondaryColor = majorUnit.secondaryColor || getLighterColor(unitColor);
 
       return {
         id: `unit${index + 1}`,
-        title: firstUnit.title,
-        description: firstUnit.description || `学习${subject.name}基础知识`,
-        icon: firstUnit.iconUrl || "https://i.imgur.com/QgQQXTI.png",
+        title: majorUnit.title,
+        description: majorUnit.description || `学习${subject.name}基础知识`,
         color: unitColor,
         secondaryColor: unitSecondaryColor,
-        levels: units.map((u) => {
-          // 使用API返回的subject字段，如果存在
-          const subjectCode = u.subject || subject.code || "unknown";
-
-          // 确保code字段存在
-          if (!u.code) {
-            console.warn("单元缺少code字段：", u);
-            return {
-              id: `${subjectCode}-${u.id || index}`,
-              title: u.title || "未命名单元",
-              unitType: u.unitType || "normal",
-              position: u.position || "default",
-              isMajor: u.isMajor || false
-            };
-          }
-
-          // 构建完整的关卡ID，格式为 subjectCode-levelCode
-          const levelId = `${subjectCode}-${u.code}`;
-
+        // 只返回小单元作为实际关卡
+        levels: minorUnits.map((unit) => {
           return {
-            id: levelId,
-            title: u.title || "未命名关卡",
-            unitType: u.unitType || "normal",
-            position: u.position || "default",
-            isMajor: u.isMajor || false
+            id: unit.id, // 使用原始ID
+            title: unit.title,
+            unitType: unit.unitType || "normal",
+            position: unit.position || "default",
+            isMajor: false
           };
         }),
       };
@@ -822,7 +690,6 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContent}
         onScroll={(e) => {
           handleScroll(e);
-          // 滚动时隐藏tooltip
           if (showLockTooltip) {
             setShowLockTooltip(false);
           }
@@ -831,7 +698,8 @@ export default function HomeScreen() {
       >
         {/* 课程列表 */}
         {courses.map((course, courseIndex) => {
-          let cumulativeHeightInCourse = 0; // Tracks height within the current course for exercise unit positioning
+          let cumulativeHeightInCourse = 0; // 记录当前课程中累积高度，用于练习单元定位
+          
           return (
             <RNView
               key={course.id}
@@ -841,47 +709,62 @@ export default function HomeScreen() {
                 bigUnitHeight.current[courseIndex] = height;
               }}
             >
-              {/* 普通文字标题 */}
+              {/* 大单元标题 */}
               <RNView style={styles.collapsedHeader}>
-                <Text style={styles.collapsedTitle}>
-                  第 {courseIndex + 1} 阶段 - {course.title}
+                <RNView style={styles.unitTitleWithIcon}>
+                  <FontAwesome5 
+                    name="bookmark" 
+                    size={18} 
+                    color={course.color}
+                    style={{ marginRight: 8 }}
+                  />
+                  <Text style={[styles.collapsedTitle, { color: course.color }]}>
+                    {course.title}
+                  </Text>
+                </RNView>
+                <Text style={styles.collapsedSubtitle}>
+                  第 {courseIndex + 1} 阶段
                 </Text>
               </RNView>
 
               {/* 课程关卡路径 */}
               <RNView style={styles.levelsPath}>
                 {course.levels.map((level: any, index: number) => {
+                  // 获取当前级别进度
                   const currentLevelProgress = progressData[level.id];
-                  let prevLevelFullyUnlocked = false;
-
-                  if (index > 0) {
+                  
+                  // 解锁逻辑：第一个小单元总是解锁的，其他小单元需要前一个完成
+                  let prevLevelFullyUnlocked = index === 0;
+                  
+                  if (!prevLevelFullyUnlocked && index > 0) {
+                    // 检查同一大单元中的前一个小单元
                     const prevLevelInSection = course.levels[index - 1];
                     if (prevLevelInSection) {
                       const prevLevelProgress = progressData[prevLevelInSection.id];
                       prevLevelFullyUnlocked = prevLevelProgress?.stars >= 3 || prevLevelProgress?.completed === true;
                     }
-                  } else if (courseIndex > 0) {
+                  } else if (!prevLevelFullyUnlocked && courseIndex > 0 && index === 0) {
+                    // 检查前一个大单元的最后一个小单元
                     const prevCourse = courses[courseIndex - 1];
-                    if (prevCourse && prevCourse.levels && prevCourse.levels.length > 0) {
+                    if (prevCourse?.levels?.length > 0) {
                       const lastLevelOfPrevCourse = prevCourse.levels[prevCourse.levels.length - 1];
                       if (lastLevelOfPrevCourse) {
                         const prevLevelProgress = progressData[lastLevelOfPrevCourse.id];
                         prevLevelFullyUnlocked = prevLevelProgress?.stars >= 3 || prevLevelProgress?.completed === true;
                       }
                     }
-                  } else {
-                    prevLevelFullyUnlocked = true;
                   }
 
-                  let exerciseTopValue: number | undefined = undefined;
+                  // 计算练习单元的垂直位置
+                  let exerciseTopValue = undefined;
                   if (level.unitType === "exercise") {
                     exerciseTopValue = cumulativeHeightInCourse;
                   } else {
-                    // For non-exercise units, update cumulative height for subsequent exercise units
+                    // 更新累积高度
                     const layoutInfo = nonExerciseLevelLayouts[level.id];
-                    // Assuming a fixed margin/connector height for non-exercise items for simplicity in accumulation
-                    // A more robust solution might involve measuring the whole item including margins
-                    const itemHeight = layoutInfo?.height ? layoutInfo.height + 20 /* approx margin/connector */ : FALLBACK_NON_EXERCISE_ITEM_VERTICAL_SPACE;
+                    const itemHeight = layoutInfo?.height 
+                      ? layoutInfo.height + 20 
+                      : AVERAGE_ITEM_Y_INCREMENT;
                     cumulativeHeightInCourse += itemHeight;
                   }
 
@@ -1090,11 +973,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 16,
     paddingBottom: 40,
   },
   unitContainer: {
-    marginHorizontal: 16,
     marginBottom: 24,
     backgroundColor: "white",
   },
@@ -1105,11 +986,26 @@ const styles = StyleSheet.create({
   collapsedHeader: {
     padding: 16,
     backgroundColor: "white",
+    marginBottom: 16,
+    marginHorizontal: 24,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E5E5E5",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   collapsedTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#999",
+    fontSize: 20,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  collapsedSubtitle: {
+    fontSize: 14,
+    color: "#666",
     textAlign: "center",
   },
   unitTitleRow: {
@@ -1389,5 +1285,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     textAlign: "center",
+  },
+  unitTitleWithIcon: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
