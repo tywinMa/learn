@@ -130,10 +130,10 @@ export default function StudyScreen() {
             headers: {
               'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-              timeSpentSeconds: reportedTimeSpent // 使用明确的字段名
-            })
-          });
+                      body: JSON.stringify({
+            timeSpent: reportedTimeSpent // 使用与服务器端匹配的字段名
+          })
+        });
           
           if (activityResponse.ok) {
             console.log(`成功记录用户学习活动: ${lessonId}, 学习时间: ${reportedTimeSpent}秒`);
@@ -177,7 +177,7 @@ export default function StudyScreen() {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            timeSpentSeconds: totalStudyTime // 使用明确的字段名
+            timeSpent: totalStudyTime // 使用与服务器端匹配的字段名
           })
         }).catch(err => {
           console.error('记录最终学习时间失败:', err);

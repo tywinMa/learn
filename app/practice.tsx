@@ -292,19 +292,19 @@ export default function PracticeScreen() {
           // 记录练习开始时间
           setPracticeStartTime(Date.now());
           
-          // 调用API增加练习次数
-          const activityApiUrl = `${API_BASE_URL}/api/users/${USER_ID}/increment-practice/${lessonId}`;
-          
-          const activityResponse = await fetch(activityApiUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              activityType: 'practice_start', // 明确标识活动类型
-              timeSpentSeconds: 0 // 开始时没有花费时间
-            })
-          });
+            // 调用API增加练习次数
+  const activityApiUrl = `${API_BASE_URL}/api/users/${USER_ID}/increment-practice/${lessonId}`;
+  
+  const activityResponse = await fetch(activityApiUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      activityType: 'practice_start', // 明确标识活动类型
+      timeSpent: 0 // 开始时没有花费时间
+    })
+  });
           
           if (activityResponse.ok) {
             console.log(`成功记录用户练习活动: ${lessonId}`);
@@ -351,19 +351,19 @@ export default function PracticeScreen() {
       if (totalPracticeTime > 5 && lessonId) {
         console.log(`用户练习了 ${totalPracticeTime} 秒`);
         
-        // 发送最终练习时间统计
-        fetch(`${API_BASE_URL}/api/users/${USER_ID}/increment-practice/${lessonId}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            activityType: 'practice_end', // 明确标识活动类型
-            timeSpentSeconds: totalPracticeTime // 使用明确的字段名
-          })
-        }).catch(err => {
-          console.error('记录最终练习时间失败:', err);
-        });
+            // 发送最终练习时间统计
+    fetch(`${API_BASE_URL}/api/users/${USER_ID}/increment-practice/${lessonId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        activityType: 'practice_end', // 明确标识活动类型
+        timeSpent: totalPracticeTime // 使用与服务器端匹配的字段名
+      })
+    }).catch(err => {
+      console.error('记录最终练习时间失败:', err);
+    });
       }
     };
   }, [lessonId]);
