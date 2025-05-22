@@ -283,6 +283,28 @@ export default function PracticeScreen() {
           setExercises(result.data);
           setError(null);
         }
+        
+        // 记录用户访问练习页面的次数
+        try {
+          // 调用API增加练习次数
+          const activityApiUrl = `${API_BASE_URL}/api/users/${USER_ID}/increment-practice/${lessonId}`;
+          
+          const activityResponse = await fetch(activityApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (activityResponse.ok) {
+            console.log(`成功记录用户练习活动: ${lessonId}`);
+          } else {
+            console.warn(`记录练习活动失败: HTTP ${activityResponse.status}`);
+          }
+        } catch (activityError) {
+          console.error('记录练习活动出错:', activityError);
+          // 这里不需要向用户显示错误，因为这只是一个后台统计功能
+        }
       } else {
         throw new Error(result.message || "获取练习题失败: 服务器未返回数据");
       }

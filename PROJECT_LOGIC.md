@@ -190,6 +190,14 @@
   - 在 `UnitProgress` 表中查找或创建记录，标记为 `completed: true`。
   - 可在请求体中传入 `stars`，默认为3星。
   - 根据获得的星级奖励用户积分 (1星:5分, 2星:10分, 3星:15分)，更新 `UserPoints` 表。
+- **`POST /:userId/increment-study/:unitId`** (由 `userRecords.js` 处理): 增加用户学习单元的次数。
+  - 在 `UnitProgress` 表中查找或创建记录，增加 `studyCount` 字段值。
+  - 当用户访问学习页面 (`/study`) 时调用此API。
+  - 返回更新后的学习次数。
+- **`POST /:userId/increment-practice/:unitId`** (由 `userRecords.js` 处理): 增加用户练习单元的次数。
+  - 在 `UnitProgress` 表中查找或创建记录，增加 `practiceCount` 字段值。
+  - 当用户访问练习页面 (`/practice`) 时调用此API。
+  - 返回更新后的练习次数。
 
 ##### 3.4.4. 用户积分 (`/api/users`)
 

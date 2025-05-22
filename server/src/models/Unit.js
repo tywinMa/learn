@@ -14,7 +14,6 @@ const Unit = sequelize.define('Unit', {
     allowNull: false,
     comment: '学科代码，如math、physics等，用于标识所属学科'
   },
-
   title: {
     type: DataTypes.STRING,
     allowNull: false,

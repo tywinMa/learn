@@ -50,11 +50,12 @@ export default function StudyScreen() {
   // 加载学习内容
   useEffect(() => {
     const fetchLearningContents = async () => {
-      setLoading(true);
       try {
-        // 检查lessonId是否有效
-        if (!lessonId || lessonId === "undefined" || lessonId === "null") {
-          setError("无效的课程ID，请返回主页重新选择课程");
+        setLoading(true);
+        setError(null);
+
+        if (!lessonId) {
+          setError("无法加载学习内容：缺少单元ID");
           setLoading(false);
           return;
         }
@@ -109,6 +110,28 @@ export default function StudyScreen() {
           setLearningContents(sortedContents);
         } else {
           setError(data.message || "获取学习内容失败");
+        }
+        
+        // 记录用户访问学习页面的次数
+        try {
+          // 调用API增加学习次数
+          const activityApiUrl = `${API_BASE_URL}/api/users/${USER_ID}/increment-study/${lessonId}`;
+          
+          const activityResponse = await fetch(activityApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (activityResponse.ok) {
+            console.log(`成功记录用户学习活动: ${lessonId}`);
+          } else {
+            console.warn(`记录学习活动失败: HTTP ${activityResponse.status}`);
+          }
+        } catch (activityError) {
+          console.error('记录学习活动出错:', activityError);
+          // 这里不需要向用户显示错误，因为这只是一个后台统计功能
         }
       } catch (error: any) {
         console.error("获取学习内容出错:", error);

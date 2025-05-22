@@ -12,6 +12,8 @@ export interface UnitProgress {
   stars: number;
   unlockNext: boolean; // This field might be part of it
   completed?: boolean; // Add completed field, make it optional for now to ensure compatibility
+  studyCount?: number; // 用户学习该单元的次数
+  practiceCount?: number; // 用户练习该单元的次数
   // Add other fields if they exist based on actual API response
 }
 

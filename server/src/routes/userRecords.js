@@ -21,6 +21,8 @@ async function getUnitProgressDetails(userId, unitId) {
       stars: unitProgressEntry.stars,
       unlockNext: unlockNextStatus,
       completed: unitProgressEntry.completed, // Ensure completed status is from UnitProgress
+      studyCount: unitProgressEntry.studyCount || 0, // 添加学习次数
+      practiceCount: unitProgressEntry.practiceCount || 0, // 添加练习次数
       source: 'UnitProgressTable'
     };
   }
@@ -44,6 +46,8 @@ async function getUnitProgressDetails(userId, unitId) {
       stars: 0,
       unlockNext: false,
       completed: false, // Not in UnitProgress and no exercises to base completion on
+      studyCount: 0, // 没有记录时默认为0
+      practiceCount: 0, // 没有记录时默认为0
       source: 'NoDataOrNoExercises'
     };
   }
@@ -69,6 +73,11 @@ async function getUnitProgressDetails(userId, unitId) {
   const unlockNext = stars === 3;
   const calculatedCompleted = stars > 0; // Or based on a more specific logic if needed
 
+  // 获取学习和练习次数（如果UnitProgress存在）
+  const studyPracticeCount = unitProgressEntry 
+    ? { studyCount: unitProgressEntry.studyCount || 0, practiceCount: unitProgressEntry.practiceCount || 0 } 
+    : { studyCount: 0, practiceCount: 0 };
+
   console.log(`[Progress Details] From UserRecord calc for ${unitId}: Stars: ${stars}, Completed: ${calculatedCompleted}`);
   return {
     unitId,
@@ -78,6 +87,8 @@ async function getUnitProgressDetails(userId, unitId) {
     stars,
     unlockNext,
     completed: calculatedCompleted,
+    studyCount: studyPracticeCount.studyCount, // 添加学习次数
+    practiceCount: studyPracticeCount.practiceCount, // 添加练习次数
     source: 'UserRecordCalculation'
   };
 }
@@ -490,6 +501,86 @@ router.post('/:userId/complete-unit/:unitId', async (req, res) => {
     });
   } catch (error) {
     console.error('标记完成单元出错:', error);
+    res.status(500).json({
+      success: false,
+      message: '服务器错误'
+    });
+  }
+});
+
+// 增加用户学习单元的次数
+router.post('/:userId/increment-study/:unitId', async (req, res) => {
+  try {
+    const { userId, unitId } = req.params;
+    console.log(`增加用户 ${userId} 对单元 ${unitId} 的学习次数`);
+
+    // 查找或创建UnitProgress记录
+    const [unitProgress, created] = await UnitProgress.findOrCreate({
+      where: { userId, unitId },
+      defaults: {
+        studyCount: 1, // 如果是新记录，初始化为1
+        practiceCount: 0,
+        completed: false,
+        stars: 0
+      }
+    });
+
+    if (!created) {
+      // 如果记录已存在，增加学习次数
+      unitProgress.studyCount += 1;
+      await unitProgress.save();
+    }
+
+    res.json({
+      success: true,
+      message: `单元 ${unitId} 的学习次数已增加`,
+      data: {
+        unitId,
+        studyCount: unitProgress.studyCount
+      }
+    });
+  } catch (error) {
+    console.error('增加学习次数出错:', error);
+    res.status(500).json({
+      success: false,
+      message: '服务器错误'
+    });
+  }
+});
+
+// 增加用户练习单元的次数
+router.post('/:userId/increment-practice/:unitId', async (req, res) => {
+  try {
+    const { userId, unitId } = req.params;
+    console.log(`增加用户 ${userId} 对单元 ${unitId} 的练习次数`);
+
+    // 查找或创建UnitProgress记录
+    const [unitProgress, created] = await UnitProgress.findOrCreate({
+      where: { userId, unitId },
+      defaults: {
+        studyCount: 0,
+        practiceCount: 1, // 如果是新记录，初始化为1
+        completed: false,
+        stars: 0
+      }
+    });
+
+    if (!created) {
+      // 如果记录已存在，增加练习次数
+      unitProgress.practiceCount += 1;
+      await unitProgress.save();
+    }
+
+    res.json({
+      success: true,
+      message: `单元 ${unitId} 的练习次数已增加`,
+      data: {
+        unitId,
+        practiceCount: unitProgress.practiceCount
+      }
+    });
+  } catch (error) {
+    console.error('增加练习次数出错:', error);
     res.status(500).json({
       success: false,
       message: '服务器错误'

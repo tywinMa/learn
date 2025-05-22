@@ -38,13 +38,18 @@ const UnitProgress = sequelize.define('UnitProgress', {
     allowNull: true,
     comment: 'Timestamp when the unit was marked as completed/unlocked'
   },
-  // This field could be used by the frontend to know if the unit was unlocked via the special test
-  // For now, `completed: true` and `stars: 0` implies this.
-  // unlockedViaTest: {
-  //   type: DataTypes.BOOLEAN,
-  //   defaultValue: false,
-  //   allowNull: false
-  // }
+  studyCount: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    allowNull: false,
+    comment: '用户学习该单元的次数，每次访问/study页面时增加'
+  },
+  practiceCount: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0,
+    allowNull: false,
+    comment: '用户练习该单元的次数，每次访问/practice页面时增加'
+  },
 }, {
   timestamps: true,
   indexes: [
