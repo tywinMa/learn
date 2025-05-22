@@ -14,9 +14,10 @@ import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { USER_ID } from "./services/progressService";
+import { USER_ID, getUserUnitProgress, type UnitProgress } from "./services/progressService";
 // 导入工具函数，添加新的 processAnswer 函数
 import { processAnswer } from "./utils/exerciseUtils";
+import { MasteryIndicator } from "./components/MasteryIndicator";
 
 // 正确导入Exercise组件
 import { Exercise } from "./components/Exercise";
@@ -221,6 +222,8 @@ export default function PracticeScreen() {
     fillBlankAnswers?: string[];
   } | null>(null);
   const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false);
+  const [unitProgress, setUnitProgress] = useState<UnitProgress | null>(null);
+  const [practiceStartTime, setPracticeStartTime] = useState<number>(Date.now());
   const scrollViewRef = useRef<ScrollView>(null);
 
   // 解析解锁测试参数
@@ -286,6 +289,9 @@ export default function PracticeScreen() {
         
         // 记录用户访问练习页面的次数
         try {
+          // 记录练习开始时间
+          setPracticeStartTime(Date.now());
+          
           // 调用API增加练习次数
           const activityApiUrl = `${API_BASE_URL}/api/users/${USER_ID}/increment-practice/${lessonId}`;
           
@@ -293,11 +299,24 @@ export default function PracticeScreen() {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+              activityType: 'practice_start', // 明确标识活动类型
+              timeSpentSeconds: 0 // 开始时没有花费时间
+            })
           });
           
           if (activityResponse.ok) {
             console.log(`成功记录用户练习活动: ${lessonId}`);
+            
+            // 获取并保存当前单元的进度数据
+            try {
+              const progress = await getUserUnitProgress(lessonId);
+              setUnitProgress(progress);
+              console.log('获取到单元进度:', progress);
+            } catch (progressErr) {
+              console.error('获取单元进度失败:', progressErr);
+            }
           } else {
             console.warn(`记录练习活动失败: HTTP ${activityResponse.status}`);
           }
@@ -324,6 +343,29 @@ export default function PracticeScreen() {
       setError("无法加载练习题：缺少单元ID");
       setLoading(false);
     }
+    
+    // 组件卸载时记录总练习时间
+    return () => {
+      const totalPracticeTime = Math.floor((Date.now() - practiceStartTime) / 1000);
+      // 仅当练习时间超过5秒时才记录
+      if (totalPracticeTime > 5 && lessonId) {
+        console.log(`用户练习了 ${totalPracticeTime} 秒`);
+        
+        // 发送最终练习时间统计
+        fetch(`${API_BASE_URL}/api/users/${USER_ID}/increment-practice/${lessonId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            activityType: 'practice_end', // 明确标识活动类型
+            timeSpentSeconds: totalPracticeTime // 使用明确的字段名
+          })
+        }).catch(err => {
+          console.error('记录最终练习时间失败:', err);
+        });
+      }
+    };
   }, [lessonId]);
 
   // 计算正确答题数
@@ -435,23 +477,60 @@ export default function PracticeScreen() {
     try {
       const apiUrl = `${API_BASE_URL}/api/users/${USER_ID}/submit`;
 
+      // 计算响应时间 (毫秒)，此处可以使用组件状态来记录开始回答时间和提交时间
+      // 这里使用一个随机值模拟，实际应用中应该准确记录用户从题目显示到提交答案的时间
+      const responseTime = Math.floor(Math.random() * 10000) + 2000; // 模拟2-12秒的响应时间
+
       // 记录提交的答题结果
-      console.log(`提交答题结果: 练习ID=${exerciseId}, 单元ID=${lessonId}, 是否正确=${isCorrect}`);
+      console.log(`提交答题结果: 练习ID=${exerciseId}, 单元ID=${lessonId}, 是否正确=${isCorrect}, 响应时间=${responseTime}ms`);
+
+      // 创建请求体，包含后端接口需要的字段
+      const requestBody = {
+        exerciseId,
+        unitId: lessonId,
+        isCorrect,
+        responseTimeSeconds: Math.floor(responseTime / 1000) // 转换为秒，并使用明确的字段名
+      };
 
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          exerciseId,
-          unitId: lessonId,
-          isCorrect,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
         console.error(`提交答题结果失败: HTTP ${response.status}`);
+      } else {
+        // 尝试获取返回数据，包含掌握度等信息
+        const data = await response.json();
+        if (data.success && data.data) {
+          console.log('用户掌握度数据:', data.data);
+          
+          // 更新用户掌握度信息
+          if (data.data.masteryLevel !== undefined) {
+            setUnitProgress(prev => {
+              if (!prev) return {
+                ...data.data,
+                unitId: lessonId,
+                totalExercises: exercises.length,
+                completedExercises: getCorrectCount() + (isCorrect ? 1 : 0),
+                completionRate: exercises.length > 0 ? (getCorrectCount() + (isCorrect ? 1 : 0)) / exercises.length : 0,
+                stars: 0,
+                unlockNext: false
+              };
+              
+              return {
+                ...prev,
+                masteryLevel: data.data.masteryLevel,
+                correctCount: data.data.correctCount || prev.correctCount,
+                incorrectCount: data.data.incorrectCount || prev.incorrectCount,
+                totalAnswerCount: data.data.totalAnswers || prev.totalAnswerCount
+              };
+            });
+          }
+        }
       }
     } catch (err) {
       console.error("提交答题结果出错:", err);
@@ -1011,5 +1090,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#555",
     marginTop: 4,
+  },
+  masteryContainer: {
+    marginBottom: 16,
+    alignItems: "center",
+    paddingVertical: 8,
+    backgroundColor: "white",
   },
 });

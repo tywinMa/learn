@@ -22,6 +22,7 @@ import { getUserPoints } from "../services/pointsService";
 import SubjectModal from "@/components/SubjectModal";
 import { useSubject, Subject } from "@/hooks/useSubject";
 import { API_BASE_URL } from "@/constants/apiConfig";
+import { MasteryIndicator } from "@/components/MasteryIndicator";
 
 // 常量定义
 const CURRENT_SUBJECT_KEY = "currentSubject";
@@ -92,6 +93,9 @@ const Level = ({
   const isExerciseUnit = level.unitType === "exercise"; 
   const stars = progress?.stars || 0;
   const isCompleted = stars > 0;
+  
+  // 是否显示掌握度
+  const showMasteryIndicator = progress?.masteryLevel !== undefined && progress.masteryLevel > 0;
 
   // 处理关卡点击
   const handleLevelPress = (event: any) => {
@@ -211,6 +215,13 @@ const Level = ({
           />
         ))}
       </RNView>
+      
+      {/* 掌握度指示器 */}
+      {showMasteryIndicator && progress && (
+        <RNView style={styles.masteryContainer}>
+          <MasteryIndicator progress={progress} color={color} size="small" />
+        </RNView>
+      )}
 
       {/* 连接线 */}
       {!isLast && !isExerciseUnit && (
@@ -1060,6 +1071,7 @@ const styles = StyleSheet.create({
   starsContainer: {
     flexDirection: "row",
     marginTop: 4,
+    justifyContent: "center",
   },
   unitEnd: {
     marginTop: 16,
@@ -1290,5 +1302,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+  },
+  masteryContainer: {
+    marginTop: 8,
+    alignItems: "center",
   },
 });

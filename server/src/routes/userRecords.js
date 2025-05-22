@@ -21,8 +21,17 @@ async function getUnitProgressDetails(userId, unitId) {
       stars: unitProgressEntry.stars,
       unlockNext: unlockNextStatus,
       completed: unitProgressEntry.completed, // Ensure completed status is from UnitProgress
-      studyCount: unitProgressEntry.studyCount || 0, // 添加学习次数
-      practiceCount: unitProgressEntry.practiceCount || 0, // 添加练习次数
+      // 添加详细统计信息
+      studyCount: unitProgressEntry.studyCount || 0, 
+      practiceCount: unitProgressEntry.practiceCount || 0,
+      correctCount: unitProgressEntry.correctCount || 0,
+      incorrectCount: unitProgressEntry.incorrectCount || 0,
+      totalAnswerCount: unitProgressEntry.totalAnswerCount || 0,
+      totalTimeSpent: unitProgressEntry.totalTimeSpent || 0,
+      lastStudyTime: unitProgressEntry.lastStudyTime,
+      lastPracticeTime: unitProgressEntry.lastPracticeTime,
+      averageResponseTime: unitProgressEntry.averageResponseTime || 0,
+      masteryLevel: unitProgressEntry.masteryLevel || 0,
       source: 'UnitProgressTable'
     };
   }
@@ -46,20 +55,30 @@ async function getUnitProgressDetails(userId, unitId) {
       stars: 0,
       unlockNext: false,
       completed: false, // Not in UnitProgress and no exercises to base completion on
-      studyCount: 0, // 没有记录时默认为0
-      practiceCount: 0, // 没有记录时默认为0
+      studyCount: 0,
+      practiceCount: 0,
+      correctCount: 0,
+      incorrectCount: 0,
+      totalAnswerCount: 0,
+      totalTimeSpent: 0,
+      averageResponseTime: 0,
+      masteryLevel: 0,
       source: 'NoDataOrNoExercises'
     };
   }
 
   const exerciseIds = exercises.map(ex => ex.id);
-  const userRecords = await UserRecord.findAll({
+  
+  // 获取所有用户记录，不仅是正确的
+  const allUserRecords = await UserRecord.findAll({
     where: {
       userId,
-      exerciseId: { [Op.in]: exerciseIds },
-      isCorrect: true
+      exerciseId: { [Op.in]: exerciseIds }
     }
   });
+  
+  // 筛选正确的记录
+  const userRecords = allUserRecords.filter(record => record.isCorrect);
 
   const totalExercises = exercises.length;
   const completedExercises = userRecords.length;
@@ -73,10 +92,42 @@ async function getUnitProgressDetails(userId, unitId) {
   const unlockNext = stars === 3;
   const calculatedCompleted = stars > 0; // Or based on a more specific logic if needed
 
+  // 计算其他统计数据
+  const correctCount = userRecords.length;
+  const incorrectRecords = allUserRecords.filter(record => !record.isCorrect);
+  const incorrectCount = incorrectRecords.length;
+  const totalAnswerCount = allUserRecords.reduce((sum, record) => sum + record.attemptCount, 0);
+
   // 获取学习和练习次数（如果UnitProgress存在）
-  const studyPracticeCount = unitProgressEntry 
-    ? { studyCount: unitProgressEntry.studyCount || 0, practiceCount: unitProgressEntry.practiceCount || 0 } 
-    : { studyCount: 0, practiceCount: 0 };
+  const studyPracticeInfo = unitProgressEntry 
+    ? { 
+        studyCount: unitProgressEntry.studyCount || 0, 
+        practiceCount: unitProgressEntry.practiceCount || 0,
+        totalTimeSpent: unitProgressEntry.totalTimeSpent || 0,
+        lastStudyTime: unitProgressEntry.lastStudyTime,
+        lastPracticeTime: unitProgressEntry.lastPracticeTime,
+        averageResponseTime: unitProgressEntry.averageResponseTime || 0
+      } 
+    : { 
+        studyCount: 0, 
+        practiceCount: 0,
+        totalTimeSpent: 0,
+        lastStudyTime: null,
+        lastPracticeTime: null,
+        averageResponseTime: 0
+      };
+  
+  // 计算掌握程度
+  let masteryLevel = 0;
+  if (correctCount + incorrectCount > 0) {
+    const correctRate = correctCount / (correctCount + incorrectCount);
+    const attempts = Math.min(1, (studyPracticeInfo.practiceCount / 10)); // 练习次数因素，最大为1
+    const studyFactor = Math.min(1, (studyPracticeInfo.studyCount / 5)); // 学习次数因素，最大为1
+    
+    // 掌握度算法：正确率 * 0.6 + 练习因素 * 0.2 + 学习因素 * 0.2
+    masteryLevel = (correctRate * 0.6) + (attempts * 0.2) + (studyFactor * 0.2);
+    masteryLevel = Math.min(1, Math.max(0, masteryLevel)); // 确保在0-1之间
+  }
 
   console.log(`[Progress Details] From UserRecord calc for ${unitId}: Stars: ${stars}, Completed: ${calculatedCompleted}`);
   return {
@@ -87,8 +138,17 @@ async function getUnitProgressDetails(userId, unitId) {
     stars,
     unlockNext,
     completed: calculatedCompleted,
-    studyCount: studyPracticeCount.studyCount, // 添加学习次数
-    practiceCount: studyPracticeCount.practiceCount, // 添加练习次数
+    // 添加详细统计信息
+    studyCount: studyPracticeInfo.studyCount,
+    practiceCount: studyPracticeInfo.practiceCount,
+    correctCount,
+    incorrectCount,
+    totalAnswerCount,
+    totalTimeSpent: studyPracticeInfo.totalTimeSpent,
+    lastStudyTime: studyPracticeInfo.lastStudyTime,
+    lastPracticeTime: studyPracticeInfo.lastPracticeTime,
+    averageResponseTime: studyPracticeInfo.averageResponseTime,
+    masteryLevel,
     source: 'UserRecordCalculation'
   };
 }
@@ -121,7 +181,7 @@ router.get('/:userId/records', async (req, res) => {
 router.post('/:userId/submit', async (req, res) => {
   try {
     const { userId } = req.params;
-    const { exerciseId, unitId, isCorrect } = req.body;
+    const { exerciseId, unitId, isCorrect, responseTime } = req.body;
 
     if (!exerciseId || !unitId) {
       return res.status(400).json({
@@ -158,6 +218,56 @@ router.post('/:userId/submit', async (req, res) => {
       record.isCorrect = isCorrect;
       record.attemptCount += 1;
       await record.save();
+    }
+
+    // 更新UnitProgress记录
+    const [unitProgress, unitProgressCreated] = await UnitProgress.findOrCreate({
+      where: { userId, unitId },
+      defaults: {
+        completed: false,
+        stars: 0,
+        studyCount: 0,
+        practiceCount: 0,
+        correctCount: isCorrect ? 1 : 0,
+        incorrectCount: isCorrect ? 0 : 1,
+        totalAnswerCount: 1,
+        totalTimeSpent: responseTime || 0,
+        lastPracticeTime: new Date(),
+        averageResponseTime: responseTime || 0,
+        masteryLevel: isCorrect ? 0.1 : 0 // 初始掌握度
+      }
+    });
+
+    if (!unitProgressCreated) {
+      // 更新统计数据
+      unitProgress.totalAnswerCount += 1;
+      
+      if (isCorrect) {
+        unitProgress.correctCount += 1;
+      } else {
+        unitProgress.incorrectCount += 1;
+      }
+      
+      // 更新总时间和平均响应时间
+      if (responseTime) {
+        const totalResponseTime = unitProgress.averageResponseTime * (unitProgress.totalAnswerCount - 1) + responseTime;
+        unitProgress.totalTimeSpent += responseTime;
+        unitProgress.averageResponseTime = totalResponseTime / unitProgress.totalAnswerCount;
+      }
+      
+      // 更新最后练习时间
+      unitProgress.lastPracticeTime = new Date();
+      
+      // 计算掌握程度
+      const correctRate = unitProgress.correctCount / (unitProgress.correctCount + unitProgress.incorrectCount);
+      const attempts = Math.min(1, (unitProgress.practiceCount / 10)); // 练习次数因素，最大为1
+      const studyFactor = Math.min(1, (unitProgress.studyCount / 5)); // 学习次数因素，最大为1
+      
+      // 掌握度算法：正确率 * 0.6 + 练习因素 * 0.2 + 学习因素 * 0.2
+      unitProgress.masteryLevel = (correctRate * 0.6) + (attempts * 0.2) + (studyFactor * 0.2);
+      unitProgress.masteryLevel = Math.min(1, Math.max(0, unitProgress.masteryLevel)); // 确保在0-1之间
+      
+      await unitProgress.save();
     }
 
     // 如果答错了，添加到错题本
@@ -204,7 +314,12 @@ router.post('/:userId/submit', async (req, res) => {
 
     res.json({
       success: true,
-      message: '答题结果已记录'
+      message: '答题结果已记录',
+      data: {
+        masteryLevel: unitProgress.masteryLevel,
+        correctRate: unitProgress.correctCount / (unitProgress.correctCount + unitProgress.incorrectCount),
+        totalAnswers: unitProgress.totalAnswerCount
+      }
     });
   } catch (error) {
     console.error('提交答题结果出错:', error);
@@ -512,7 +627,9 @@ router.post('/:userId/complete-unit/:unitId', async (req, res) => {
 router.post('/:userId/increment-study/:unitId', async (req, res) => {
   try {
     const { userId, unitId } = req.params;
-    console.log(`增加用户 ${userId} 对单元 ${unitId} 的学习次数`);
+    const { timeSpent } = req.body; // 本次学习花费的时间（秒）
+    
+    console.log(`增加用户 ${userId} 对单元 ${unitId} 的学习次数，学习时间: ${timeSpent || '未提供'}秒`);
 
     // 查找或创建UnitProgress记录
     const [unitProgress, created] = await UnitProgress.findOrCreate({
@@ -521,13 +638,31 @@ router.post('/:userId/increment-study/:unitId', async (req, res) => {
         studyCount: 1, // 如果是新记录，初始化为1
         practiceCount: 0,
         completed: false,
-        stars: 0
+        stars: 0,
+        totalTimeSpent: timeSpent || 0,
+        lastStudyTime: new Date()
       }
     });
 
     if (!created) {
-      // 如果记录已存在，增加学习次数
+      // 如果记录已存在，增加学习次数和学习时间
       unitProgress.studyCount += 1;
+      if (timeSpent) {
+        unitProgress.totalTimeSpent += timeSpent;
+      }
+      unitProgress.lastStudyTime = new Date();
+      
+      // 重新计算掌握程度
+      if (unitProgress.correctCount + unitProgress.incorrectCount > 0) {
+        const correctRate = unitProgress.correctCount / (unitProgress.correctCount + unitProgress.incorrectCount);
+        const attempts = Math.min(1, (unitProgress.practiceCount / 10)); // 练习次数因素，最大为1
+        const studyFactor = Math.min(1, (unitProgress.studyCount / 5)); // 学习次数因素，最大为1
+        
+        // 掌握度算法：正确率 * 0.6 + 练习因素 * 0.2 + 学习因素 * 0.2
+        unitProgress.masteryLevel = (correctRate * 0.6) + (attempts * 0.2) + (studyFactor * 0.2);
+        unitProgress.masteryLevel = Math.min(1, Math.max(0, unitProgress.masteryLevel)); // 确保在0-1之间
+      }
+      
       await unitProgress.save();
     }
 
@@ -536,7 +671,9 @@ router.post('/:userId/increment-study/:unitId', async (req, res) => {
       message: `单元 ${unitId} 的学习次数已增加`,
       data: {
         unitId,
-        studyCount: unitProgress.studyCount
+        studyCount: unitProgress.studyCount,
+        masteryLevel: unitProgress.masteryLevel,
+        totalTimeSpent: unitProgress.totalTimeSpent
       }
     });
   } catch (error) {
@@ -552,7 +689,9 @@ router.post('/:userId/increment-study/:unitId', async (req, res) => {
 router.post('/:userId/increment-practice/:unitId', async (req, res) => {
   try {
     const { userId, unitId } = req.params;
-    console.log(`增加用户 ${userId} 对单元 ${unitId} 的练习次数`);
+    const { timeSpent } = req.body; // 本次练习花费的时间（秒）
+    
+    console.log(`增加用户 ${userId} 对单元 ${unitId} 的练习次数，练习时间: ${timeSpent || '未提供'}秒`);
 
     // 查找或创建UnitProgress记录
     const [unitProgress, created] = await UnitProgress.findOrCreate({
@@ -561,13 +700,31 @@ router.post('/:userId/increment-practice/:unitId', async (req, res) => {
         studyCount: 0,
         practiceCount: 1, // 如果是新记录，初始化为1
         completed: false,
-        stars: 0
+        stars: 0,
+        totalTimeSpent: timeSpent || 0,
+        lastPracticeTime: new Date()
       }
     });
 
     if (!created) {
-      // 如果记录已存在，增加练习次数
+      // 如果记录已存在，增加练习次数和练习时间
       unitProgress.practiceCount += 1;
+      if (timeSpent) {
+        unitProgress.totalTimeSpent += timeSpent;
+      }
+      unitProgress.lastPracticeTime = new Date();
+      
+      // 重新计算掌握程度
+      if (unitProgress.correctCount + unitProgress.incorrectCount > 0) {
+        const correctRate = unitProgress.correctCount / (unitProgress.correctCount + unitProgress.incorrectCount);
+        const attempts = Math.min(1, (unitProgress.practiceCount / 10)); // 练习次数因素，最大为1
+        const studyFactor = Math.min(1, (unitProgress.studyCount / 5)); // 学习次数因素，最大为1
+        
+        // 掌握度算法：正确率 * 0.6 + 练习因素 * 0.2 + 学习因素 * 0.2
+        unitProgress.masteryLevel = (correctRate * 0.6) + (attempts * 0.2) + (studyFactor * 0.2);
+        unitProgress.masteryLevel = Math.min(1, Math.max(0, unitProgress.masteryLevel)); // 确保在0-1之间
+      }
+      
       await unitProgress.save();
     }
 
@@ -576,7 +733,9 @@ router.post('/:userId/increment-practice/:unitId', async (req, res) => {
       message: `单元 ${unitId} 的练习次数已增加`,
       data: {
         unitId,
-        practiceCount: unitProgress.practiceCount
+        practiceCount: unitProgress.practiceCount,
+        masteryLevel: unitProgress.masteryLevel,
+        totalTimeSpent: unitProgress.totalTimeSpent
       }
     });
   } catch (error) {

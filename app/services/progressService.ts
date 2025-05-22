@@ -14,7 +14,16 @@ export interface UnitProgress {
   completed?: boolean; // Add completed field, make it optional for now to ensure compatibility
   studyCount?: number; // 用户学习该单元的次数
   practiceCount?: number; // 用户练习该单元的次数
-  // Add other fields if they exist based on actual API response
+  // 新增字段
+  correctCount?: number; // 用户在该单元正确回答的题目数量
+  incorrectCount?: number; // 用户在该单元错误回答的题目数量
+  totalAnswerCount?: number; // 用户在该单元总共回答的题目数量
+  totalTimeSpent?: number; // 用户在该单元花费的总时间（秒）
+  lastStudyTime?: string; // 用户最后一次学习该单元的时间
+  lastPracticeTime?: string; // 用户最后一次练习该单元的时间
+  averageResponseTime?: number; // 用户回答问题的平均反应时间（秒）
+  masteryLevel?: number; // 用户对该单元的掌握程度（0-1之间的浮点数）
+  source?: string; // 数据来源
 }
 
 // Helper function for promise timeout, ensuring it resolves with expected type or rejects

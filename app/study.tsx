@@ -53,6 +53,9 @@ export default function StudyScreen() {
       try {
         setLoading(true);
         setError(null);
+        
+        // 记录学习开始时间
+        const studyStartTime = Date.now();
 
         if (!lessonId) {
           setError("无法加载学习内容：缺少单元ID");
@@ -114,18 +117,32 @@ export default function StudyScreen() {
         
         // 记录用户访问学习页面的次数
         try {
-          // 调用API增加学习次数
+          // 计算学习时间（秒）
+          const timeSpent = Math.floor((Date.now() - studyStartTime) / 1000);
+          // 如果学习时间太短（小于5秒），设置一个合理的最小值
+          const reportedTimeSpent = Math.max(timeSpent, 5);
+          
+          // 调用API增加学习次数和记录学习时间
           const activityApiUrl = `${API_BASE_URL}/api/users/${USER_ID}/increment-study/${lessonId}`;
           
           const activityResponse = await fetch(activityApiUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
-            }
+            },
+            body: JSON.stringify({
+              timeSpentSeconds: reportedTimeSpent // 使用明确的字段名
+            })
           });
           
           if (activityResponse.ok) {
-            console.log(`成功记录用户学习活动: ${lessonId}`);
+            console.log(`成功记录用户学习活动: ${lessonId}, 学习时间: ${reportedTimeSpent}秒`);
+            
+            // 尝试获取返回的掌握度数据
+            const activityData = await activityResponse.json();
+            if (activityData.success && activityData.data) {
+              console.log('用户学习统计:', activityData.data);
+            }
           } else {
             console.warn(`记录学习活动失败: HTTP ${activityResponse.status}`);
           }
@@ -142,6 +159,31 @@ export default function StudyScreen() {
     };
 
     fetchLearningContents();
+    
+    // 组件卸载时记录总学习时间
+    const studyStartTime = Date.now();
+    return () => {
+      // 计算总学习时间
+      const totalStudyTime = Math.floor((Date.now() - studyStartTime) / 1000);
+      
+      // 仅当学习时间超过10秒时才记录
+      if (totalStudyTime > 10 && lessonId) {
+        console.log(`用户学习了 ${totalStudyTime} 秒`);
+        
+        // 发送最终学习时间统计
+        fetch(`${API_BASE_URL}/api/users/${USER_ID}/increment-study/${lessonId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            timeSpentSeconds: totalStudyTime // 使用明确的字段名
+          })
+        }).catch(err => {
+          console.error('记录最终学习时间失败:', err);
+        });
+      }
+    };
   }, [lessonId]);
 
   // 加载用户积分
