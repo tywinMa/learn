@@ -6,10 +6,12 @@
 
 **主要技术栈:**
 
-- **前端**: React Native, Expo, TypeScript, Expo Router
-- **后端**: Node.js, Express.js, Sequelize, SQLite (或可配置的其他数据库)
+- **前端**: React Native, Expo, TypeScript, Expo Router (文件系统路由)
+- **后端**: Node.js, Express.js, Sequelize, SQLite
 - **状态管理 (前端)**: React Context API (例如 `SubjectProvider`)
 - **数据持久化 (前端)**: `@react-native-async-storage/async-storage`
+- **网络请求**: Fetch API，支持超时、重试和降级策略
+- **主题系统**: 基于学科颜色的动态主题切换
 
 ### 2. 前端架构
 
@@ -17,9 +19,9 @@
 
 - `app/index.tsx`: 应用初始入口，重定向到欢迎页或主应用。
 - `app/welcome.tsx`: 欢迎与引导页面。
-- `app/_layout.tsx`: 全局根布局，处理启动逻辑、字体加载、初始路由判断、并包含全局上下文提供者 (如 `SubjectProvider`) 和主导航栈 (Stack Navigator)。
+- `app/_layout.tsx`: 全局根布局，处理启动逻辑、字体加载、初始路由判断、并包含全局上下文提供者 (如 `SubjectProvider`) 和主导航栈 (Stack Navigator)。支持动态主题切换。
 - `app/(tabs)/`: 包含底部标签导航的页面和布局。
-  - `_layout.tsx`: 定义标签导航栏本身和各个标签页。
+  - `_layout.tsx`: 定义标签导航栏本身和各个标签页，包含特殊的居中练习按钮样式。
   - `index.tsx`: "课程" 标签页。
   - `practice.tsx`: "练习" 标签页 (练习中心，区别于 `app/practice.tsx` 的答题页)。
   - `settings.tsx`: "个人" 标签页。
@@ -39,6 +41,9 @@
   - `Exercise.tsx`: 练习题渲染和交互组件。
   - `SubjectModal.tsx`: 学科选择弹窗组件。
 - `app/services/`: 存放与后端 API 交互的服务模块。
+  - `progressService.ts`: 进度管理服务，包含批量API优化、超时重试机制
+  - `pointsService.ts`: 积分系统服务
+  - `errorBookService.ts`: 错题本管理服务
 - `app/assets/`: 存放静态资源 (图片、字体等)。
 
 #### 2.2. 导航 (Expo Router)
@@ -47,6 +52,7 @@
   - 使用 `Stack.Navigator` 作为主导航容器。
   - 管理 `welcome`, `(tabs)`, `study`, `practice`, `subject/[code]` 等屏幕。
   - 动态判断初始路由：首次打开导航到 `/welcome`；否则导航到 `/(tabs)`。
+  - 集成动态主题系统：根据学科颜色实时更新应用主题
 - **标签导航 (`app/(tabs)/_layout.tsx`)**:
   - 使用 `Tabs` Navigator 定义底部标签栏。
   - 包含 "课程", "练习", "错题本", "积分商城", "个人" 五个标签。
@@ -60,6 +66,7 @@
   - `currentSubject` 对象包含学科的 `id`, `name`, `code`, `description`, `color`, `iconName`。
   - 学科选择会持久化到 `AsyncStorage` (`CURRENT_SUBJECT_KEY`)。
   - `currentSubject.color` 用于动态改变应用的主题颜色（通过 `@react-navigation/native` 的 `ThemeProvider` 和自定义主题实现）。
+  - 默认学科设置：数学 (math)，颜色 #58CC02，图标 math-compass
 - **本地持久化**: 使用 `@react-native-async-storage/async-storage` 存储如 "是否已看过欢迎页" (`WELCOME_SCREEN_KEY`) 和 "当前学科" 等信息。
 
 #### 2.4. 主要页面逻辑简介
@@ -72,10 +79,12 @@
 - **`app/study.tsx` ("学习"页)**:
   - 接收 `unitId` (通常格式为 `subjectCode-unitIdentifier`) 和 `subjectCode` 参数。
   - 调用后端 API (如 `GET /api/unit-content/:unitId`) 获取该单元的学习内容和媒体资源。
+  - 每次访问时调用 `POST /api/users/:userId/increment-study/:unitId` 增加学习次数统计
 - **`app/practice.tsx` ("练习"页 - 通用单元练习)**:
   - 接收 `unitId` (格式为 `subjectCode-unitIdentifier`) 和 `subjectCode` 参数。
   - 调用后端 API (如 `GET /api/exercises/:subjectCode/:unitIdentifier`) 获取练习题，可传递 `userId` 和 `filterCompleted`。
   - 用户答题，提交答案到后端 (`POST /api/users/:userId/submit`)。
+  - 每次访问时调用 `POST /api/users/:userId/increment-practice/:unitId` 增加练习次数统计
 - **`app/(tabs)/wrong-exercises.tsx` ("错题本"页)**:
   - 调用后端 API (`GET /api/users/:userId/wrong-exercises`) 获取用户的错题列表（包含题目详情）。
 - **`app/(tabs)/shop.tsx` ("积分商城"页)**:
@@ -85,12 +94,25 @@
 - **`app/(tabs)/settings.tsx` ("个人"页)**:
   - (推测) 显示用户信息，如总积分、学习统计等。
 
+#### 2.5. API 服务层优化
+
+**网络请求优化机制**:
+- **超时控制**: 所有API请求都有超时机制 (默认5-20秒)
+- **重试策略**: 失败请求自动重试 (最多2次)
+- **降级处理**: API失败时返回默认数据，保证UI不崩溃
+- **批量优化**: 使用 `/progress/batch` API 减少网络请求数量
+
+**用户体验优化**:
+- **临时用户ID**: 使用固定的 `user1` 作为临时用户标识
+- **进度缓存**: 前端缓存进度数据，减少重复请求
+- **错误恢复**: 网络错误时显示友好提示并提供重试选项
+
 ### 3. 后端架构
 
 #### 3.1. 目录结构 (server/src/)
 
-- `server/src/index.js`: Express 应用入口，配置服务器、中间件、路由。
-- `server/src/config/database.js`: 数据库连接配置 (Sequelize 实例)。
+- `server/src/index.js`: Express 应用入口，配置服务器、中间件、路由。包含智能端口冲突处理。
+- `server/src/config/database.js`: 数据库连接配置 (Sequelize 实例)，使用 SQLite 数据库。
 - `server/src/models/`: Sequelize 模型定义 (如 `Subject`, `Unit`, `Exercise`, `UserRecord`, `UserPoints`, `UnitProgress`, `WrongExercise`)。
 - `server/src/routes/`: 各模块的路由定义文件。
 - `server/src/controllers/`: 控制器逻辑 (如 `unitActionsController.js`)。
@@ -108,21 +130,30 @@
 - 端口: 默认 3000，可配置。
 - 数据库: 启动时通过 `testConnection()` 测试数据库连接。
 - 错误处理: 全局错误处理中间件。
-- 端口占用处理: 服务器启动时，若端口被占用，会尝试自动终止占用进程 (macOS/Linux)。
+- **智能端口处理**: 服务器启动时，若端口被占用，会尝试自动终止占用进程 (macOS/Linux)。
 
 #### 3.3. 数据模型与关系
 
 **主要模型**：
 
 - **`Subject`**: 学科信息（如数学、物理）
+  - 新增 `color` 字段：学科主题颜色，默认 "#5EC0DE"
+  - 新增 `icon` 字段：学科图标标识
+  - 新增 `order` 字段：显示顺序
 - **`Unit`**: 学习单元，每个单元属于一个学科
   - 新增 `content` 字段：存储单元的详细学习内容文本（富文本格式）
   - 新增 `media` 字段：存储媒体资源数组（如视频、图片），JSON格式
   - 新增 `isMajor` 字段 (Boolean)：用于区分大单元 (true) 和小单元 (false)。
+  - 新增 `color`, `secondaryColor` 字段：单元主题色和次要颜色
+  - 新增 `unitType` 字段：单元类型 ('normal' 或 'exercise')
+  - 新增 `position` 字段：特殊位置设置 ('default', 'left', 'right')
 - **`Exercise`**: 练习题，每个题目属于一个单元
 - **`UserRecord`**: 用户答题记录
 - **`UserPoints`**: 用户积分
-- **`UnitProgress`**: 用户单元学习进度
+- **`UnitProgress`**: 用户单元学习进度 (重要扩展)
+  - 新增详细统计字段：`studyCount`, `practiceCount`, `correctCount`, `incorrectCount`
+  - 新增时间追踪：`lastStudyTime`, `lastPracticeTime`, `totalTimeSpent`
+  - 新增掌握程度评估：`masteryLevel`, `averageResponseTime`
 - **`WrongExercise`**: 用户错题记录
 
 **模型关系**：
@@ -138,6 +169,7 @@
 
 - **`GET /`**: 获取所有学科列表。
   - 返回数据包含 `id`, `name`, `code`, `description`, `color` (基于学科代码硬编码映射), `iconName` (通过 `getIconNameByCode` 函数生成)。按 `order` 排序。
+  - 学科颜色映射：math="#58CC02", physics="#5EC0DE", chemistry="#FF9600", biology="#9069CD", history="#DD6154"
 - **`GET /:code`**: 获取特定学科的详细信息 (通过学科代码)。包含 `iconName`。
 - **`GET /:code/units`**: 获取特定学科下的所有单元。
   - 可选查询参数 `level` 筛选单元级别。
@@ -159,21 +191,23 @@
 ##### 3.4.3. 用户记录与进度 (`/api/users`)
 
 - **核心辅助函数 `getUnitProgressDetails(userId, unitId)` (内部使用)**:
-  - 优先查询 `UnitProgress` 表获取单元进度 (`stars`, `completed`, `unlockNext` 基于 `stars === 3`)。
+  - **双源进度计算策略**：优先查询 `UnitProgress` 表获取单元进度 (`stars`, `completed`, `unlockNext` 基于 `stars === 3`)。
   - 若 `UnitProgress` 无记录或未完成，则根据 `UserRecord` 表中用户对该单元练习题的正确作答情况计算进度：
     - `completionRate` (已答题目数 / 总题目数)。
     - `stars` (基于 `completionRate`: >=0.8 -> 3星, >=0.6 -> 2星, >0 -> 1星)。
     - `unlockNext` (基于 `stars === 3`)。
     - `completed` (基于 `stars > 0`)。
   - 返回详细进度对象，包含来源 (`UnitProgressTable` 或 `UserRecordCalculation`)。
+  - **掌握程度计算**：`masteryLevel = (correctRate * 0.6) + (practiceEffort * 0.2) + (studyEffort * 0.2)`
 
 - **`POST /:userId/submit`** (由 `userRecords.js` 处理): 提交用户答题结果。
-  - 请求体: `exerciseId`, `unitId`, `isCorrect`。
+  - 请求体: `exerciseId`, `unitId`, `isCorrect`, `responseTime`。
   - 记录到 `UserRecord` 表 (查找或创建，更新则增加 `attemptCount`)。
   - 如果答错 (`!isCorrect`): 记录到 `WrongExercise` 表 (查找或创建，更新则增加 `attempts`)。
   - 如果答对 (`isCorrect`):
     - 从 `WrongExercise` 表移除该题。
     - **首次答对此题时** (新记录且答对，或从错误更新为正确)，用户增加1积分 (更新 `UserPoints` 表)。
+  - 更新 `UnitProgress` 表的统计数据 (答题次数、正确次数等)
 - **`GET /:userId/records`** (由 `userRecords.js` 处理): 获取用户所有答题记录，包含练习题详情 (`Exercise` model)，按 `updatedAt` 降序。
 - **`GET /:userId/progress/:unitId`** (由 `userRecords.js` 处理): 获取用户在特定单元的详细进度。
   - 内部调用 `getUnitProgressDetails(userId, unitId)`。
@@ -193,10 +227,12 @@
 - **`POST /:userId/increment-study/:unitId`** (由 `userRecords.js` 处理): 增加用户学习单元的次数。
   - 在 `UnitProgress` 表中查找或创建记录，增加 `studyCount` 字段值。
   - 当用户访问学习页面 (`/study`) 时调用此API。
+  - 更新 `lastStudyTime` 和重新计算 `masteryLevel`
   - 返回更新后的学习次数。
 - **`POST /:userId/increment-practice/:unitId`** (由 `userRecords.js` 处理): 增加用户练习单元的次数。
   - 在 `UnitProgress` 表中查找或创建记录，增加 `practiceCount` 字段值。
   - 当用户访问练习页面 (`/practice`) 时调用此API。
+  - 更新 `lastPracticeTime` 和重新计算 `masteryLevel`
   - 返回更新后的练习次数。
 
 ##### 3.4.4. 用户积分 (`/api/users`)
@@ -282,12 +318,15 @@
 1.  **用户在 "课程" 页选择一个单元**。单元是否可访问（解锁状态）由前端根据从 `/api/users/:userId/progress/batch` 或 `/api/users/:userId/progress/:unitId` 获取的进度数据判断。
 2.  **进入学习界面 (`app/study.tsx`)**:
     - 调用 `GET /api/unit-content/:unitId` 获取单元内容和媒体资源。
+    - 调用 `POST /api/users/:userId/increment-study/:unitId` 增加学习次数统计
 3.  **进入练习界面 (`app/practice.tsx`)**:
     - 调用 `GET /api/exercises/:subjectCode/:unitIdentifier?userId=xxx` 获取练习题。
+    - 调用 `POST /api/users/:userId/increment-practice/:unitId` 增加练习次数统计
 4.  **用户答题并提交**:
     - 前端将答案 `POST` 到 `/api/users/:userId/submit`。
 5.  **后端处理提交**:
     - 更新 `UserRecord`, `WrongExercise`, 并根据是否首次答对更新 `UserPoints`。
+    - 更新 `UnitProgress` 表中的统计数据和掌握程度
 6.  **(可选) 完成单元**:
     - 当用户完成一个单元的所有学习/练习后，前端或后端逻辑（例如，在所有练习都完成后）可能会调用 `POST /api/users/:userId/complete-unit/:unitId` 来正式标记单元完成并获得星级和积分奖励。
 
@@ -306,6 +345,10 @@
 1.  **用户进入 "错题本" 页 (`app/(tabs)/wrong-exercises.tsx`)**。
 2.  调用 `GET /api/users/:userId/wrong-exercises` 获取错题列表。
 3.  用户选择错题进行重新练习。
+4.  **错题管理机制**：
+    - 答错时自动记录到 `WrongExercise` 表
+    - 答对时自动从错题本移除
+    - 支持按学科分类查看错题
 
 ### 6. 最近的主要更改
 
@@ -316,6 +359,11 @@
   - 添加 `media` 字段存储媒体资源数组（JSON格式）
   - 新增 `isMajor` 字段 (Boolean)：用于区分大单元 (true) 和小单元 (false)。
   - 移除了独立的 `LearningContent` 模型，简化了数据结构
+
+- **UnitProgress模型扩展**:
+  - 添加详细的学习行为统计字段
+  - 添加掌握程度评估算法
+  - 支持实时更新学习和练习统计
 
 - **API端点更新**:
   - 移除了 `/api/learning` API路径
@@ -333,9 +381,21 @@
   - 实现了清理函数，确保所有进程正确终止
   - 改进了端口检测和进程管理逻辑
 
-### 5. 用户数据统计与掌握程度计算
+#### 6.3. 前端架构优化
 
-#### 5.1 收集的数据指标
+- **主题系统完善**:
+  - 实现基于学科颜色的动态主题切换
+  - 支持深色/浅色模式适配
+  - 统一的颜色管理系统
+
+- **网络层优化**:
+  - 添加超时和重试机制
+  - 实现优雅的错误降级策略
+  - 批量API调用优化
+
+### 7. 用户数据统计与掌握程度计算
+
+#### 7.1 收集的数据指标
 
 为了评估用户对某个单元的掌握程度，系统收集以下数据指标：
 
@@ -358,7 +418,7 @@
    - `completedAt`: 单元完成的时间
    - `masteryLevel`: 掌握程度（0-1之间的浮点数）
 
-#### 5.2 掌握程度计算方法
+#### 7.2 掌握程度计算方法
 
 掌握程度（masteryLevel）是衡量用户对单元内容理解和掌握情况的关键指标，取值范围为0-1，计算公式如下：
 
@@ -385,7 +445,7 @@ masteryLevel = (correctRate * 0.6) + (practiceEffort * 0.2) + (studyEffort * 0.2
 2. 用户访问学习页面时
 3. 用户访问练习页面时
 
-#### 5.3 星级计算方法
+#### 7.3 星级计算方法
 
 星级（stars）是对用户掌握程度的简化表示，用于前端UI展示，取值为0-3：
 
@@ -403,7 +463,7 @@ masteryLevel = (correctRate * 0.6) + (practiceEffort * 0.2) + (studyEffort * 0.2
 
 不同的API端点可能使用不同的星级计算逻辑，具体取决于上下文需求。
 
-#### 5.4 进度数据应用场景
+#### 7.4 进度数据应用场景
 
 1. **个性化学习路径**：根据用户掌握程度推荐后续学习内容
 2. **学习状态可视化**：在UI中展示用户学习进度和掌握情况
@@ -411,6 +471,37 @@ masteryLevel = (correctRate * 0.6) + (practiceEffort * 0.2) + (studyEffort * 0.2
 4. **系统适应性**：根据用户表现调整题目难度和推荐内容
 5. **学习报告生成**：基于收集的数据生成学习报告和分析图表
 
-以上统计数据和掌握程度算法可以根据实际使用情况和用户反馈进行调整和优化。
+### 8. 性能优化与用户体验
 
----
+#### 8.1 网络层优化
+
+- **批量API**: 使用 `/progress/batch` 减少网络请求数量
+- **超时控制**: 所有API请求都有合理的超时设置
+- **重试机制**: 失败请求的自动重试策略
+- **降级处理**: 网络异常时的优雅降级和默认数据返回
+
+#### 8.2 数据库优化
+
+- **智能同步**: 使用 `alter` 模式同步数据库模型，保留现有数据
+- **索引优化**: 在用户ID和单元ID组合上建立唯一索引
+- **关联查询**: 使用 Sequelize 的 include 减少查询次数
+
+#### 8.3 前端体验优化
+
+- **状态管理**: 基于Context的全局状态管理
+- **主题联动**: 学科切换与UI主题的实时同步
+- **错误恢复**: 友好的错误提示和重试机制
+
+### 9. 安全性与稳定性
+
+#### 9.1 错误处理
+
+- **全局错误捕获**: 统一的错误处理机制
+- **参数验证**: API入参的完整性检查
+- **优雅降级**: 确保关键功能在异常情况下的可用性
+
+#### 9.2 数据一致性
+
+- **事务处理**: 关键操作使用数据库事务保证一致性
+- **双源验证**: 进度计算的多重验证机制
+- **状态同步**: 前后端状态的实时同步
