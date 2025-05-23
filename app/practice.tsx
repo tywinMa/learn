@@ -551,7 +551,7 @@ export default function PracticeScreen() {
         exerciseId,
         unitId: lessonId,
         isCorrect,
-        responseTimeSeconds: Math.floor(responseTime / 1000), // 转换为秒，并使用明确的字段名
+        responseTime: Math.floor(responseTime / 1000), // 转换为秒，字段名修正为 responseTime
       };
 
       const response = await fetch(apiUrl, {
