@@ -195,7 +195,7 @@
   - **注意**: 此API本身不直接处理单元的 `isCompleted` 或 `isLocked` 状态。这些状态的判断通常由客户端结合用户进度数据完成。
 - **`GET /units/:unitId`**: 获取特定单元的详细信息 (通过单元主键 `unitId`)。增强逻辑类似 `/:code/units` 中的单个单元。
 
-##### 3.4.2. 练习题 (`/api/exercises` 或 `/exercises`)
+##### 3.4.2. 练习题 (`/api/exercises`)
 
 - **`GET /:subject/:unitId` (推荐)**: 获取指定学科 (`subject`) 下特定单元 (`unitId`，不含学科前缀) 的练习题。
   - 单元ID在后端会组合学科前缀进行查询 (如 `subject-unitId`)。
