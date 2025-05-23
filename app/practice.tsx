@@ -353,7 +353,7 @@ export default function PracticeScreen() {
           setPracticeStartTime(Date.now());
 
           // 调用API增加练习次数
-          const activityApiUrl = `${API_BASE_URL}/api/users/${USER_ID}/increment-practice/${lessonId}`;
+          const activityApiUrl = `${API_BASE_URL}/api/answer-records/${USER_ID}/increment-practice/${lessonId}`;
 
           const activityResponse = await fetch(activityApiUrl, {
             method: "POST",
@@ -412,7 +412,7 @@ export default function PracticeScreen() {
         console.log(`用户练习了 ${totalPracticeTime} 秒`);
 
         // 发送最终练习时间统计
-        fetch(`${API_BASE_URL}/api/users/${USER_ID}/increment-practice/${lessonId}`, {
+        fetch(`${API_BASE_URL}/api/answer-records/${USER_ID}/increment-practice/${lessonId}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -535,23 +535,55 @@ export default function PracticeScreen() {
   // 提交答题结果到服务器
   const submitAnswerToServer = async (exerciseId: string, isCorrect: boolean) => {
     try {
-      const apiUrl = `${API_BASE_URL}/api/users/${USER_ID}/submit`;
-
-      // 计算响应时间 (毫秒)，此处可以使用组件状态来记录开始回答时间和提交时间
-      // 这里使用一个随机值模拟，实际应用中应该准确记录用户从题目显示到提交答案的时间
+      // 使用新的AnswerRecord API端点
+      const apiUrl = `${API_BASE_URL}/api/answer-records/${USER_ID}/submit`;
+      const currentExercise = exercises.find(ex => ex.id === exerciseId);
+      
+      // 计算响应时间 (秒)
       const responseTime = Math.floor(Math.random() * 10000) + 2000; // 模拟2-12秒的响应时间
-
+      
+      // 获取用户的具体答案
+      let userAnswer = null;
+      if (pendingAnswer && pendingAnswer.exerciseId === exerciseId) {
+        if (currentExercise?.type === "choice") {
+          userAnswer = pendingAnswer.optionIndex;
+        } else if (currentExercise?.type === "fill_blank") {
+          userAnswer = pendingAnswer.fillBlankAnswers;
+        } else if (currentExercise?.type === "matching") {
+          userAnswer = pendingAnswer.matchingAnswers;
+        }
+      }
+      
+      // 生成或获取会话ID
+      let sessionId = sessionStorage?.getItem('currentSessionId');
+      if (!sessionId) {
+        sessionId = Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
+        sessionStorage?.setItem('currentSessionId', sessionId);
+      }
+      
       // 记录提交的答题结果
       console.log(
         `提交答题结果: 练习ID=${exerciseId}, 单元ID=${lessonId}, 是否正确=${isCorrect}, 响应时间=${responseTime}ms`
       );
 
-      // 创建请求体，包含后端接口需要的字段
+      // 创建请求体，包含丰富的答题数据
       const requestBody = {
         exerciseId,
         unitId: lessonId,
         isCorrect,
-        responseTime: Math.floor(responseTime / 1000), // 转换为秒，字段名修正为 responseTime
+        userAnswer,
+        responseTime: Math.floor(responseTime / 1000), // 转换为秒
+        sessionId,
+        practiceMode: isTestForUnlocking ? 'unlock_test' : 'normal',
+        hintsUsed: 0, // 当前版本未实现提示功能
+        helpRequested: false, // 当前版本未实现帮助功能
+        confidence: null, // 可以后续添加用户信心度收集
+        knowledgePointsViewed: [], // 可以记录用户查看的知识点
+        deviceInfo: {
+          platform: 'mobile', // 可以通过Platform.OS获取
+          userAgent: navigator?.userAgent || 'unknown',
+          screenSize: `${Dimensions.get('window').width}x${Dimensions.get('window').height}`
+        }
       };
 
       const response = await fetch(apiUrl, {

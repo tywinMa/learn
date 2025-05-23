@@ -1,26 +1,22 @@
 const express = require('express');
 const router = express.Router();
-const { Exercise, UserRecord, sequelize } = require('../models');
+const { Exercise, AnswerRecord, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
-// 获取所有练习题单元
+// 获取所有包含练习题的单元ID列表
 router.get('/', async (req, res) => {
   try {
-    // 从数据库中获取所有不同的unitId
-    const units = await Exercise.findAll({
+    const unitIds = await Exercise.findAll({
       attributes: [[sequelize.fn('DISTINCT', sequelize.col('unitId')), 'unitId']],
       raw: true
     });
 
-    // 提取unitId数组
-    const unitIds = units.map(unit => unit.unitId);
-
     res.json({
       success: true,
-      data: unitIds
+      data: unitIds.map(item => item.unitId)
     });
   } catch (error) {
-    console.error('获取练习题单元出错:', error);
+    console.error('获取单元ID列表出错:', error);
     res.status(500).json({
       success: false,
       message: '服务器错误'
@@ -28,278 +24,219 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 新增：根据学科和ID获取练习题（推荐使用此API）
+// 获取特定单元的练习题 (推荐API)
 router.get('/:subject/:unitId', async (req, res) => {
   try {
     const { subject, unitId } = req.params;
     const { userId, filterCompleted, types } = req.query;
 
-    // 验证参数
-    if (!subject || !unitId) {
-      return res.status(400).json({
-        success: false,
-        message: '缺少必要参数'
+    // 构建完整的单元ID (包含学科前缀)
+    const fullUnitId = `${subject}-${unitId}`;
+
+    // 构建查询条件
+    const whereClause = { unitId: fullUnitId };
+
+    // 如果指定了题型，添加类型过滤
+    if (types) {
+      const typeArray = types.split(',').map(t => t.trim());
+      whereClause.type = { [Op.in]: typeArray };
+    }
+
+    // 获取练习题
+    const exercises = await Exercise.findAll({
+      where: whereClause,
+      order: [['id', 'ASC']]
+    });
+
+    if (exercises.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        allCompleted: false,
+        typeStats: {}
       });
     }
 
-    console.log(`获取学科 ${subject} 中单元 ${unitId} 的练习题`);
+    let processedExercises = exercises;
 
-    // 构建单元ID格式（确保包含学科前缀）
-    const formattedUnitId = `${subject}-${unitId}`;
-
-    // 构建查询条件
-    let whereClause = { unitId: formattedUnitId };
-
-    // 根据题型筛选
-    if (types) {
-      const typesList = types.split(',');
-      if (typesList.length > 0) {
-        whereClause.type = {
-          [Op.in]: typesList
-        };
-      }
-    }
-
-    // 如果需要过滤已完成的题目，且提供了用户ID
-    let completedExerciseIds = [];
+    // 如果提供了用户ID，标记已完成的题目
     if (userId) {
-      // 查找用户已正确完成的练习题ID
-      const completedExercises = await UserRecord.findAll({
+      const exerciseIds = exercises.map(ex => ex.id);
+      
+      // 使用AnswerRecord查询已完成的题目
+      const completedExercises = await AnswerRecord.findAll({
         where: {
           userId,
-          exerciseId: { [Op.like]: `${formattedUnitId}-%` }, // 确保只获取当前单元的记录
+          exerciseId: { [Op.in]: exerciseIds },
           isCorrect: true
         },
         attributes: ['exerciseId'],
         raw: true
       });
 
-      // 提取已完成的练习题ID数组
-      completedExerciseIds = completedExercises.map(record => record.exerciseId);
-      console.log(`用户 ${userId} 已完成的练习题: ${completedExerciseIds.join(', ') || '无'}`);
-    }
+      const completedIds = new Set(completedExercises.map(record => record.exerciseId));
 
-    // 查询练习题
-    const exercises = await Exercise.findAll({
-      where: whereClause,
-      order: [['id', 'ASC']]
-    });
+      // 标记已完成的题目
+      processedExercises = exercises.map(exercise => {
+        const exerciseData = exercise.toJSON();
+        exerciseData.completed = completedIds.has(exercise.id);
 
-    console.log(`找到 ${exercises.length} 道练习题`);
+        // 对特定题型的正确答案进行处理
+        if (!exerciseData.completed) {
+          if (exercise.type === 'matching' || exercise.type === 'application') {
+            exerciseData.correctAnswer = null;
+          } else if (exercise.type === 'math') {
+            exerciseData.correctAnswer = null;
+          }
+        }
 
-    if (exercises.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: `未找到学科 ${subject} 中单元 ${unitId} 的练习题`
+        return exerciseData;
       });
-    }
 
-    // 处理附加信息，格式化返回数据
-    const formattedExercises = exercises.map(ex => {
-      // 创建基本题目对象
-      const exercise = ex.toJSON();
-
-      // 添加是否已完成标志
-      exercise.completed = completedExerciseIds.includes(ex.id);
-
-      // 处理不同题型的特殊格式化
-      switch (exercise.type) {
-        case 'matching':
-          // 匹配题需要在前端才能看到正确答案
-          if (!exercise.completed) {
-            exercise.correctAnswer = null;
-          }
-          break;
-        case 'application':
-          // 应用题总是隐藏正确答案，因为需要老师批改
-          exercise.correctAnswer = null;
-          break;
-        case 'math':
-          // 数学题型保留正确答案的值，但隐藏解题步骤
-          if (!exercise.completed && exercise.correctAnswer && exercise.correctAnswer.steps) {
-            exercise.correctAnswer = { value: exercise.correctAnswer.value };
-          }
-          break;
+      // 如果需要过滤已完成的题目
+      if (filterCompleted === 'true') {
+        processedExercises = processedExercises.filter(ex => !ex.completed);
       }
-
-      return exercise;
-    });
-
-    // 检查是否所有题目都已完成
-    const allCompleted = exercises.length > 0 &&
-      completedExerciseIds.length >= exercises.length &&
-      exercises.every(ex => completedExerciseIds.includes(ex.id));
-
-    // 如果所有题目都已完成且需要过滤已完成的题目
-    if (allCompleted && filterCompleted === 'true') {
-      console.log(`用户 ${userId} 已完成学科 ${subject} 中单元 ${unitId} 的所有练习题`);
-      return res.status(200).json({
-        success: true,
-        data: [],
-        message: '所有练习题已完成',
-        allCompleted: true
-      });
     }
 
-    // 如果需要过滤已完成的题目
-    let filteredExercises = formattedExercises;
-    if (filterCompleted === 'true' && completedExerciseIds.length > 0) {
-      filteredExercises = formattedExercises.filter(ex => !completedExerciseIds.includes(ex.id));
-      console.log(`过滤后剩余 ${filteredExercises.length} 道练习题`);
-    }
+    // 计算统计信息
+    const allCompleted = userId ? processedExercises.length === 0 && exercises.length > 0 : false;
 
-    // 获取题型统计信息
+    // 按题型统计
     const typeStats = {};
     exercises.forEach(ex => {
-      const type = ex.type || 'choice';
-      typeStats[type] = (typeStats[type] || 0) + 1;
+      if (!typeStats[ex.type]) {
+        typeStats[ex.type] = { total: 0, completed: 0 };
+      }
+      typeStats[ex.type].total++;
+      
+      if (userId) {
+        const processedEx = processedExercises.find(pex => pex.id === ex.id);
+        if (processedEx && processedEx.completed) {
+          typeStats[ex.type].completed++;
+        }
+      }
     });
 
     res.json({
       success: true,
-      data: filteredExercises,
-      allCompleted: allCompleted,
-      typeStats: typeStats
+      data: processedExercises,
+      allCompleted,
+      typeStats
     });
+
   } catch (error) {
-    console.error('获取单元练习题出错:', error);
+    console.error('获取练习题出错:', error);
     res.status(500).json({
       success: false,
-      message: '获取练习题时发生服务器错误',
-      error: error.message
+      message: '服务器错误'
     });
   }
 });
 
-// 获取特定单元的练习题（保留向后兼容）
+// 获取特定单元的练习题 (兼容API)
 router.get('/:unitId', async (req, res) => {
   try {
     const { unitId } = req.params;
     const { userId, filterCompleted, types } = req.query;
 
-    console.log(`获取单元 ${unitId} 的练习题，筛选参数: 用户=${userId}, 过滤已完成=${filterCompleted}, 题型=${types}`);
+    // 构建查询条件
+    const whereClause = { unitId };
 
-    // 查询条件 - 直接使用unitId，假定所有ID都已包含学科前缀
-    let whereClause = { unitId };
-
-    // 根据题型筛选
+    // 如果指定了题型，添加类型过滤
     if (types) {
-      const typesList = types.split(',');
-      if (typesList.length > 0) {
-        whereClause.type = {
-          [Op.in]: typesList
-        };
-      }
+      const typeArray = types.split(',').map(t => t.trim());
+      whereClause.type = { [Op.in]: typeArray };
     }
 
-    // 如果需要过滤已完成的题目，且提供了用户ID
-    let completedExerciseIds = [];
+    // 获取练习题
+    const exercises = await Exercise.findAll({
+      where: whereClause,
+      order: [['id', 'ASC']]
+    });
+
+    if (exercises.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        allCompleted: false,
+        typeStats: {}
+      });
+    }
+
+    let processedExercises = exercises;
+
+    // 如果提供了用户ID，标记已完成的题目
     if (userId) {
-      // 查找用户已正确完成的练习题ID
-      const completedExercises = await UserRecord.findAll({
+      const exerciseIds = exercises.map(ex => ex.id);
+      
+      // 使用AnswerRecord查询已完成的题目
+      const completedExercises = await AnswerRecord.findAll({
         where: {
           userId,
-          exerciseId: { [Op.like]: `${unitId}-%` }, // 直接使用unitId，假定已包含学科前缀
+          exerciseId: { [Op.in]: exerciseIds },
           isCorrect: true
         },
         attributes: ['exerciseId'],
         raw: true
       });
 
-      // 提取已完成的练习题ID数组
-      completedExerciseIds = completedExercises.map(record => record.exerciseId);
-      console.log(`用户 ${userId} 已完成的练习题: ${completedExerciseIds.join(', ') || '无'}`);
-    }
+      const completedIds = new Set(completedExercises.map(record => record.exerciseId));
 
-    // 查询练习题
-    const exercises = await Exercise.findAll({
-      where: whereClause,
-      order: [['id', 'ASC']]
-    });
+      // 标记已完成的题目
+      processedExercises = exercises.map(exercise => {
+        const exerciseData = exercise.toJSON();
+        exerciseData.completed = completedIds.has(exercise.id);
 
-    console.log(`找到 ${exercises.length} 道练习题`);
+        // 对特定题型的正确答案进行处理
+        if (!exerciseData.completed) {
+          if (exercise.type === 'matching' || exercise.type === 'application') {
+            exerciseData.correctAnswer = null;
+          } else if (exercise.type === 'math') {
+            exerciseData.correctAnswer = null;
+          }
+        }
 
-    if (exercises.length === 0) {
-      console.log(`未找到单元 ${unitId} 的练习题`);
-      return res.status(404).json({
-        success: false,
-        message: `未找到单元 ${unitId} 的练习题`
+        return exerciseData;
       });
-    }
 
-    // 处理附加信息，格式化返回数据
-    const formattedExercises = exercises.map(ex => {
-      // 创建基本题目对象
-      const exercise = ex.toJSON();
-
-      // 添加是否已完成标志
-      exercise.completed = completedExerciseIds.includes(ex.id);
-
-      // 处理不同题型的特殊格式化
-      switch (exercise.type) {
-        case 'matching':
-          // 匹配题需要在前端才能看到正确答案
-          if (!exercise.completed) {
-            exercise.correctAnswer = null;
-          }
-          break;
-        case 'application':
-          // 应用题总是隐藏正确答案，因为需要老师批改
-          exercise.correctAnswer = null;
-          break;
-        case 'math':
-          // 数学题型保留正确答案的值，但隐藏解题步骤
-          if (!exercise.completed && exercise.correctAnswer && exercise.correctAnswer.steps) {
-            exercise.correctAnswer = { value: exercise.correctAnswer.value };
-          }
-          break;
+      // 如果需要过滤已完成的题目
+      if (filterCompleted === 'true') {
+        processedExercises = processedExercises.filter(ex => !ex.completed);
       }
-
-      return exercise;
-    });
-
-    // 检查是否所有题目都已完成
-    const allCompleted = exercises.length > 0 &&
-      completedExerciseIds.length >= exercises.length &&
-      exercises.every(ex => completedExerciseIds.includes(ex.id));
-
-    // 如果所有题目都已完成且需要过滤已完成的题目
-    if (allCompleted && filterCompleted === 'true') {
-      console.log(`用户 ${userId} 已完成单元 ${unitId} 的所有练习题`);
-      return res.status(200).json({
-        success: true,
-        data: [],
-        message: '所有练习题已完成',
-        allCompleted: true
-      });
     }
 
-    // 如果需要过滤已完成的题目
-    let filteredExercises = formattedExercises;
-    if (filterCompleted === 'true' && completedExerciseIds.length > 0) {
-      filteredExercises = formattedExercises.filter(ex => !completedExerciseIds.includes(ex.id));
-      console.log(`过滤后剩余 ${filteredExercises.length} 道练习题`);
-    }
+    // 计算统计信息
+    const allCompleted = userId ? processedExercises.length === 0 && exercises.length > 0 : false;
 
-    // 获取题型统计信息
+    // 按题型统计
     const typeStats = {};
     exercises.forEach(ex => {
-      const type = ex.type || 'choice';
-      typeStats[type] = (typeStats[type] || 0) + 1;
+      if (!typeStats[ex.type]) {
+        typeStats[ex.type] = { total: 0, completed: 0 };
+      }
+      typeStats[ex.type].total++;
+      
+      if (userId) {
+        const processedEx = processedExercises.find(pex => pex.id === ex.id);
+        if (processedEx && processedEx.completed) {
+          typeStats[ex.type].completed++;
+        }
+      }
     });
 
     res.json({
       success: true,
-      data: filteredExercises,
-      allCompleted: allCompleted,
-      typeStats: typeStats
+      data: processedExercises,
+      allCompleted,
+      typeStats
     });
+
   } catch (error) {
-    console.error('获取单元练习题出错:', error);
+    console.error('获取练习题出错:', error);
     res.status(500).json({
       success: false,
-      message: '获取练习题时发生服务器错误',
-      error: error.message
+      message: '服务器错误'
     });
   }
 });

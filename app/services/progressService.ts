@@ -83,7 +83,8 @@ export async function getUserUnitProgress(unitId: string, timeoutMs: number = 50
         }
 
         console.log(`获取用户 ${USER_ID} 在单元 ${unitId} 的进度`);
-        const response = await fetch(`${API_BASE_URL}/api/users/${USER_ID}/progress/${unitId}`);
+        // 使用新的AnswerRecord API端点
+        const response = await fetch(`${API_BASE_URL}/api/answer-records/${USER_ID}/progress/${unitId}`);
 
         if (!response.ok) {
           // 记录HTTP错误状态
@@ -149,7 +150,8 @@ export async function getMultipleUnitProgress(
 
   try {
     console.log(`[getMultipleUnitProgress] Fetching progress for ${unitIds.length} units via batch API.`);
-    const fetchPromise = fetch(`${API_BASE_URL}/api/users/${USER_ID}/progress/batch`, {
+    // 使用新的AnswerRecord API端点
+    const fetchPromise = fetch(`${API_BASE_URL}/api/answer-records/${USER_ID}/progress/batch`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ unitIds }),

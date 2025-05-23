@@ -1,10 +1,9 @@
 const Exercise = require('./Exercise');
-const UserRecord = require('./UserRecord');
-const WrongExercise = require('./WrongExercise');
 const UserPoints = require('./UserPoints');
 const Subject = require('./Subject');
 const Unit = require('./Unit');
 const UnitProgress = require('./UnitProgress');
+const AnswerRecord = require('./AnswerRecord');
 const { sequelize } = require('../config/database');
 
 // 定义模型之间的关系
@@ -21,25 +20,22 @@ Exercise.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 Unit.hasMany(Exercise, { foreignKey: 'unitId', sourceKey: 'id' });
 Exercise.belongsTo(Unit, { foreignKey: 'unitId', targetKey: 'id' });
 
-// Exercise 和 UserRecord 之间的关系
-Exercise.hasMany(UserRecord, { foreignKey: 'exerciseId', sourceKey: 'id' });
-UserRecord.belongsTo(Exercise, { foreignKey: 'exerciseId', targetKey: 'id' });
-
-// Exercise 和 WrongExercise 之间的关系
-Exercise.hasMany(WrongExercise, { foreignKey: 'exerciseId', sourceKey: 'id' });
-WrongExercise.belongsTo(Exercise, { foreignKey: 'exerciseId', targetKey: 'id' });
-
-// Subject 和 UserRecord 之间的关系
-Subject.hasMany(UserRecord, { foreignKey: 'subject', sourceKey: 'code' });
-UserRecord.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
-
-// Subject 和 WrongExercise 之间的关系
-Subject.hasMany(WrongExercise, { foreignKey: 'subject', sourceKey: 'code' });
-WrongExercise.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
-
 // Unit and UnitProgress relationship
 Unit.hasMany(UnitProgress, { foreignKey: 'unitId', sourceKey: 'id' });
 UnitProgress.belongsTo(Unit, { foreignKey: 'unitId', targetKey: 'id' });
+
+// ===== AnswerRecord关系 =====
+// Exercise 和 AnswerRecord 之间的关系
+Exercise.hasMany(AnswerRecord, { foreignKey: 'exerciseId', sourceKey: 'id' });
+AnswerRecord.belongsTo(Exercise, { foreignKey: 'exerciseId', targetKey: 'id' });
+
+// Subject 和 AnswerRecord 之间的关系
+Subject.hasMany(AnswerRecord, { foreignKey: 'subject', sourceKey: 'code' });
+AnswerRecord.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
+
+// Unit 和 AnswerRecord 之间的关系
+Unit.hasMany(AnswerRecord, { foreignKey: 'unitId', sourceKey: 'id' });
+AnswerRecord.belongsTo(Unit, { foreignKey: 'unitId', targetKey: 'id' });
 
 // 同步所有模型到数据库
 const syncDatabase = async () => {
@@ -53,8 +49,7 @@ const syncDatabase = async () => {
     try {
       await sequelize.query('SELECT 1 FROM Subjects LIMIT 1');
       await sequelize.query('SELECT 1 FROM Units LIMIT 1');
-      await sequelize.query('SELECT 1 FROM WrongExercises LIMIT 1');
-      await sequelize.query('SELECT 1 FROM UserRecords LIMIT 1');
+      await sequelize.query('SELECT 1 FROM AnswerRecords LIMIT 1');
       console.log('数据库表结构完整');
     } catch (checkError) {
       // 如果表不存在，将创建它们（已经通过上面的sync操作完成）
@@ -78,12 +73,11 @@ const syncDatabase = async () => {
 
 module.exports = {
   Exercise,
-  UserRecord,
-  WrongExercise,
   UserPoints,
   Subject,
   Unit,
   UnitProgress,
+  AnswerRecord,
   sequelize,
   syncDatabase
 };

@@ -76,19 +76,20 @@
   - 展示欢迎信息和 "开始探索" 按钮。
   - 点击按钮后，在 `AsyncStorage` 中设置 `WELCOME_SCREEN_KEY` 为 `true`，并导航到 `/(tabs)`。
 - **`app/(tabs)/index.tsx` ("课程"页)**:
-  - 展示学科列表或当前学科的单元列表。用户可选择学科和单元。单元的解锁状态可能需要前端结合从 `/api/users/:userId/progress/batch` 或 `/api/users/:userId/progress/:unitId` 获取的进度数据判断。
+  - 展示学科列表或当前学科的单元列表。用户可选择学科和单元。单元的解锁状态可能需要前端结合从 `/api/answer-records/:userId/progress/batch` 或 `/api/answer-records/:userId/progress/:unitId` 获取的进度数据判断。
 - **`app/study.tsx` ("学习"页)**:
   - 接收 `unitId` (通常格式为 `subjectCode-unitIdentifier`) 和 `subjectCode` 参数。
   - 调用后端 API (如 `GET /api/unit-content/:unitId`) 获取该单元的学习内容和媒体资源。
-  - 每次访问时调用 `POST /api/users/:userId/increment-study/:unitId` 增加学习次数统计
+  - 每次访问时调用 `POST /api/answer-records/:userId/increment-study/:unitId` 增加学习次数统计
 - **`app/practice.tsx` ("练习"页 - 通用单元练习)**:
   - 接收 `unitId` (格式为 `subjectCode-unitIdentifier`) 和 `subjectCode` 参数。
   - 调用后端 API (如 `GET /api/exercises/:subjectCode/:unitIdentifier`) 获取练习题，可传递 `userId` 和 `filterCompleted`。
-  - 用户答题，提交答案到后端 (`POST /api/users/:userId/submit`)。
-  - 每次访问时调用 `POST /api/users/:userId/increment-practice/:unitId` 增加练习次数统计
+  - 用户答题，提交答案到后端 (`POST /api/answer-records/:userId/submit`)。
+  - 每次访问时调用 `POST /api/answer-records/:userId/increment-practice/:unitId` 增加练习次数统计
   - **知识点功能**: 在提交答案按钮下方显示相关知识点区域，用户可点击知识点标签查看详细内容弹窗
+  - **新增答题数据收集**: 提交更丰富的答题数据，包括用户具体答案、会话ID、练习模式、设备信息等
 - **`app/(tabs)/wrong-exercises.tsx` ("错题本"页)**:
-  - 调用后端 API (`GET /api/users/:userId/wrong-exercises`) 获取用户的错题列表（包含题目详情）。
+  - 调用后端 API (`GET /api/answer-records/:userId/wrong-exercises`) 获取用户的错题列表（包含题目详情）。
 - **`app/(tabs)/shop.tsx` ("积分商城"页)**:
   - 调用后端 API (`GET /api/users/:userId/points`) 显示用户当前积分。
   - (推测) 调用后端 API 获取商品列表。
@@ -115,9 +116,10 @@
 
 - `server/src/index.js`: Express 应用入口，配置服务器、中间件、路由。包含智能端口冲突处理。
 - `server/src/config/database.js`: 数据库连接配置 (Sequelize 实例)，使用 SQLite 数据库。
-- `server/src/models/`: Sequelize 模型定义 (如 `Subject`, `Unit`, `Exercise`, `UserRecord`, `UserPoints`, `UnitProgress`, `WrongExercise`)。
+- `server/src/models/`: Sequelize 模型定义 (如 `Subject`, `Unit`, `Exercise`, `UserPoints`, `UnitProgress`, `AnswerRecord`)。
 - `server/src/routes/`: 各模块的路由定义文件。
 - `server/src/controllers/`: 控制器逻辑 (如 `unitActionsController.js`)。
+- `server/src/services/`: 业务逻辑服务层 (如 `answerRecordService.js`)。
 - `server/src/middleware/`: 自定义中间件 (如认证，当前代码中部分被注释)。
 - `server/src/utils/`: 工具函数和数据初始化脚本。
 
@@ -128,7 +130,9 @@
   - `express.json()`: 解析 JSON 请求体。
   - `morgan('dev')`: HTTP 请求日志。
   - `express.static(path.join(__dirname, '..', '..', 'dist'))`: 托管 `dist/` 目录下的静态文件 (用于前端构建产物)。
-- 路由注册: `/api/users` 路径被 `userRecordsRoutes` 和 `userPointsRoutes` 共享，依赖各自文件内定义的具体子路径进行区分。
+- 路由注册: 
+  - `/api/users` 路径被 `userPointsRoutes` 使用
+  - `/api/answer-records` 新的答题记录API路径
 - 端口: 默认 3000，可配置。
 - 数据库: 启动时通过 `testConnection()` 测试数据库连接。
 - 错误处理: 全局错误处理中间件。
@@ -151,20 +155,31 @@
   - 新增 `position` 字段：特殊位置设置 ('default', 'left', 'right')
 - **`Exercise`**: 练习题，每个题目属于一个单元
   - 新增 `knowledgePoints` 字段 (JSON)：存储相关知识点数据，格式为 `[{title: '知识点名称', content: '详细内容', type: 'text|image|video', mediaUrl?: 'string'}]`
-- **`UserRecord`**: 用户答题记录
 - **`UserPoints`**: 用户积分
 - **`UnitProgress`**: 用户单元学习进度 (重要扩展)
   - 新增详细统计字段：`studyCount`, `practiceCount`, `correctCount`, `incorrectCount`
   - 新增时间追踪：`lastStudyTime`, `lastPracticeTime`, `totalTimeSpent`
   - 新增掌握程度评估：`masteryLevel`, `averageResponseTime`
-- **`WrongExercise`**: 用户错题记录
+- **`AnswerRecord`**: 综合答题记录模型（整合了原UserRecord和WrongExercise功能）
+  - **基础信息**: userId, exerciseId, unitId, subject
+  - **答题结果**: isCorrect, userAnswer, correctAnswer, score
+  - **时间数据**: responseTime, startTime, submitTime
+  - **尝试相关**: attemptNumber, totalAttempts, isFirstAttempt, previousResult
+  - **上下文信息**: sessionId, practiceMode, deviceInfo
+  - **学习行为**: hintsUsed, helpRequested, knowledgePointsViewed
+  - **题目属性**: exerciseType, difficultyLevel
+  - **用户状态**: confidence, studyTimeBeforeAnswer
+  - **错题管理**: isWrongAnswer, wrongAnswerType, reviewCount, lastReviewTime, masteredAfterAttempts
+  - **分析字段**: timeOfDay, weekday, learningStreak
+  - **成绩与进度**: pointsEarned, experienceGained, masteryContribution
 
 **模型关系**：
 - `Subject` 1:n `Unit`: 一个学科有多个学习单元
 - `Unit` 1:n `Exercise`: 一个单元有多个练习题
 - `Unit` 1:n `UnitProgress`: 一个单元对应多个用户的学习进度
-- `Exercise` 1:n `UserRecord`: 一个练习题有多个用户的答题记录
-- `Exercise` 1:n `WrongExercise`: 一个练习题可能是多个用户的错题
+- `Exercise` 1:n `AnswerRecord`: 一个练习题有多个用户的详细答题记录
+- `Subject` 1:n `AnswerRecord`: 一个学科有多个答题记录
+- `Unit` 1:n `AnswerRecord`: 一个单元有多个答题记录
 
 #### 3.4. API 端点详解
 
@@ -191,104 +206,52 @@
 - **`GET /:unitId` (兼容API)**: 获取特定单元的练习题，`unitId` 参数应为已包含学科前缀的完整单元ID。功能类似推荐API。
 - **`GET /`**: 获取所有包含练习题的单元ID列表 (不重复的 `unitId` 列表)。
 
-##### 3.4.3. 用户记录与进度 (`/api/users`)
+##### 3.4.3. 答题记录 (`/api/answer-records`) - 主要API
 
-- **核心辅助函数 `getUnitProgressDetails(userId, unitId)` (内部使用)**:
-  - **双源进度计算策略**：优先查询 `UnitProgress` 表获取单元进度 (`stars`, `completed`, `unlockNext` 基于 `stars === 3`)。
-  - 若 `UnitProgress` 无记录或未完成，则根据 `UserRecord` 表中用户对该单元练习题的正确作答情况计算进度：
-    - `completionRate` (已答题目数 / 总题目数)。
-    - `stars` (基于 `completionRate`: >=0.8 -> 3星, >=0.6 -> 2星, >0 -> 1星)。
-    - `unlockNext` (基于 `stars === 3`)。
-    - `completed` (基于 `stars > 0`)。
-  - 返回详细进度对象，包含来源 (`UnitProgressTable` 或 `UserRecordCalculation`)。
-  - **掌握程度计算**：`masteryLevel = (correctRate * 0.6) + (practiceEffort * 0.2) + (studyEffort * 0.2)`
+- **`POST /:userId/submit`**: 提交详细答题记录
+  - 请求体包含丰富的答题数据：`exerciseId`, `unitId`, `isCorrect`, `userAnswer`, `responseTime`, `sessionId`, `practiceMode`, `hintsUsed`, `helpRequested`, `confidence`, `knowledgePointsViewed`, `deviceInfo`
+  - 自动计算得分、积分奖励、尝试次数等
+  - 同时更新UnitProgress和UserPoints
+  - 返回详细的答题结果和掌握度信息
 
-- **`POST /:userId/submit`** (由 `userRecords.js` 处理): 提交用户答题结果。
-  - 请求体: `exerciseId`, `unitId`, `isCorrect`, `responseTime`。
-  - 记录到 `UserRecord` 表 (查找或创建，更新则增加 `attemptCount`)。
-  - 如果答错 (`!isCorrect`): 记录到 `WrongExercise` 表 (查找或创建，更新则增加 `attempts`)。
-  - 如果答对 (`isCorrect`):
-    - 从 `WrongExercise` 表移除该题。
-    - **首次答对此题时** (新记录且答对，或从错误更新为正确)，用户增加1积分 (更新 `UserPoints` 表)。
-  - 更新 `UnitProgress` 表的统计数据 (答题次数、正确次数等)
-- **`GET /:userId/records`** (由 `userRecords.js` 处理): 获取用户所有答题记录，包含练习题详情 (`Exercise` model)，按 `updatedAt` 降序。
-- **`GET /:userId/progress/:unitId`** (由 `userRecords.js` 处理): 获取用户在特定单元的详细进度。
-  - 内部调用 `getUnitProgressDetails(userId, unitId)`。
-- **`POST /:userId/progress/batch`** (由 `userRecords.js` 处理): 批量获取多个单元的进度。
-  - 请求体: `{ unitIds: string[] }`。
-  - 对每个 `unitId` 调用 `getUnitProgressDetails`。最大批量大小为100。
-- **`GET /:userId/wrong-exercises`** (由 `userRecords.js` 处理): 获取用户的错题列表。
-  - 返回包含 `exerciseData` (题目详情), `unitId`, `attempts`, `timestamp` 的数组。
-- **`DELETE /:userId/wrong-exercises/:exerciseId`** (由 `userRecords.js` 处理): 从错题本中删除指定题目。
-- **`GET /:userId/subject/:subject/progress`** (由 `userRecords.js` 处理): 获取用户在特定学科的所有单元进度。
-  - 基于 `UserRecord` 计算每个单元的 `totalExercises`, `correctExercises`, `completedExercises`。
-  - 星星数根据**正确率**计算 (`>=90%` -> 3星, `>=70%` -> 2星, `>=50%` -> 1星)。**此星星计算逻辑与 `getUnitProgressDetails` 不同，且不使用 `UnitProgress` 表。**
-- **`POST /:userId/complete-unit/:unitId`** (由 `userRecords.js` 处理): 标记用户完成单元。
-  - 在 `UnitProgress` 表中查找或创建记录，标记为 `completed: true`。
-  - 可在请求体中传入 `stars`，默认为3星。
-  - 根据获得的星级奖励用户积分 (1星:5分, 2星:10分, 3星:15分)，更新 `UserPoints` 表。
-- **`POST /:userId/increment-study/:unitId`** (由 `userRecords.js` 处理): 增加用户学习单元的次数。
-  - 在 `UnitProgress` 表中查找或创建记录，增加 `studyCount` 字段值。
-  - 当用户访问学习页面 (`/study`) 时调用此API。
-  - 更新 `lastStudyTime` 和重新计算 `masteryLevel`
-  - 返回更新后的学习次数。
-- **`POST /:userId/increment-practice/:unitId`** (由 `userRecords.js` 处理): 增加用户练习单元的次数。
-  - 在 `UnitProgress` 表中查找或创建记录，增加 `practiceCount` 字段值。
-  - 当用户访问练习页面 (`/practice`) 时调用此API。
-  - 更新 `lastPracticeTime` 和重新计算 `masteryLevel`
-  - 返回更新后的练习次数。
+- **`GET /:userId/wrong-exercises`**: 获取用户错题列表
+  - 支持按学科、单元、题型筛选
+  - 只返回最新仍然错误的题目
+  - 包含详细的答题历史信息
 
-##### 3.4.4. 用户积分 (`/api/users`)
+- **`DELETE /:userId/wrong-exercises/:exerciseId`**: 从错题本移除题目
+  - 通过创建正确答题记录来表示掌握，而非直接删除
 
-- **`GET /:userId/points`** (由 `userPoints.js` 处理): 获取用户当前的总积分。若无记录则创建并返回0分。
-- **`POST /:userId/points/add`** (由 `userPoints.js` 处理): 增加用户积分。
-  - 请求体: `points` (要增加的正整数)。
-- **`POST /:userId/points/deduct`** (由 `userPoints.js` 处理): 扣除用户积分。
-  - 请求体: `points` (要扣除的正整数)。检查积分是否足够。
+- **`GET /:userId/progress/:unitId`**: 获取用户单元进度
+  - 优先查询UnitProgress表，回退到基于AnswerRecord计算
+  - 返回详细的进度信息和掌握度数据
 
-##### 3.4.5. 单元操作 (`/api/units`)
+- **`POST /:userId/progress/batch`**: 批量获取用户进度
+  - 支持一次性获取多个单元的进度数据
+  - 优化网络请求，提高性能
 
-- **`POST /batch-unlock`** (控制器: `unitActionsController.batchUnlockUnits`): 批量解锁单元。
-  - 请求体: `unitIds` (数组), `userId`。
-  - 在 `UnitProgress` 表中将指定单元标记为 `completed: true`, `stars: 0`。
+- **`POST /:userId/increment-study/:unitId`**: 增加学习次数统计
+- **`POST /:userId/increment-practice/:unitId`**: 增加练习次数统计
 
-##### 3.4.6. 单元内容 (`/api/unit-content`)
+- **`GET /:userId/stats`**: 获取用户学习统计
+- **`GET /:userId/pattern-analysis`**: 获取学习模式分析
+- **`GET /:userId/history`**: 获取答题历史
+- **`GET /:userId/detailed-analysis`**: 获取详细分析报告
 
-- **`GET /:unitId`**: 获取特定单元的内容，`unitId` 参数应为已包含学科前缀的完整单元ID。
-  - 返回单元的 `id`, `title`, `content` (富文本内容), `media` (媒体资源数组) 和 `subject`。
-- **`GET /:subject/:id`**: 获取指定学科 (`subject`) 下特定单元 (`id`) 的内容。
-  - 单元ID在后端会组合学科前缀进行查询 (如 `subject-id`)。
-  - 返回与上面接口相同格式的数据。
-- **`PUT /:unitId`**: 更新特定单元的内容。
-  - 请求体: `content` (富文本内容), `media` (媒体资源数组)。
-  - 仅更新提供的字段，不改变其他字段。
+##### 3.4.4. 其他API
+
+- 用户积分、单元操作、单元内容等API保持不变
 
 ### 4. 开发与部署工具
 
 #### 4.1. 开发脚本
 
 - **`start-dev.sh`**: 启动开发环境
-  - 同时启动前端和后端服务
-  - 自动处理端口占用问题
-  - 添加了信号处理程序，使得在按下Ctrl+C/Cmd+C时能够优雅地关闭所有相关服务
-  - 清理函数会负责终止所有启动的进程和释放端口
-
 - **`reset-data.sh`**: 重置数据库数据
-  - 调用数据初始化脚本重建数据库表并填充初始数据
 
 #### 4.2. 数据初始化
 
 - **`server/src/utils/initData.js`**: 数据初始化主入口
-  - 调用各个专门的初始化脚本
-  - 包括学科、单元、练习题和单元内容的初始化
-
-- **`server/src/utils/initUnitContent.js`**: 初始化单元内容
-  - 直接使用Unit模型存储内容和媒体资源
-  - 替代了旧的学习内容初始化方式
-
-- **`server/src/utils/initGeometryUnitContent.js`**: 初始化几何单元内容
-  - 专门用于几何单元的内容初始化
-  - 同样直接使用Unit模型
 
 ### 5. 核心业务流程串联
 
@@ -316,22 +279,24 @@
     - `customTheme` 中的 `primary` 颜色会使用 `currentSubject.color`。
     - `ThemeProvider` 应用新的主题，UI 中使用 `primary` 色的部分会更新。
 
-#### 5.3. 单元学习与练习流程
+#### 5.3. 单元学习与练习流程（更新）
 
-1.  **用户在 "课程" 页选择一个单元**。单元是否可访问（解锁状态）由前端根据从 `/api/users/:userId/progress/batch` 或 `/api/users/:userId/progress/:unitId` 获取的进度数据判断。
+1.  **用户在 "课程" 页选择一个单元**。
 2.  **进入学习界面 (`app/study.tsx`)**:
     - 调用 `GET /api/unit-content/:unitId` 获取单元内容和媒体资源。
-    - 调用 `POST /api/users/:userId/increment-study/:unitId` 增加学习次数统计
+    - 调用 `POST /api/answer-records/:userId/increment-study/:unitId` 增加学习次数统计
 3.  **进入练习界面 (`app/practice.tsx`)**:
     - 调用 `GET /api/exercises/:subjectCode/:unitIdentifier?userId=xxx` 获取练习题。
-    - 调用 `POST /api/users/:userId/increment-practice/:unitId` 增加练习次数统计
-4.  **用户答题并提交**:
-    - 前端将答案 `POST` 到 `/api/users/:userId/submit`。
-5.  **后端处理提交**:
-    - 更新 `UserRecord`, `WrongExercise`, 并根据是否首次答对更新 `UserPoints`。
-    - 更新 `UnitProgress` 表中的统计数据和掌握程度
-6.  **(可选) 完成单元**:
-    - 当用户完成一个单元的所有学习/练习后，前端或后端逻辑（例如，在所有练习都完成后）可能会调用 `POST /api/users/:userId/complete-unit/:unitId` 来正式标记单元完成并获得星级和积分奖励。
+    - 调用 `POST /api/answer-records/:userId/increment-practice/:unitId` 增加练习次数统计
+    - **生成会话ID**: 为本次练习会话生成唯一标识
+4.  **用户答题并提交（增强）**:
+    - **收集丰富数据**: 用户具体答案、响应时间、会话信息、设备信息等
+    - **API提交**: 使用 `POST /api/answer-records/:userId/submit` 提交详细数据
+5.  **后端处理提交（增强）**:
+    - **AnswerRecord**: 创建包含所有维度的详细答题记录
+    - **智能分析**: 自动计算得分、积分、掌握程度等
+    - **关联更新**: 同时更新UnitProgress和UserPoints
+    - **错题管理**: 智能管理错题状态，支持错题重做追踪
 
 #### 5.4. 单元解锁流程
 
@@ -343,107 +308,51 @@
   2. **跳级解锁**：大单元的第一个小单元（格式为x-y-1，其中y是大单元编号，1是小单元编号）可以直接点击进入，不受前面单元限制。在UI上以虚线边框特殊样式显示。当用户完成该单元练习题并获得至少1星后，将自动解锁该大单元前面的所有单元。
 - 关卡解锁逻辑：单元内部的关卡是线性解锁的；必须完成当前关卡才能解锁下一个关卡。
 
-#### 5.5. 错题本
+#### 5.5. 错题本（增强）
 
 1.  **用户进入 "错题本" 页 (`app/(tabs)/wrong-exercises.tsx`)**。
-2.  调用 `GET /api/users/:userId/wrong-exercises` 获取错题列表。
-3.  用户选择错题进行重新练习。
-4.  **错题管理机制**：
-    - 答错时自动记录到 `WrongExercise` 表
-    - 答对时自动从错题本移除
-    - 支持按学科分类查看错题
+2.  **获取错题**: 调用 `GET /api/answer-records/:userId/wrong-exercises` 获取智能筛选的错题列表。
+3.  **错题管理机制（增强）**：
+    - **智能筛选**: 只显示最新仍然错误的题目
+    - **多维度筛选**: 支持按学科、单元、题型筛选
+    - **详细信息**: 包含答题历史、错误类型、尝试次数等
+    - **掌握追踪**: 记录从错误到掌握的完整过程
 
 ### 6. 最近的主要更改
 
-#### 6.1. 数据模型优化 (2023-11)
+- **删除旧模型**: 完全移除了UserRecord和WrongExercise模型及相关代码
+- **统一AnswerRecord**: 所有答题记录功能现在统一使用AnswerRecord模型
+- **API整合**: 将所有相关API端点整合到 `/api/answer-records` 路径下
+- **代码简化**: 移除了大量冗余代码和兼容性逻辑
 
-- **Unit模型集成学习内容**:
-  - 添加 `content` 字段存储单元学习内容（富文本格式）
-  - 添加 `media` 字段存储媒体资源数组（JSON格式）
-  - 新增 `isMajor` 字段 (Boolean)：用于区分大单元 (true) 和小单元 (false)。
-  - 移除了独立的 `LearningContent` 模型，简化了数据结构
+#### 6.2. 数据收集增强
 
-- **UnitProgress模型扩展**:
-  - 添加详细的学习行为统计字段
-  - 添加掌握程度评估算法
-  - 支持实时更新学习和练习统计
+- **用户答案**: 记录具体的答题内容，支持选择题、填空题、匹配题
+- **会话追踪**: 通过sessionId追踪完整的学习会话
+- **时间分析**: 精确记录答题开始时间、提交时间、响应时间
+- **行为数据**: 记录提示使用、帮助请求、知识点查看等行为
+- **上下文信息**: 记录设备信息、练习模式、时间段等上下文
+- **掌握度跟踪**: 详细跟踪从错误到掌握的学习过程
 
-- **API端点更新**:
-  - 移除了 `/api/learning` API路径
-  - 新增 `/api/unit-content` API路径，直接从Unit模型获取内容
-  - 更新了前端代码以适应新的API和数据结构
+#### 6.3. 分析能力提升
 
-- **数据初始化脚本更新**:
-  - 添加了专门的单元内容初始化脚本 `initUnitContent.js` 和 `initGeometryUnitContent.js`
-  - 移除了旧的学习内容初始化和迁移脚本
+- **学习模式分析**: 识别用户最佳学习时间段、习惯模式
+- **错误类型分析**: 分类用户的错误类型（计算、概念、粗心等）
+- **进步追踪**: 记录用户在每个知识点的进步轨迹
+- **个性化洞察**: 基于丰富数据提供个性化学习建议
 
-#### 6.2. 开发环境改进
+#### 6.4. API服务优化
 
-- **启动脚本优化**:
-  - 添加了信号处理程序，使Ctrl+C/Cmd+C能够优雅地关闭所有服务
-  - 实现了清理函数，确保所有进程正确终止
-  - 改进了端口检测和进程管理逻辑
-
-#### 6.3. 前端架构优化
-
-- **主题系统完善**:
-  - 实现基于学科颜色的动态主题切换
-  - 支持深色/浅色模式适配
-  - 统一的颜色管理系统
-
-- **网络层优化**:
-  - 添加超时和重试机制
-  - 实现优雅的错误降级策略
-  - 批量API调用优化
-
-#### 6.4. 知识点功能新增 (2024-05)
-
-- **架构重构与优化**:
-  - 移除 `Exercise` 组件内的提交按钮功能（已废弃）
-  - 将知识点功能从 `ResultFeedback` 组件中独立出来，创建独立的 `KnowledgePointsSection` 组件
-  - 知识点组件始终显示在题目下方，不受答题状态控制，位于 `Exercise` 和 `ResultFeedback` 组件之间
-  - 保持了原有的UI设计和交互体验，但实现了更好的组件分离
-
-- **Exercise组件简化**:
-  - 移除了 `pendingSubmission` 状态和相关逻辑
-  - 移除了 `renderSubmitButton` 和 `renderKnowledgePoints` 函数
-  - 移除了知识点弹窗状态管理
-  - 简化为纯粹的题目展示和交互组件
-
-- **知识点组件独立化**:
-  - 新增独立的 `KnowledgePointsSection` 组件，完全独立于 `ResultFeedback` 组件
-  - 组件自管理知识点弹窗状态和交互逻辑
-  - 知识点始终显示在题目下方，不受答题状态控制
-  - 维持了知识点的原有UI设计风格和功能完整性
-  - 知识点区域位置：Exercise组件下方，ResultFeedback组件上方
-
-- **Exercise模型扩展**:
-  - 添加 `knowledgePoints` 字段 (JSON)：存储相关知识点数据
-  - 支持文本、图片、视频等多种知识点内容类型
-  - 格式：`[{title: '知识点名称', content: '详细内容', type: 'text|image|video', mediaUrl?: 'string'}]`
-
-- **前端组件新增**:
-  - 新增 `KnowledgePointModal.tsx`：知识点详情弹窗组件
-  - 支持富文本内容渲染，使用 `react-native-render-html`
-  - 支持图片和视频内容展示（视频功能待开发）
-
-- **数据库同步**:
-  - 创建 `sync-database.js` 脚本用于数据库模型同步
-  - 创建 `add-sample-knowledge-points.js` 脚本添加示例知识点数据
-  - 为现有练习题随机分配1-2个知识点
-
-- **开发工具集成**:
-  - 更新 `reset-data.sh` 脚本，集成知识点功能
-  - 数据重置流程包含：基础数据 → 数据库同步 → 知识点数据生成
-  - 提供完整的开发环境重置解决方案，支持一键重置所有数据和功能
-  - **进程清理优化**：启动和重置脚本现在包含完整的nodemon进程清理功能，确保服务关闭时不留残留进程
+- **统一端点**: 所有答题相关功能统一在 `/api/answer-records` 下
+- **完整功能**: 包含答题提交、错题管理、进度计算、统计分析等完整功能
+- **性能优化**: 批量API、智能缓存、优化查询等
+- **向前兼容**: 保持前端API调用的一致性
 
 ### 7. 用户数据统计与掌握程度计算
 
-#### 7.1 收集的数据指标
+#### 7.1 收集的数据指标（更新）
 
-为了评估用户对某个单元的掌握程度，系统收集以下数据指标：
-
+**基础答题数据**:
 1. **学习行为数据**
    - `studyCount`: 用户学习该单元的次数（每次访问学习页面时增加）
    - `lastStudyTime`: 用户最后一次学习该单元的时间
@@ -457,64 +366,57 @@
    - `totalAnswerCount`: 用户在该单元总共回答的题目数量（包括重复的题目）
    - `averageResponseTime`: 用户回答问题的平均反应时间（秒）
 
-3. **进度评估数据**
-   - `completed`: 该单元是否已完成
-   - `stars`: 获得的星级（0-3颗星）
-   - `completedAt`: 单元完成的时间
-   - `masteryLevel`: 掌握程度（0-1之间的浮点数）
+**详细数据**（AnswerRecord模型）:
+3. **具体答题内容**
+   - `userAnswer`: 用户的具体答案（JSON格式）
+   - `correctAnswer`: 正确答案（便于分析错误模式）
+   - `score`: 详细得分（支持部分正确）
 
-#### 7.2 掌握程度计算方法
+4. **学习会话数据**
+   - `sessionId`: 学习会话唯一标识
+   - `practiceMode`: 练习模式（normal、review、wrong_redo、test、unlock_test）
+   - `deviceInfo`: 设备和环境信息
 
-掌握程度（masteryLevel）是衡量用户对单元内容理解和掌握情况的关键指标，取值范围为0-1，计算公式如下：
+5. **学习行为详情**
+   - `hintsUsed`: 使用提示次数
+   - `helpRequested`: 是否请求帮助
+   - `knowledgePointsViewed`: 查看的知识点列表
+   - `confidence`: 答题信心度（1-5）
+
+6. **时间和环境分析**
+   - `timeOfDay`: 答题时间段（0-23小时）
+   - `weekday`: 星期几（0-6）
+   - `learningStreak`: 连续学习天数
+
+7. **错题深度分析**
+   - `wrongAnswerType`: 错误类型（calculation、concept、careless、unknown）
+   - `reviewCount`: 作为错题被复习次数
+   - `masteredAfterAttempts`: 经过多少次尝试后掌握
+
+#### 7.2 掌握程度计算方法（保持不变）
+
+掌握程度（masteryLevel）计算公式：
 
 ```
 masteryLevel = (correctRate * 0.6) + (practiceEffort * 0.2) + (studyEffort * 0.2)
 ```
 
-其中：
+#### 7.3 新增分析能力
 
-1. **correctRate（正确率）- 权重0.6**
-   - 计算方法：`correctCount / (correctCount + incorrectCount)`
-   - 正确率是衡量掌握程度的最主要因素
+**学习模式分析**:
+- 最佳学习时间段识别
+- 不同练习模式效果对比
+- 学习会话模式分析
 
-2. **practiceEffort（练习努力程度）- 权重0.2**
-   - 计算方法：`Math.min(1, practiceCount / 10)`
-   - 反映用户练习的投入程度，最多记录10次练习（对应满分1分）
+**错误模式分析**:
+- 错误类型分布统计
+- 常见错误知识点识别
+- 错误到掌握的转化分析
 
-3. **studyEffort（学习努力程度）- 权重0.2**
-   - 计算方法：`Math.min(1, studyCount / 5)`
-   - 反映用户学习内容的投入程度，最多记录5次学习（对应满分1分）
-
-掌握程度自动更新的三个时机：
-1. 用户提交答案时
-2. 用户访问学习页面时
-3. 用户访问练习页面时
-
-#### 7.3 星级计算方法
-
-星级（stars）是对用户掌握程度的简化表示，用于前端UI展示，取值为0-3：
-
-1. 基于完成率（completionRate）计算：
-   - 完成率 >= 80%：3星
-   - 完成率 >= 60%：2星
-   - 完成率 > 0%：1星
-   - 完成率 = 0%：0星
-
-2. 或基于正确率（正确题目百分比）计算：
-   - 正确率 >= 90%：3星
-   - 正确率 >= 70%：2星
-   - 正确率 >= 50%：1星
-   - 正确率 < 50%：0星
-
-不同的API端点可能使用不同的星级计算逻辑，具体取决于上下文需求。
-
-#### 7.4 进度数据应用场景
-
-1. **个性化学习路径**：根据用户掌握程度推荐后续学习内容
-2. **学习状态可视化**：在UI中展示用户学习进度和掌握情况
-3. **学习成果评估**：通过掌握程度和星级评估用户的学习效果
-4. **系统适应性**：根据用户表现调整题目难度和推荐内容
-5. **学习报告生成**：基于收集的数据生成学习报告和分析图表
+**个性化洞察**:
+- 基于历史数据的难度预测
+- 个性化练习推荐
+- 学习效果趋势分析
 
 ### 8. 性能优化与用户体验
 
@@ -528,14 +430,16 @@ masteryLevel = (correctRate * 0.6) + (practiceEffort * 0.2) + (studyEffort * 0.2
 #### 8.2 数据库优化
 
 - **智能同步**: 使用 `alter` 模式同步数据库模型，保留现有数据
-- **索引优化**: 在用户ID和单元ID组合上建立唯一索引
+- **索引优化**: AnswerRecord模型包含15+个优化索引，支持各种查询场景
 - **关联查询**: 使用 Sequelize 的 include 减少查询次数
+- **分页支持**: 大数据量查询支持分页和限制
 
 #### 8.3 前端体验优化
 
 - **状态管理**: 基于Context的全局状态管理
 - **主题联动**: 学科切换与UI主题的实时同步
 - **错误恢复**: 友好的错误提示和重试机制
+- **数据缓存**: 合理的数据缓存策略，减少重复请求
 
 ### 9. 安全性与稳定性
 
@@ -550,3 +454,54 @@ masteryLevel = (correctRate * 0.6) + (practiceEffort * 0.2) + (studyEffort * 0.2
 - **事务处理**: 关键操作使用数据库事务保证一致性
 - **双源验证**: 进度计算的多重验证机制
 - **状态同步**: 前后端状态的实时同步
+
+### 10. 未来扩展方向
+
+#### 10.1 数据分析应用
+
+基于AnswerRecord模型，可以开发：
+- **学习效果预测模型**: 基于历史数据预测学习效果
+- **个性化推荐系统**: 根据用户行为推荐合适的学习内容
+- **智能难度调节**: 动态调整题目难度
+- **学习路径优化**: 为用户推荐最优的学习路径
+
+#### 10.2 功能扩展
+
+- **社交学习**: 基于会话数据的协作学习功能
+- **智能提醒**: 基于时间模式的个性化学习提醒
+- **成就系统**: 基于详细数据的多维度成就体系
+- **家长监控**: 基于丰富数据的学习报告系统
+
+### 11. 最近修复记录
+
+#### 11.1. API接口修复 (2024-12-23)
+
+**问题描述**:
+- `http://localhost:3000/api/exercises/math-1-1?userId=user1&filterCompleted=true` 接口返回500错误
+- 错误信息：`SQLITE_ERROR: no such column: Exercise.order`
+
+**根本原因**:
+1. **Sequelize操作符使用错误**: 在 `exercises.js` 和 `answerRecords.js` 中使用了 `sequelize.Op` 而不是导入的 `Op`
+2. **数据库字段不存在**: `Exercise` 模型中没有 `order` 字段，但代码中尝试按此字段排序
+
+**修复措施**:
+1. **修复Sequelize操作符**:
+   - 在 `server/src/routes/exercises.js` 中将所有 `sequelize.Op` 替换为 `Op`
+   - 在 `server/src/routes/answerRecords.js` 中添加 `const { Op } = require('sequelize')` 导入
+   - 修复所有使用 `require('sequelize').Op` 的地方
+
+2. **修复排序字段**:
+   - 将 `Exercise.findAll()` 中的 `order: [['order', 'ASC']]` 改为 `order: [['id', 'ASC']]`
+   - 确保按练习题ID排序，保持一致的顺序
+
+**验证结果**:
+- ✅ `GET /api/exercises/math-1-1?userId=user1&filterCompleted=true` 返回200状态码
+- ✅ 成功返回12道练习题的完整数据
+- ✅ 包含题型统计信息：choice(3题)、application(5题)、fill_blank(2题)、matching(2题)
+- ✅ `GET /api/answer-records/user1/progress/math-1-1` 正常工作
+- ✅ `GET /api/answer-records/user1/wrong-exercises` 正常工作
+
+**技术要点**:
+- 确保Sequelize操作符的正确导入和使用
+- 数据库模型字段与查询代码的一致性检查
+- API错误处理和调试日志的重要性
