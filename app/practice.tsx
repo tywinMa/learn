@@ -24,6 +24,129 @@ import { Exercise } from "./components/Exercise";
 import { useSubject } from "@/hooks/useSubject";
 import { LinearGradient } from "expo-linear-gradient";
 import { API_BASE_URL } from "@/constants/apiConfig";
+import { KnowledgePointModal } from "./components/KnowledgePointModal";
+
+// 知识点类型定义
+interface KnowledgePoint {
+  title: string;
+  content: string;
+  type: "text" | "image" | "video";
+  mediaUrl?: string;
+}
+
+// 独立的知识点组件
+const KnowledgePointsSection = ({ knowledgePoints }: { knowledgePoints?: KnowledgePoint[] }) => {
+  // 知识点弹窗状态
+  const [selectedKnowledgePoint, setSelectedKnowledgePoint] = useState<KnowledgePoint | null>(null);
+  const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
+
+  const handleKnowledgePointPress = (knowledgePoint: KnowledgePoint) => {
+    setSelectedKnowledgePoint(knowledgePoint);
+    setShowKnowledgeModal(true);
+  };
+
+  // 如果没有知识点，返回null
+  if (!knowledgePoints || knowledgePoints.length === 0) {
+    return null;
+  }
+
+  return (
+    <>
+      <RNView style={styles.knowledgePointsContainer}>
+        <RNView style={styles.knowledgePointsHeader}>
+          <Ionicons name="bulb-outline" size={16} color="#FF9500" />
+          <Text style={styles.knowledgePointsTitle}>相关知识点</Text>
+        </RNView>
+        <RNView style={styles.knowledgePointsList}>
+          {knowledgePoints.map((point, index) => (
+            <TouchableOpacity
+              key={index}
+              style={styles.knowledgePointTag}
+              onPress={() => handleKnowledgePointPress(point)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.knowledgePointText}>{point.title}</Text>
+              <Ionicons name="chevron-forward" size={14} color="#666" />
+            </TouchableOpacity>
+          ))}
+        </RNView>
+      </RNView>
+
+      {/* 知识点弹窗 */}
+      <KnowledgePointModal
+        visible={showKnowledgeModal}
+        knowledgePoint={selectedKnowledgePoint}
+        onClose={() => {
+          setShowKnowledgeModal(false);
+          setSelectedKnowledgePoint(null);
+        }}
+      />
+    </>
+  );
+};
+
+// 结果反馈组件 - 显示每道题做完后的反馈
+const ResultFeedback = ({
+  isCorrect,
+  explanation,
+  onContinue,
+  onSubmitAnswer,
+  hasSubmitted,
+}: {
+  isCorrect: boolean;
+  explanation?: string;
+  onContinue: () => void;
+  onSubmitAnswer?: () => void;
+  hasSubmitted: boolean;
+}) => {
+  return (
+    <RNView
+      style={[
+        styles.feedbackContainer,
+        isCorrect ? styles.correctFeedbackContainer : styles.incorrectFeedbackContainer,
+      ]}
+    >
+      {hasSubmitted ? (
+        // 已提交答案，显示结果反馈
+        <>
+          <RNView style={styles.feedbackHeader}>
+            <Ionicons
+              name={isCorrect ? "checkmark-circle" : "close-circle"}
+              size={32}
+              color={isCorrect ? "#58CC02" : "#FF4B4B"}
+            />
+            <Text
+              style={[styles.feedbackHeaderText, isCorrect ? styles.correctFeedbackText : styles.incorrectFeedbackText]}
+            >
+              {isCorrect ? "回答正确！" : "回答错误！"}
+            </Text>
+          </RNView>
+
+          {explanation && (
+            <RNView style={styles.explanationContainer}>
+              <Text style={styles.explanationTitle}>解析：</Text>
+              <Text style={styles.explanationText}>{explanation}</Text>
+            </RNView>
+          )}
+
+          <TouchableOpacity
+            style={[styles.continueButton, isCorrect ? styles.correctContinueButton : styles.incorrectContinueButton]}
+            onPress={onContinue}
+          >
+            <Text style={styles.continueButtonText}>继续</Text>
+            <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
+          </TouchableOpacity>
+        </>
+      ) : (
+        // 未提交答案，始终显示提交按钮
+        <TouchableOpacity style={styles.confirmSubmitButton} onPress={onSubmitAnswer}>
+          <Text style={styles.confirmSubmitButtonText}>提交答案</Text>
+          <Ionicons name="checkmark-circle" size={20} color="white" style={{ marginLeft: 8 }} />
+        </TouchableOpacity>
+      )}
+    </RNView>
+  );
+};
 
 // 总结弹窗组件
 const SummaryModal = ({
@@ -121,7 +244,7 @@ const SummaryModal = ({
           {isTestForUnlocking && shouldUnlockPreviousUnits && earnedStars >= 1 && (
             <RNView style={styles.unlockMessage}>
               <Ionicons name="flag" size={18} color="#FF9600" />
-              <Text style={[styles.unlockText, {color: '#FF9600'}]}>恭喜！您将解锁所有之前的单元</Text>
+              <Text style={[styles.unlockText, { color: "#FF9600" }]}>恭喜！您将解锁所有之前的单元</Text>
             </RNView>
           )}
 
@@ -136,69 +259,6 @@ const SummaryModal = ({
         </RNView>
       </RNView>
     </Modal>
-  );
-};
-
-// 结果反馈组件 - 显示每道题做完后的反馈
-const ResultFeedback = ({
-  isCorrect,
-  explanation,
-  onContinue,
-  onSubmitAnswer,
-  hasSubmitted,
-}: {
-  isCorrect: boolean;
-  explanation?: string;
-  onContinue: () => void;
-  onSubmitAnswer?: () => void;
-  hasSubmitted: boolean;
-}) => {
-  return (
-    <RNView
-      style={[
-        styles.feedbackContainer,
-        isCorrect ? styles.correctFeedbackContainer : styles.incorrectFeedbackContainer,
-      ]}
-    >
-      {hasSubmitted ? (
-        // 已提交答案，显示结果反馈
-        <>
-          <RNView style={styles.feedbackHeader}>
-            <Ionicons
-              name={isCorrect ? "checkmark-circle" : "close-circle"}
-              size={32}
-              color={isCorrect ? "#58CC02" : "#FF4B4B"}
-            />
-            <Text
-              style={[styles.feedbackHeaderText, isCorrect ? styles.correctFeedbackText : styles.incorrectFeedbackText]}
-            >
-              {isCorrect ? "回答正确！" : "回答错误！"}
-            </Text>
-          </RNView>
-
-          {explanation && (
-            <RNView style={styles.explanationContainer}>
-              <Text style={styles.explanationTitle}>解析：</Text>
-              <Text style={styles.explanationText}>{explanation}</Text>
-            </RNView>
-          )}
-
-          <TouchableOpacity
-            style={[styles.continueButton, isCorrect ? styles.correctContinueButton : styles.incorrectContinueButton]}
-            onPress={onContinue}
-          >
-            <Text style={styles.continueButtonText}>继续</Text>
-            <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
-          </TouchableOpacity>
-        </>
-      ) : (
-        // 未提交答案，始终显示提交按钮
-        <TouchableOpacity style={styles.confirmSubmitButton} onPress={onSubmitAnswer}>
-          <Text style={styles.confirmSubmitButtonText}>提交答案</Text>
-          <Ionicons name="checkmark-circle" size={20} color="white" style={{ marginLeft: 8 }} />
-        </TouchableOpacity>
-      )}
-    </RNView>
   );
 };
 
@@ -286,42 +346,42 @@ export default function PracticeScreen() {
           setExercises(result.data);
           setError(null);
         }
-        
+
         // 记录用户访问练习页面的次数
         try {
           // 记录练习开始时间
           setPracticeStartTime(Date.now());
-          
-            // 调用API增加练习次数
-  const activityApiUrl = `${API_BASE_URL}/api/users/${USER_ID}/increment-practice/${lessonId}`;
-  
-  const activityResponse = await fetch(activityApiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      activityType: 'practice_start', // 明确标识活动类型
-      timeSpent: 0 // 开始时没有花费时间
-    })
-  });
-          
+
+          // 调用API增加练习次数
+          const activityApiUrl = `${API_BASE_URL}/api/users/${USER_ID}/increment-practice/${lessonId}`;
+
+          const activityResponse = await fetch(activityApiUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              activityType: "practice_start", // 明确标识活动类型
+              timeSpent: 0, // 开始时没有花费时间
+            }),
+          });
+
           if (activityResponse.ok) {
             console.log(`成功记录用户练习活动: ${lessonId}`);
-            
+
             // 获取并保存当前单元的进度数据
             try {
               const progress = await getUserUnitProgress(lessonId);
               setUnitProgress(progress);
-              console.log('获取到单元进度:', progress);
+              console.log("获取到单元进度:", progress);
             } catch (progressErr) {
-              console.error('获取单元进度失败:', progressErr);
+              console.error("获取单元进度失败:", progressErr);
             }
           } else {
             console.warn(`记录练习活动失败: HTTP ${activityResponse.status}`);
           }
         } catch (activityError) {
-          console.error('记录练习活动出错:', activityError);
+          console.error("记录练习活动出错:", activityError);
           // 这里不需要向用户显示错误，因为这只是一个后台统计功能
         }
       } else {
@@ -343,27 +403,27 @@ export default function PracticeScreen() {
       setError("无法加载练习题：缺少单元ID");
       setLoading(false);
     }
-    
+
     // 组件卸载时记录总练习时间
     return () => {
       const totalPracticeTime = Math.floor((Date.now() - practiceStartTime) / 1000);
       // 仅当练习时间超过5秒时才记录
       if (totalPracticeTime > 5 && lessonId) {
         console.log(`用户练习了 ${totalPracticeTime} 秒`);
-        
-            // 发送最终练习时间统计
-    fetch(`${API_BASE_URL}/api/users/${USER_ID}/increment-practice/${lessonId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        activityType: 'practice_end', // 明确标识活动类型
-        timeSpent: totalPracticeTime // 使用与服务器端匹配的字段名
-      })
-    }).catch(err => {
-      console.error('记录最终练习时间失败:', err);
-    });
+
+        // 发送最终练习时间统计
+        fetch(`${API_BASE_URL}/api/users/${USER_ID}/increment-practice/${lessonId}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            activityType: "practice_end", // 明确标识活动类型
+            timeSpent: totalPracticeTime, // 使用与服务器端匹配的字段名
+          }),
+        }).catch((err) => {
+          console.error("记录最终练习时间失败:", err);
+        });
       }
     };
   }, [lessonId]);
@@ -482,14 +542,16 @@ export default function PracticeScreen() {
       const responseTime = Math.floor(Math.random() * 10000) + 2000; // 模拟2-12秒的响应时间
 
       // 记录提交的答题结果
-      console.log(`提交答题结果: 练习ID=${exerciseId}, 单元ID=${lessonId}, 是否正确=${isCorrect}, 响应时间=${responseTime}ms`);
+      console.log(
+        `提交答题结果: 练习ID=${exerciseId}, 单元ID=${lessonId}, 是否正确=${isCorrect}, 响应时间=${responseTime}ms`
+      );
 
       // 创建请求体，包含后端接口需要的字段
       const requestBody = {
         exerciseId,
         unitId: lessonId,
         isCorrect,
-        responseTimeSeconds: Math.floor(responseTime / 1000) // 转换为秒，并使用明确的字段名
+        responseTimeSeconds: Math.floor(responseTime / 1000), // 转换为秒，并使用明确的字段名
       };
 
       const response = await fetch(apiUrl, {
@@ -506,27 +568,29 @@ export default function PracticeScreen() {
         // 尝试获取返回数据，包含掌握度等信息
         const data = await response.json();
         if (data.success && data.data) {
-          console.log('用户掌握度数据:', data.data);
-          
+          console.log("用户掌握度数据:", data.data);
+
           // 更新用户掌握度信息
           if (data.data.masteryLevel !== undefined) {
-            setUnitProgress(prev => {
-              if (!prev) return {
-                ...data.data,
-                unitId: lessonId,
-                totalExercises: exercises.length,
-                completedExercises: getCorrectCount() + (isCorrect ? 1 : 0),
-                completionRate: exercises.length > 0 ? (getCorrectCount() + (isCorrect ? 1 : 0)) / exercises.length : 0,
-                stars: 0,
-                unlockNext: false
-              };
-              
+            setUnitProgress((prev) => {
+              if (!prev)
+                return {
+                  ...data.data,
+                  unitId: lessonId,
+                  totalExercises: exercises.length,
+                  completedExercises: getCorrectCount() + (isCorrect ? 1 : 0),
+                  completionRate:
+                    exercises.length > 0 ? (getCorrectCount() + (isCorrect ? 1 : 0)) / exercises.length : 0,
+                  stars: 0,
+                  unlockNext: false,
+                };
+
               return {
                 ...prev,
                 masteryLevel: data.data.masteryLevel,
                 correctCount: data.data.correctCount || prev.correctCount,
                 incorrectCount: data.data.incorrectCount || prev.incorrectCount,
-                totalAnswerCount: data.data.totalAnswers || prev.totalAnswerCount
+                totalAnswerCount: data.data.totalAnswers || prev.totalAnswerCount,
               };
             });
           }
@@ -571,7 +635,7 @@ export default function PracticeScreen() {
     const totalCount = exercises.length;
     const completionRate = totalCount > 0 ? correctCount / totalCount : 0;
     const earnedStars = completionRate >= 0.8 ? 3 : completionRate >= 0.6 ? 2 : completionRate > 0 ? 1 : 0;
-    
+
     // 如果这是解锁测试，并且需要解锁之前的单元，并且获得了至少1星
     if (isTestForUnlocking && shouldUnlockPreviousUnits && earnedStars >= 1) {
       try {
@@ -580,14 +644,14 @@ export default function PracticeScreen() {
         if (parts.length === 3) {
           const currentSubject = parts[0];
           const currentMainUnit = parseInt(parts[1]);
-          
+
           // 创建要解锁的单元ID列表
           let unitsToUnlock = [];
-          
+
           // 获取所有当前学科下的单元
           const allUnitsResponse = await fetch(`${API_BASE_URL}/api/subjects/${currentSubject}/units`);
           const allUnitsData = await allUnitsResponse.json();
-          
+
           if (allUnitsData.success && Array.isArray(allUnitsData.data)) {
             // 查找所有当前大单元之前的单元
             for (const unit of allUnitsData.data) {
@@ -599,23 +663,23 @@ export default function PracticeScreen() {
                 }
               }
             }
-            
+
             // 批量解锁所有这些单元
             if (unitsToUnlock.length > 0) {
               const batchUnlockResponse = await fetch(`${API_BASE_URL}/api/units/batch-unlock`, {
-                method: 'POST',
+                method: "POST",
                 headers: {
-                  'Content-Type': 'application/json',
+                  "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
                   unitIds: unitsToUnlock,
-                  userId: USER_ID
-                })
+                  userId: USER_ID,
+                }),
               });
-              
+
               const unlockResult = await batchUnlockResponse.json();
               console.log("批量解锁结果:", unlockResult);
-              
+
               if (unlockResult.success) {
                 // 解锁成功，显示提示
                 alert(`恭喜！您已成功解锁${unitsToUnlock.length}个单元！`);
@@ -760,6 +824,9 @@ export default function PracticeScreen() {
                 hasSubmitted={hasSubmittedAnswer}
               />
             )}
+
+            {/* 知识点区域 - 始终显示在题目下方 */}
+            <KnowledgePointsSection knowledgePoints={currentExercise.knowledgePoints} />
           </RNView>
         ) : (
           <RNView style={styles.noExerciseContainer}>
@@ -1096,5 +1163,54 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 8,
     backgroundColor: "white",
+  },
+  knowledgePointsContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: "white",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#eaeaea",
+  },
+  knowledgePointsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  knowledgePointsTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    marginLeft: 8,
+    color: "#444",
+  },
+  knowledgePointsList: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+  knowledgePointTag: {
+    backgroundColor: "#f8f9fa",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    marginBottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e9ecef",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  knowledgePointText: {
+    fontSize: 13,
+    color: "#495057",
+    fontWeight: "500",
+    marginRight: 4,
   },
 });

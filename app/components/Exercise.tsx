@@ -20,6 +20,7 @@ export const Exercise = ({
     correctAnswer: any;
     type?: string;
     explanation?: string;
+    knowledgePoints?: any[];
   };
   onAnswer: (exerciseId: string, optionIndex: number, matchingAnswers?: number[], fillBlankAnswers?: string[]) => void;
   userAnswers: Record<string, number | number[] | string[] | boolean>;
@@ -40,7 +41,6 @@ export const Exercise = ({
 
   const [isAnsweredLocally, setIsAnsweredLocally] = useState(isAnswered);
   const [localSelection, setLocalSelection] = useState<number | null>(null);
-  const [pendingSubmission, setPendingSubmission] = useState(false);
 
   useEffect(() => {
     setIsAnsweredLocally(isAnswered);
@@ -73,33 +73,13 @@ export const Exercise = ({
     setUploading(false);
     setIsAnsweredLocally(isAnswered);
     setLocalSelection(null);
-    setPendingSubmission(false);
   }, [exercise.id]);
 
   // 创建选择题答案处理函数
   const handleChoiceSelection = (index: number) => {
     console.log(`选择了选项索引: ${index}`);
     setLocalSelection(index);
-    setPendingSubmission(true);
     onAnswer(exercise.id, index);
-  };
-
-  // 添加确认按钮处理函数
-  const handleConfirmAnswer = () => {
-    if (isAnswered) return;
-
-    if (exerciseType === "choice") {
-      console.log(`确认选择题答案，当前选择: ${localSelection}`);
-      onAnswer(exercise.id, localSelection !== null ? localSelection : -1);
-    } else if (exerciseType === "matching") {
-      onAnswer(exercise.id, 0, matchingPairs);
-    } else if (exerciseType === "fill_blank") {
-      onAnswer(exercise.id, 0, undefined, blankAnswers);
-    }
-
-    setIsAnsweredLocally(true);
-    setPendingSubmission(false);
-    console.log(`确认提交答案: ${exercise.id}`);
   };
 
   // 当匹配题建立完整的映射关系后记录临时答案
@@ -109,7 +89,6 @@ export const Exercise = ({
     const newMatchingPairs = [...matchingPairs];
     newMatchingPairs[leftIndex] = rightIndex;
     setMatchingPairs(newMatchingPairs);
-    setPendingSubmission(true);
   };
 
   // 填空题输入处理函数
@@ -119,7 +98,6 @@ export const Exercise = ({
     const newAnswers = [...blankAnswers];
     newAnswers[index] = text;
     setBlankAnswers(newAnswers);
-    setPendingSubmission(true);
     
     console.log(`填空题输入: index=${index}, text="${text}", 完整答案:`, newAnswers);
     
@@ -286,7 +264,6 @@ export const Exercise = ({
                       const newMatchingPairs = [...matchingPairs];
                       newMatchingPairs[leftIndex] = -1;
                       setMatchingPairs(newMatchingPairs);
-                      setPendingSubmission(true);
                     }}
                     disabled={isAnsweredLocally || isAnswered}
                   >
@@ -342,7 +319,6 @@ export const Exercise = ({
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
           setPhoto(result.assets[0].uri);
-          setPendingSubmission(true); // 已有照片，可以提交
           onAnswer(exercise.id, 0, undefined, [result.assets[0].uri]); // 将URI作为答案
         }
       } catch (error) {
@@ -366,7 +342,6 @@ export const Exercise = ({
 
         if (!result.canceled && result.assets && result.assets.length > 0) {
           setPhoto(result.assets[0].uri);
-          setPendingSubmission(true); // 已有照片，可以提交
           onAnswer(exercise.id, 0, undefined, [result.assets[0].uri]); // 将URI作为答案
         }
       } catch (error) {
@@ -397,7 +372,6 @@ export const Exercise = ({
               style={styles.removePhotoButton}
               onPress={() => {
                 setPhoto(null);
-                setPendingSubmission(false);
               }}
               disabled={isAnsweredLocally || isAnswered}
             >
@@ -533,43 +507,10 @@ export const Exercise = ({
     }
   };
 
-  // 渲染提交按钮
-  const renderSubmitButton = () => {
-    // 如果hideSubmitButton为true，不显示提交按钮
-    if (hideSubmitButton) return null;
-
-    // 如果已经回答过，不显示提交按钮
-    if (isAnsweredLocally || isAnswered) return null;
-
-    return (
-      <TouchableOpacity
-        style={[
-          styles.submitButton,
-          pendingSubmission ? styles.submitButtonActive : styles.submitButtonDisabled,
-        ]}
-        onPress={handleConfirmAnswer}
-        disabled={!pendingSubmission}
-      >
-        <Text style={[styles.submitButtonText, !pendingSubmission && styles.submitButtonTextDisabled]}>
-          提交答案
-        </Text>
-        <Ionicons
-          name="arrow-forward-circle"
-          size={24}
-          color={pendingSubmission ? "white" : "#ccc"}
-          style={{ marginLeft: 8 }}
-        />
-      </TouchableOpacity>
-    );
-  };
-
   return (
     <RNView style={styles.exerciseContainer}>
       <Text style={styles.questionText}>{exercise.question}</Text>
       {renderExerciseContent()}
-
-      {/* 始终显示提交按钮，除非已回答 */}
-      {renderSubmitButton()}
     </RNView>
   );
 };
@@ -819,28 +760,6 @@ const styles = StyleSheet.create({
   otherTypeText: {
     fontSize: 16,
     color: "#555",
-  },
-  // 提交按钮样式
-  submitButton: {
-    backgroundColor: "#5EC0DE",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 12,
-    alignItems: "center",
-  },
-  submitButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  submitButtonActive: {
-    backgroundColor: "#FF9600",
-  },
-  submitButtonDisabled: {
-    backgroundColor: "#ccc",
-  },
-  submitButtonTextDisabled: {
-    color: "#999",
   },
   // 应用题样式
   applicationContainer: {

@@ -40,6 +40,7 @@
   - `ThemedText.tsx`: 提供带额外类型样式的主题化文本组件。
   - `Exercise.tsx`: 练习题渲染和交互组件。
   - `SubjectModal.tsx`: 学科选择弹窗组件。
+  - `KnowledgePointModal.tsx`: 知识点详情弹窗组件，支持文本、图片、视频等多种知识点内容类型。
 - `app/services/`: 存放与后端 API 交互的服务模块。
   - `progressService.ts`: 进度管理服务，包含批量API优化、超时重试机制
   - `pointsService.ts`: 积分系统服务
@@ -85,6 +86,7 @@
   - 调用后端 API (如 `GET /api/exercises/:subjectCode/:unitIdentifier`) 获取练习题，可传递 `userId` 和 `filterCompleted`。
   - 用户答题，提交答案到后端 (`POST /api/users/:userId/submit`)。
   - 每次访问时调用 `POST /api/users/:userId/increment-practice/:unitId` 增加练习次数统计
+  - **知识点功能**: 在提交答案按钮下方显示相关知识点区域，用户可点击知识点标签查看详细内容弹窗
 - **`app/(tabs)/wrong-exercises.tsx` ("错题本"页)**:
   - 调用后端 API (`GET /api/users/:userId/wrong-exercises`) 获取用户的错题列表（包含题目详情）。
 - **`app/(tabs)/shop.tsx` ("积分商城"页)**:
@@ -148,6 +150,7 @@
   - 新增 `unitType` 字段：单元类型 ('normal' 或 'exercise')
   - 新增 `position` 字段：特殊位置设置 ('default', 'left', 'right')
 - **`Exercise`**: 练习题，每个题目属于一个单元
+  - 新增 `knowledgePoints` 字段 (JSON)：存储相关知识点数据，格式为 `[{title: '知识点名称', content: '详细内容', type: 'text|image|video', mediaUrl?: 'string'}]`
 - **`UserRecord`**: 用户答题记录
 - **`UserPoints`**: 用户积分
 - **`UnitProgress`**: 用户单元学习进度 (重要扩展)
@@ -392,6 +395,48 @@
   - 添加超时和重试机制
   - 实现优雅的错误降级策略
   - 批量API调用优化
+
+#### 6.4. 知识点功能新增 (2024-05)
+
+- **架构重构与优化**:
+  - 移除 `Exercise` 组件内的提交按钮功能（已废弃）
+  - 将知识点功能从 `ResultFeedback` 组件中独立出来，创建独立的 `KnowledgePointsSection` 组件
+  - 知识点组件始终显示在题目下方，不受答题状态控制，位于 `Exercise` 和 `ResultFeedback` 组件之间
+  - 保持了原有的UI设计和交互体验，但实现了更好的组件分离
+
+- **Exercise组件简化**:
+  - 移除了 `pendingSubmission` 状态和相关逻辑
+  - 移除了 `renderSubmitButton` 和 `renderKnowledgePoints` 函数
+  - 移除了知识点弹窗状态管理
+  - 简化为纯粹的题目展示和交互组件
+
+- **知识点组件独立化**:
+  - 新增独立的 `KnowledgePointsSection` 组件，完全独立于 `ResultFeedback` 组件
+  - 组件自管理知识点弹窗状态和交互逻辑
+  - 知识点始终显示在题目下方，不受答题状态控制
+  - 维持了知识点的原有UI设计风格和功能完整性
+  - 知识点区域位置：Exercise组件下方，ResultFeedback组件上方
+
+- **Exercise模型扩展**:
+  - 添加 `knowledgePoints` 字段 (JSON)：存储相关知识点数据
+  - 支持文本、图片、视频等多种知识点内容类型
+  - 格式：`[{title: '知识点名称', content: '详细内容', type: 'text|image|video', mediaUrl?: 'string'}]`
+
+- **前端组件新增**:
+  - 新增 `KnowledgePointModal.tsx`：知识点详情弹窗组件
+  - 支持富文本内容渲染，使用 `react-native-render-html`
+  - 支持图片和视频内容展示（视频功能待开发）
+
+- **数据库同步**:
+  - 创建 `sync-database.js` 脚本用于数据库模型同步
+  - 创建 `add-sample-knowledge-points.js` 脚本添加示例知识点数据
+  - 为现有练习题随机分配1-2个知识点
+
+- **开发工具集成**:
+  - 更新 `reset-data.sh` 脚本，集成知识点功能
+  - 数据重置流程包含：基础数据 → 数据库同步 → 知识点数据生成
+  - 提供完整的开发环境重置解决方案，支持一键重置所有数据和功能
+  - **进程清理优化**：启动和重置脚本现在包含完整的nodemon进程清理功能，确保服务关闭时不留残留进程
 
 ### 7. 用户数据统计与掌握程度计算
 
