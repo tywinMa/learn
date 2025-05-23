@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import RenderHtml from "react-native-render-html";
 
 interface KnowledgePoint {
+  id: number;
   title: string;
   content: string;
   type: "text" | "image" | "video";

@@ -28,6 +28,7 @@ import { KnowledgePointModal } from "./components/KnowledgePointModal";
 
 // 知识点类型定义
 interface KnowledgePoint {
+  id: number;
   title: string;
   content: string;
   type: "text" | "image" | "video";

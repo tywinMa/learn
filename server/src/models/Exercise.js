@@ -61,10 +61,11 @@ const Exercise = sequelize.define(
       type: DataTypes.JSON,
       allowNull: true, // 可选提示
     },
-    knowledgePoints: {
+    knowledgePointIds: {
       type: DataTypes.JSON,
-      allowNull: true, // 知识点数据，可选
-      comment: "相关知识点数据，格式：[{title: '知识点名称', content: '详细内容', type: 'text|image|video'}]"
+      allowNull: true,
+      comment: "关联的知识点ID数组",
+      defaultValue: []
     },
   },
   {

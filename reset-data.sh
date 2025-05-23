@@ -12,50 +12,31 @@ echo -e "${GREEN}开始重置数据...${NC}"
 # 转到服务器目录
 cd server
 
-# 检查服务器是否正在运行
-echo -e "${YELLOW}检查并停止所有相关服务...${NC}"
+# 检查nodejs进程
+echo -e "${YELLOW}检查并停止相关Node.js进程...${NC}"
 
-# 检查并停止server进程
-if pgrep -f "node.*server/src/index.js" > /dev/null; then
-  echo -e "${YELLOW}检测到服务器正在运行，将会先停止服务器...${NC}"
-  # 尝试优雅地结束服务器进程
-  pkill -15 -f "node.*server/src/index.js"
-  # 等待服务器关闭
-  sleep 2
-  # 如果仍在运行，强制终止
-  if pgrep -f "node.*server/src/index.js" > /dev/null; then
-    echo -e "${YELLOW}服务器未能优雅关闭，将强制终止...${NC}"
-    pkill -9 -f "node.*server/src/index.js"
-  fi
-  echo -e "${YELLOW}服务器已停止${NC}"
-fi
-
-# 清理所有nodemon相关进程
-echo -e "${YELLOW}清理nodemon相关进程...${NC}"
-NODEMON_PIDS=$(pgrep -f "nodemon" 2>/dev/null)
+# 查找并终止nodemon进程（包括使用npx运行的）
+NODEMON_PIDS=$(ps aux | grep -E "nodemon|npx.*nodemon" | grep -v grep | awk '{print $2}')
 if [ -n "$NODEMON_PIDS" ]; then
-  echo -e "${YELLOW}发现nodemon进程: $NODEMON_PIDS，正在终止...${NC}"
-  echo "$NODEMON_PIDS" | xargs kill -15 2>/dev/null
-  sleep 2
-  # 检查是否还有残留进程
-  REMAINING_NODEMON=$(pgrep -f "nodemon" 2>/dev/null)
-  if [ -n "$REMAINING_NODEMON" ]; then
-    echo -e "${YELLOW}强制终止残留的nodemon进程: $REMAINING_NODEMON${NC}"
-    echo "$REMAINING_NODEMON" | xargs kill -9 2>/dev/null
-  fi
-  echo -e "${YELLOW}nodemon进程已清理${NC}"
-else
-  echo -e "${YELLOW}没有发现nodemon进程${NC}"
+  echo -e "${YELLOW}终止nodemon进程: $NODEMON_PIDS${NC}"
+  kill -9 $NODEMON_PIDS 2>/dev/null
 fi
 
-# 清理所有占用相关端口的进程
-echo -e "${YELLOW}清理端口占用...${NC}"
-PORT_PIDS=$(lsof -t -i:3000 2>/dev/null)
-if [ -n "$PORT_PIDS" ]; then
-  echo -e "${YELLOW}终止占用3000端口的进程: $PORT_PIDS${NC}"
-  kill -9 $PORT_PIDS 2>/dev/null
+# 查找并终止可能的前端开发服务器进程（通常使用8081端口）
+PORT_PIDS_8081=$(lsof -t -i:8081 2>/dev/null)
+if [ -n "$PORT_PIDS_8081" ]; then
+  echo -e "${YELLOW}终止占用8081端口的进程: $PORT_PIDS_8081${NC}"
+  kill -9 $PORT_PIDS_8081 2>/dev/null
 fi
 
+# 查找并终止可能的后端服务器进程（通常使用3000端口）
+PORT_PIDS_3000=$(lsof -t -i:3000 2>/dev/null)
+if [ -n "$PORT_PIDS_3000" ]; then
+  echo -e "${YELLOW}终止占用3000端口的进程: $PORT_PIDS_3000${NC}"
+  kill -9 $PORT_PIDS_3000 2>/dev/null
+fi
+
+# 查找并终止可能占用8082端口的进程
 PORT_PIDS_8082=$(lsof -t -i:8082 2>/dev/null)
 if [ -n "$PORT_PIDS_8082" ]; then
   echo -e "${YELLOW}终止占用8082端口的进程: $PORT_PIDS_8082${NC}"
@@ -82,26 +63,26 @@ if [ $? -eq 0 ]; then
   
   # 数据库模型同步（确保数据库结构与模型定义一致）
   echo -e "${BLUE}同步数据库模型...${NC}"
-  node sync-database.js
+  node -e "require('./src/models').syncDatabase().then(() => console.log('数据库模型同步完成')).catch(err => { console.error('同步失败:', err); process.exit(1); })"
   
   if [ $? -eq 0 ]; then
     echo -e "${GREEN}数据库模型同步完成！${NC}"
     
-    # 添加知识点示例数据
-    echo -e "${BLUE}添加知识点示例数据...${NC}"
-    node add-sample-knowledge-points.js
+    # 初始化知识点数据
+    echo -e "${BLUE}初始化知识点数据...${NC}"
+    node init-knowledge-points.js
     
     if [ $? -eq 0 ]; then
-      echo -e "${GREEN}知识点数据添加完成！${NC}"
+      echo -e "${GREEN}知识点数据初始化完成！${NC}"
       echo -e "${GREEN}==============================================${NC}"
       echo -e "${GREEN}数据重置完成！包含以下功能：${NC}"
       echo -e "${GREEN}✓ 学科和单元数据${NC}"
       echo -e "${GREEN}✓ 练习题数据${NC}"
       echo -e "${GREEN}✓ 数据库模型同步${NC}"
-      echo -e "${GREEN}✓ 知识点示例数据${NC}"
+      echo -e "${GREEN}✓ 知识点数据和关联关系${NC}"
       echo -e "${GREEN}==============================================${NC}"
     else
-      echo -e "${YELLOW}知识点数据添加失败，但基础数据已重置成功${NC}"
+      echo -e "${YELLOW}知识点数据初始化失败，但基础数据已重置成功${NC}"
     fi
   else
     echo -e "${YELLOW}数据库模型同步失败，但基础数据已重置成功${NC}"

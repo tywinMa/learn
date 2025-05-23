@@ -150,7 +150,16 @@
   - 新增 `unitType` 字段：单元类型 ('normal' 或 'exercise')
   - 新增 `position` 字段：特殊位置设置 ('default', 'left', 'right')
 - **`Exercise`**: 练习题，每个题目属于一个单元
-  - 新增 `knowledgePoints` 字段 (JSON)：存储相关知识点数据，格式为 `[{title: '知识点名称', content: '详细内容', type: 'text|image|video', mediaUrl?: 'string'}]`
+  - 新增 `knowledgePointIds` 字段：存储关联的知识点ID数组（JSON格式）
+- **`KnowledgePoint`**: 知识点，独立管理的知识点表
+  - `id`: 自增主键
+  - `title`: 知识点标题
+  - `content`: 详细内容，支持HTML格式
+  - `type`: 内容类型 ('text', 'image', 'video')
+  - `mediaUrl`: 媒体文件URL（可选）
+  - `subject`: 所属学科代码
+  - `difficulty`: 难度等级 (1-5)
+  - `isActive`: 是否启用
 - **`UserRecord`**: 用户答题记录
 - **`UserPoints`**: 用户积分
 - **`UnitProgress`**: 用户单元学习进度 (重要扩展)
@@ -161,7 +170,9 @@
 
 **模型关系**：
 - `Subject` 1:n `Unit`: 一个学科有多个学习单元
+- `Subject` 1:n `KnowledgePoint`: 一个学科有多个知识点
 - `Unit` 1:n `Exercise`: 一个单元有多个练习题
+- `Exercise` 1:n `KnowledgePoint`: 一个练习题可以关联多个知识点（通过knowledgePointIds JSON字段）
 - `Unit` 1:n `UnitProgress`: 一个单元对应多个用户的学习进度
 - `Exercise` 1:n `UserRecord`: 一个练习题有多个用户的答题记录
 - `Exercise` 1:n `WrongExercise`: 一个练习题可能是多个用户的错题
@@ -186,12 +197,31 @@
   - 单元ID在后端会组合学科前缀进行查询 (如 `subject-unitId`)。
   - 查询参数: `userId` (用于标记已完成题目), `filterCompleted` ('true' 则过滤已完成的), `types` (逗号分隔的题型)。
   - 返回的练习题会根据用户完成情况附加 `completed` 标志。
+  - **包含关联的知识点**: 通过 `knowledgePoints` 字段返回关联的知识点数组，根据练习题的 `knowledgePointIds` 字段查询获得
   - 对特定题型 (`matching`, `application`, `math`) 的 `correctAnswer` 会做特殊处理（如未完成则隐藏，应用题始终隐藏）。
   - 返回数据包括 `allCompleted` (布尔值) 和 `typeStats` (题型统计)。
 - **`GET /:unitId` (兼容API)**: 获取特定单元的练习题，`unitId` 参数应为已包含学科前缀的完整单元ID。功能类似推荐API。
 - **`GET /`**: 获取所有包含练习题的单元ID列表 (不重复的 `unitId` 列表)。
 
-##### 3.4.3. 用户记录与进度 (`/api/users`)
+##### 3.4.3. 知识点管理 (`/api/knowledge-points`)
+
+- **`GET /`**: 获取所有知识点列表（支持分页和筛选）
+  - 查询参数: `page` (页码), `limit` (每页数量), `subject` (学科筛选), `type` (类型筛选), `search` (搜索关键词)
+  - 返回分页数据和知识点列表，包含关联的学科信息
+- **`GET /:id`**: 获取知识点详情
+  - 返回知识点详细信息和关联的学科信息
+  - **不包含关联的练习题**，简化查询逻辑
+- **`POST /`**: 创建新知识点
+  - 请求体: `title`, `content`, `type`, `mediaUrl`, `subject`, `difficulty`
+- **`PUT /:id`**: 更新知识点
+  - 请求体: `title`, `content`, `type`, `mediaUrl`, `subject`, `difficulty`, `isActive`
+- **`DELETE /:id`**: 删除知识点（软删除）
+  - 将 `isActive` 设置为 false
+  - **不自动清理练习题关联**，需要手动管理
+
+**注意**: 知识点与练习题的关联关系完全通过练习题的 `knowledgePointIds` 字段管理，知识点API不提供关联管理功能。
+
+##### 3.4.4. 用户记录与进度 (`/api/users`)
 
 - **核心辅助函数 `getUnitProgressDetails(userId, unitId)` (内部使用)**:
   - **双源进度计算策略**：优先查询 `UnitProgress` 表获取单元进度 (`stars`, `completed`, `unlockNext` 基于 `stars === 3`)。
@@ -396,47 +426,35 @@
   - 实现优雅的错误降级策略
   - 批量API调用优化
 
-#### 6.4. 知识点功能新增 (2024-05)
+#### 6.4. 知识点功能重构 (2024-12)
 
-- **架构重构与优化**:
-  - 移除 `Exercise` 组件内的提交按钮功能（已废弃）
-  - 将知识点功能从 `ResultFeedback` 组件中独立出来，创建独立的 `KnowledgePointsSection` 组件
-  - 知识点组件始终显示在题目下方，不受答题状态控制，位于 `Exercise` 和 `ResultFeedback` 组件之间
-  - 保持了原有的UI设计和交互体验，但实现了更好的组件分离
+- **数据模型重构**:
+  - **独立知识点表**: 创建独立的 `KnowledgePoint` 模型，包含 `id`, `title`, `content`, `type`, `mediaUrl`, `subject`, `difficulty`, `isActive` 等字段
+  - **JSON字段关联**: 在 `Exercise` 模型中添加 `knowledgePointIds` JSON字段，存储关联的知识点ID数组
+  - **移除中间表**: 删除 `ExerciseKnowledgePoint` 中间表，简化数据结构
+  - **单向关系**: 实现单向关系，只支持从练习题查询知识点，不支持反向查询
 
-- **Exercise组件简化**:
-  - 移除了 `pendingSubmission` 状态和相关逻辑
-  - 移除了 `renderSubmitButton` 和 `renderKnowledgePoints` 函数
-  - 移除了知识点弹窗状态管理
-  - 简化为纯粹的题目展示和交互组件
+- **API接口简化**:
+  - **知识点管理**: 提供基础的知识点 CRUD 接口
+  - **单向查询**: 练习题API根据 `knowledgePointIds` 字段查询并返回关联的知识点信息
+  - **无反向查询**: 知识点详情API不返回关联的练习题，大幅简化查询逻辑
+  - **无关联管理**: 删除了关联和取消关联的API，关联关系完全通过练习题管理
+  - **分页筛选**: 支持按学科、类型、关键词等条件筛选知识点
 
-- **知识点组件独立化**:
-  - 新增独立的 `KnowledgePointsSection` 组件，完全独立于 `ResultFeedback` 组件
-  - 组件自管理知识点弹窗状态和交互逻辑
-  - 知识点始终显示在题目下方，不受答题状态控制
-  - 维持了知识点的原有UI设计风格和功能完整性
-  - 知识点区域位置：Exercise组件下方，ResultFeedback组件上方
+- **前端组件优化**:
+  - **类型定义更新**: 知识点接口添加 `id` 字段，适配新的数据结构
+  - **组件解耦**: 保持 `KnowledgePointsSection` 和 `KnowledgePointModal` 组件的独立性
+  - **数据兼容**: 前端代码无缝适配新的API数据格式
 
-- **Exercise模型扩展**:
-  - 添加 `knowledgePoints` 字段 (JSON)：存储相关知识点数据
-  - 支持文本、图片、视频等多种知识点内容类型
-  - 格式：`[{title: '知识点名称', content: '详细内容', type: 'text|image|video', mediaUrl?: 'string'}]`
+- **数据初始化改进**:
+  - **新初始化脚本**: 创建 `init-knowledge-points.js` 替代旧的示例数据脚本
+  - **JSON字段更新**: 直接更新练习题的 `knowledgePointIds` 字段创建关联关系
+  - **清理旧代码**: 删除不再使用的中间表模型和相关代码
 
-- **前端组件新增**:
-  - 新增 `KnowledgePointModal.tsx`：知识点详情弹窗组件
-  - 支持富文本内容渲染，使用 `react-native-render-html`
-  - 支持图片和视频内容展示（视频功能待开发）
-
-- **数据库同步**:
-  - 创建 `sync-database.js` 脚本用于数据库模型同步
-  - 创建 `add-sample-knowledge-points.js` 脚本添加示例知识点数据
-  - 为现有练习题随机分配1-2个知识点
-
-- **开发工具集成**:
-  - 更新 `reset-data.sh` 脚本，集成知识点功能
-  - 数据重置流程包含：基础数据 → 数据库同步 → 知识点数据生成
-  - 提供完整的开发环境重置解决方案，支持一键重置所有数据和功能
-  - **进程清理优化**：启动和重置脚本现在包含完整的nodemon进程清理功能，确保服务关闭时不留残留进程
+- **开发工具更新**:
+  - **重置脚本优化**: 更新 `reset-data.sh` 使用新的知识点初始化流程
+  - **数据库同步**: 移除中间表的创建和同步，简化数据库结构
+  - **性能优化**: 移除反向查询，大幅提升知识点相关API的性能
 
 ### 7. 用户数据统计与掌握程度计算
 

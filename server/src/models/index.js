@@ -5,6 +5,7 @@ const UserPoints = require('./UserPoints');
 const Subject = require('./Subject');
 const Unit = require('./Unit');
 const UnitProgress = require('./UnitProgress');
+const KnowledgePoint = require('./KnowledgePoint');
 const { sequelize } = require('../config/database');
 
 // 定义模型之间的关系
@@ -16,6 +17,10 @@ Unit.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 // 学科与练习题之间的关系
 Subject.hasMany(Exercise, { foreignKey: 'subject', sourceKey: 'code' });
 Exercise.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
+
+// 学科与知识点之间的关系
+Subject.hasMany(KnowledgePoint, { foreignKey: 'subject', sourceKey: 'code' });
+KnowledgePoint.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 
 // 单元与练习题之间的关系
 Unit.hasMany(Exercise, { foreignKey: 'unitId', sourceKey: 'id' });
@@ -53,6 +58,8 @@ const syncDatabase = async () => {
     try {
       await sequelize.query('SELECT 1 FROM Subjects LIMIT 1');
       await sequelize.query('SELECT 1 FROM Units LIMIT 1');
+      await sequelize.query('SELECT 1 FROM Exercises LIMIT 1');
+      await sequelize.query('SELECT 1 FROM KnowledgePoints LIMIT 1');
       await sequelize.query('SELECT 1 FROM WrongExercises LIMIT 1');
       await sequelize.query('SELECT 1 FROM UserRecords LIMIT 1');
       console.log('数据库表结构完整');
@@ -84,6 +91,7 @@ module.exports = {
   Subject,
   Unit,
   UnitProgress,
+  KnowledgePoint,
   sequelize,
   syncDatabase
 };

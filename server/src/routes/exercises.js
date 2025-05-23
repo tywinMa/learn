@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Exercise, UserRecord, sequelize } = require('../models');
+const { Exercise, UserRecord, KnowledgePoint, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 // 获取所有练习题单元
@@ -95,12 +95,27 @@ router.get('/:subject/:unitId', async (req, res) => {
     }
 
     // 处理附加信息，格式化返回数据
-    const formattedExercises = exercises.map(ex => {
+    const formattedExercises = await Promise.all(exercises.map(async (ex) => {
       // 创建基本题目对象
       const exercise = ex.toJSON();
 
       // 添加是否已完成标志
       exercise.completed = completedExerciseIds.includes(ex.id);
+
+      // 查询关联的知识点
+      if (exercise.knowledgePointIds && exercise.knowledgePointIds.length > 0) {
+        const knowledgePoints = await KnowledgePoint.findAll({
+          where: {
+            id: { [Op.in]: exercise.knowledgePointIds },
+            isActive: true
+          },
+          attributes: ['id', 'title', 'content', 'type', 'mediaUrl'],
+          order: [['id', 'ASC']]
+        });
+        exercise.knowledgePoints = knowledgePoints;
+      } else {
+        exercise.knowledgePoints = [];
+      }
 
       // 处理不同题型的特殊格式化
       switch (exercise.type) {
@@ -123,7 +138,7 @@ router.get('/:subject/:unitId', async (req, res) => {
       }
 
       return exercise;
-    });
+    }));
 
     // 检查是否所有题目都已完成
     const allCompleted = exercises.length > 0 &&
@@ -228,12 +243,27 @@ router.get('/:unitId', async (req, res) => {
     }
 
     // 处理附加信息，格式化返回数据
-    const formattedExercises = exercises.map(ex => {
+    const formattedExercises = await Promise.all(exercises.map(async (ex) => {
       // 创建基本题目对象
       const exercise = ex.toJSON();
 
       // 添加是否已完成标志
       exercise.completed = completedExerciseIds.includes(ex.id);
+
+      // 查询关联的知识点
+      if (exercise.knowledgePointIds && exercise.knowledgePointIds.length > 0) {
+        const knowledgePoints = await KnowledgePoint.findAll({
+          where: {
+            id: { [Op.in]: exercise.knowledgePointIds },
+            isActive: true
+          },
+          attributes: ['id', 'title', 'content', 'type', 'mediaUrl'],
+          order: [['id', 'ASC']]
+        });
+        exercise.knowledgePoints = knowledgePoints;
+      } else {
+        exercise.knowledgePoints = [];
+      }
 
       // 处理不同题型的特殊格式化
       switch (exercise.type) {
@@ -256,7 +286,7 @@ router.get('/:unitId', async (req, res) => {
       }
 
       return exercise;
-    });
+    }));
 
     // 检查是否所有题目都已完成
     const allCompleted = exercises.length > 0 &&

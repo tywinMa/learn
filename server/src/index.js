@@ -9,6 +9,7 @@ const userPointsRoutes = require('./routes/userPoints');
 const unitContentRoutes = require('./routes/unitContent');
 const subjectsRoutes = require('./routes/subjects');
 const unitsRouter = require('./routes/units');
+const knowledgePointsRoutes = require('./routes/knowledgePoints');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -35,6 +36,7 @@ app.use('/api/users', userPointsRoutes);
 app.use('/api/unit-content', unitContentRoutes);
 app.use('/api/subjects', subjectsRoutes);
 app.use('/api/units', unitsRouter);
+app.use('/api/knowledge-points', knowledgePointsRoutes);
 
 // 添加全局错误处理中间件
 app.use((err, req, res, next) => {
