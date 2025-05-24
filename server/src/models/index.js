@@ -2,6 +2,7 @@ const Exercise = require('./Exercise');
 const UserPoints = require('./UserPoints');
 const Subject = require('./Subject');
 const Unit = require('./Unit');
+const Course = require('./Course');
 const UnitProgress = require('./UnitProgress');
 const AnswerRecord = require('./AnswerRecord');
 const KnowledgePoint = require('./KnowledgePoint');
@@ -13,6 +14,14 @@ const { sequelize } = require('../config/database');
 Subject.hasMany(Unit, { foreignKey: 'subject', sourceKey: 'code' });
 Unit.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 
+// 学科与小单元之间的关系
+Subject.hasMany(Course, { foreignKey: 'subject', sourceKey: 'code' });
+Course.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
+
+// 大单元与小单元之间的关系 (一对多)
+Unit.hasMany(Course, { foreignKey: 'unitId', sourceKey: 'id' });
+Course.belongsTo(Unit, { foreignKey: 'unitId', targetKey: 'id' });
+
 // 学科与练习题之间的关系
 Subject.hasMany(Exercise, { foreignKey: 'subject', sourceKey: 'code' });
 Exercise.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
@@ -21,13 +30,13 @@ Exercise.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 Subject.hasMany(KnowledgePoint, { foreignKey: 'subject', sourceKey: 'code' });
 KnowledgePoint.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 
-// 单元与练习题之间的关系
-Unit.hasMany(Exercise, { foreignKey: 'unitId', sourceKey: 'id' });
-Exercise.belongsTo(Unit, { foreignKey: 'unitId', targetKey: 'id' });
+// 小单元与练习题之间的关系 (原来是Unit，现在改为Course)
+Course.hasMany(Exercise, { foreignKey: 'unitId', sourceKey: 'id' });
+Exercise.belongsTo(Course, { foreignKey: 'unitId', targetKey: 'id' });
 
-// Unit and UnitProgress relationship
-Unit.hasMany(UnitProgress, { foreignKey: 'unitId', sourceKey: 'id' });
-UnitProgress.belongsTo(Unit, { foreignKey: 'unitId', targetKey: 'id' });
+// Course and UnitProgress relationship (原来是Unit，现在改为Course)
+Course.hasMany(UnitProgress, { foreignKey: 'unitId', sourceKey: 'id' });
+UnitProgress.belongsTo(Course, { foreignKey: 'unitId', targetKey: 'id' });
 
 // ===== AnswerRecord关系 =====
 // Exercise 和 AnswerRecord 之间的关系
@@ -38,9 +47,9 @@ AnswerRecord.belongsTo(Exercise, { foreignKey: 'exerciseId', targetKey: 'id' });
 Subject.hasMany(AnswerRecord, { foreignKey: 'subject', sourceKey: 'code' });
 AnswerRecord.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 
-// Unit 和 AnswerRecord 之间的关系
-Unit.hasMany(AnswerRecord, { foreignKey: 'unitId', sourceKey: 'id' });
-AnswerRecord.belongsTo(Unit, { foreignKey: 'unitId', targetKey: 'id' });
+// Course 和 AnswerRecord 之间的关系 (原来是Unit，现在改为Course)
+Course.hasMany(AnswerRecord, { foreignKey: 'unitId', sourceKey: 'id' });
+AnswerRecord.belongsTo(Course, { foreignKey: 'unitId', targetKey: 'id' });
 
 // 同步所有模型到数据库
 const syncDatabase = async () => {
@@ -54,6 +63,7 @@ const syncDatabase = async () => {
     try {
       await sequelize.query('SELECT 1 FROM Subjects LIMIT 1');
       await sequelize.query('SELECT 1 FROM Units LIMIT 1');
+      await sequelize.query('SELECT 1 FROM Courses LIMIT 1');
       await sequelize.query('SELECT 1 FROM Exercises LIMIT 1');
       await sequelize.query('SELECT 1 FROM KnowledgePoints LIMIT 1');
       await sequelize.query('SELECT 1 FROM WrongExercises LIMIT 1');
@@ -85,6 +95,7 @@ module.exports = {
   UserPoints,
   Subject,
   Unit,
+  Course,
   UnitProgress,
   AnswerRecord,
   KnowledgePoint,

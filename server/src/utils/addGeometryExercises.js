@@ -1,4 +1,4 @@
-const { Exercise, Subject, Unit } = require('../models');
+const { Exercise, Subject, Course } = require('../models');
 
 /**
  * 为几何单元添加练习题
@@ -7,19 +7,19 @@ const addGeometryExercises = async () => {
   try {
     console.log('开始为几何单元添加练习题...');
 
-    // 几何单元ID：math-2-1 (三角形单元)
+    // 几何小单元ID：math-2-1 (三角形单元)
     const unitId = 'math-2-1';
     const subjectCode = 'math';
 
-    // 检查单元是否存在
-    const unit = await Unit.findOne({ where: { id: unitId } });
+    // 检查小单元是否存在
+    const unit = await Course.findOne({ where: { id: unitId } });
     if (!unit) {
-      throw new Error(`单元 ${unitId} 不存在，请先初始化学科数据`);
+      throw new Error(`小单元 ${unitId} 不存在，请先初始化学科数据`);
     }
 
     // 检查单元是否已有练习题
     const existingCount = await Exercise.count({ where: { unitId } });
-    console.log(`单元 ${unitId} 已有 ${existingCount} 道练习题`);
+    console.log(`小单元 ${unitId} 已有 ${existingCount} 道练习题`);
 
     // 要添加的选择题
     const choiceExercises = [

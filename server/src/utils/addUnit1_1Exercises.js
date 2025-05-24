@@ -1,4 +1,4 @@
-const { Exercise, Subject, Unit, sequelize } = require("../models");
+const { Exercise, Subject, Course, sequelize } = require("../models");
 
 /**
  * 为单元1-1添加多种类型的练习题
@@ -233,10 +233,10 @@ const addUnit1_1Exercises = async () => {
 
     // 检查单元是否存在，如果不存在则创建
     const fullUnitId = `${subjectCode}-${unitId}`;
-    let unit = await Unit.findOne({ where: { id: fullUnitId } });
+    let unit = await Course.findOne({ where: { id: fullUnitId } });
     if (!unit) {
       console.log(`单元 ${fullUnitId} 不存在，将自动创建`);
-      unit = await Unit.create({
+      unit = await Course.create({
         id: fullUnitId, // 直接使用完整ID，避免hooks再次添加前缀
         subject: subjectCode,
         title: "数学单元1-1",

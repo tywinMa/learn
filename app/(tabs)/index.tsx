@@ -467,12 +467,52 @@ export default function HomeScreen() {
   }, []);
 
   // 修改formatCoursesData返回值，应用颜色修复
-  const formatCoursesData = (unitsData: any[], subject: any) => {
+  const formatCoursesData = (apiData: any, subject: any) => {
     // 验证参数
-    if (!unitsData || !Array.isArray(unitsData) || !subject) {
-      console.error("格式化课程数据参数无效：", { unitsData, subject });
+    if (!apiData || !subject) {
+      console.error("格式化课程数据参数无效：", { apiData, subject });
       return [];
     }
+
+    // 新API结构：优先使用structured数据
+    if (apiData.structured && Array.isArray(apiData.structured)) {
+      console.log("使用新的结构化数据");
+      
+      const formattedCourses = apiData.structured.map((unit: any, index: number) => {
+        // 使用大单元的颜色
+        const unitColor = unit.color || subject.color;
+        const unitSecondaryColor = unit.secondaryColor || getLighterColor(unitColor);
+
+        return {
+          id: `unit${index + 1}`,
+          title: unit.title,
+          description: unit.description || `学习${subject.name}基础知识`,
+          color: unitColor,
+          secondaryColor: unitSecondaryColor,
+          // 将小单元作为关卡
+          levels: (unit.courses || []).map((course: any) => {
+            return {
+              id: course.id, // 使用原始ID
+              title: course.title,
+              unitType: course.unitType || "normal",
+              position: course.position || "default",
+              isMajor: false,
+            };
+          }),
+        };
+      });
+
+      return ensureCoursesColors(formattedCourses);
+    }
+
+    // 兼容旧API结构：使用扁平化数据
+    const unitsData = apiData.data || apiData;
+    if (!Array.isArray(unitsData)) {
+      console.error("API数据格式无效：", { unitsData });
+      return [];
+    }
+
+    console.log("使用兼容的扁平化数据");
 
     // 首先按level和order排序
     const sortedUnits = [...unitsData].sort((a, b) => {
@@ -495,8 +535,11 @@ export default function HomeScreen() {
       // 跳过大单元，因为它们已经在分组中了
       if (unit.isMajor === true) return;
 
-      // 如果有parentId，将小单元添加到对应的大单元组
-      if (unit.parentId && unitsByMajor[unit.parentId]) {
+      // 如果有unitId字段，将小单元添加到对应的大单元组
+      if (unit.unitId && unitsByMajor[unit.unitId]) {
+        unitsByMajor[unit.unitId].push(unit);
+      } else if (unit.parentId && unitsByMajor[unit.parentId]) {
+        // 兼容旧的parentId字段
         unitsByMajor[unit.parentId].push(unit);
       } else {
         // 如果没有找到对应的大单元组，使用level分组的后备逻辑
@@ -1022,7 +1065,7 @@ export default function HomeScreen() {
         }
 
         // 将API返回的数据转换为应用所需的格式
-        const formattedCourses = formatCoursesData(result.data, subject);
+        const formattedCourses = formatCoursesData(result, subject);
 
         // 确保所有课程都有颜色信息
         const coursesWithColors = ensureCoursesColors(formattedCourses);
