@@ -42,11 +42,11 @@ jobs:
           git pull origin main
           
           # 安装前端依赖
-          npm ci
+          npm i
           
           # 安装后端依赖
           cd server
-          npm ci
+          npm i
           cd ..
           
           # 构建前端项目
