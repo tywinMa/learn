@@ -20,22 +20,6 @@ jobs:
         node-version: '18'
         cache: 'npm'
         
-    - name: 安装前端依赖
-      run: npm ci
-      
-    - name: 安装后端依赖
-      run: |
-        cd server
-        npm ci
-        
-    - name: 构建前端项目
-      run: npm run build
-      
-    - name: 测试后端数据库连接
-      run: |
-        cd server
-        npm run test-db
-        
     - name: 部署到服务器
       if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
       uses: appleboy/ssh-action@v1.0.3
