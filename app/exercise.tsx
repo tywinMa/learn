@@ -167,10 +167,9 @@ const SummaryModal = ({
   isTestForUnlocking: boolean;
   shouldUnlockPreviousUnits: boolean;
 }) => {
-  // 计算完成率和星星数
+  // 计算完成率
   const completionRate = totalCount > 0 ? correctCount / totalCount : 0;
-  const earnedStars = completionRate >= 0.8 ? 3 : completionRate >= 0.6 ? 2 : completionRate > 0 ? 1 : 0;
-  const isThreeStars = earnedStars === 3;
+  const isFullCompletion = completionRate >= 0.8;
 
   // 计算奖励积分
   // 基础积分：每题1分
@@ -187,17 +186,30 @@ const SummaryModal = ({
   // 总积分
   const totalPoints = basePoints + bonusPoints;
 
-  // 渲染星星图标
-  const renderStars = () => {
-    const stars = [];
-    for (let i = 0; i < 3; i++) {
-      const iconName = i < earnedStars ? "star" : "star-outline";
-      const iconColor = i < earnedStars ? "#FFD700" : "#C0C0C0";
-      stars.push(
-        <Ionicons key={i} name={iconName as any} size={36} color={iconColor} style={{ marginHorizontal: 8 }} />
+  // 渲染皇冠图标
+  const renderCrown = () => {
+    if (isFullCompletion) {
+      return (
+        <FontAwesome5 
+          name="crown" 
+          size={48} 
+          color="#FFD700" 
+          solid 
+          style={{ marginVertical: 16 }}
+        />
+      );
+    } else if (completionRate >= 0.6) {
+      return (
+        <FontAwesome5 
+          name="crown" 
+          size={36} 
+          color="#FF9800" 
+          solid 
+          style={{ marginVertical: 16 }}
+        />
       );
     }
-    return stars;
+    return null;
   };
 
   return (
@@ -233,16 +245,16 @@ const SummaryModal = ({
             )}
           </RNView>
 
-          <RNView style={styles.starsContainer}>{renderStars()}</RNView>
+          <RNView style={styles.crownContainer}>{renderCrown()}</RNView>
 
-          {isThreeStars && (
+          {isFullCompletion && (
             <RNView style={styles.unlockMessage}>
               <Ionicons name="checkmark-circle" size={18} color="#58CC02" />
               <Text style={styles.unlockText}>恭喜！您已解锁下一单元</Text>
             </RNView>
           )}
 
-          {isTestForUnlocking && shouldUnlockPreviousUnits && earnedStars >= 1 && (
+          {isTestForUnlocking && shouldUnlockPreviousUnits && completionRate >= 0.6 && (
             <RNView style={styles.unlockMessage}>
               <Ionicons name="flag" size={18} color="#FF9600" />
               <Text style={[styles.unlockText, { color: "#FF9600" }]}>恭喜！您将解锁所有之前的单元</Text>
@@ -1117,9 +1129,10 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#5EC0DE",
   },
-  starsContainer: {
+  crownContainer: {
     flexDirection: "row",
     justifyContent: "center",
+    alignItems: "center",
     marginTop: 14,
     marginBottom: 8,
   },

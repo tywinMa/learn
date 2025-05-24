@@ -30,7 +30,7 @@ import { getUserPoints } from "../services/pointsService";
 import SubjectModal from "@/components/SubjectModal";
 import { useSubject, Subject } from "@/hooks/useSubject";
 import { API_BASE_URL } from "@/constants/apiConfig";
-import { MasteryIndicator } from "@/components/MasteryIndicator";
+import { CircularProgress } from "@/components/CircularProgress";
 
 // 常量定义
 const CURRENT_SUBJECT_KEY = "currentSubject";
@@ -102,13 +102,12 @@ const Level = ({
   // 简化状态判断
   const isExerciseUnit = level.unitType === "exercise";
   const isLocked = isExerciseUnit ? false : previousLevelUnlocked === false;
-  const stars = progress?.stars || 0;
   
   // 对于exercise类型单元，需要完成所有题目才算已完成
-  // 对于普通单元，有星级就算已完成
+  // 对于普通单元，学习进度超过50%或掌握程度超过50%就算已完成
   const isCompleted = isExerciseUnit 
     ? (progress?.completedExercises || 0) >= (progress?.totalExercises || 1)
-    : stars > 0;
+    : (progress?.completionRate || 0) > 0.5 || (progress?.masteryLevel || 0) > 0.5;
 
   // 是否显示掌握度
   const showMasteryIndicator =
@@ -279,32 +278,35 @@ const Level = ({
         }
       }}
     >
-      <TouchableOpacity
-        style={[styles.levelBadge, getBadgeStyle()]}
-        disabled={isLocked}
-        onPress={handleLevelPress}
-      >
-        <FontAwesome5 name={getIconName()} size={22} color={getIconColor()} />
-      </TouchableOpacity>
+      {/* 环形进度条或挑战指示器 */}
+      {!isExerciseUnit ? (
+        <TouchableOpacity
+          disabled={isLocked}
+          onPress={handleLevelPress}
+          style={styles.levelProgressButton}
+        >
+          <CircularProgress
+            studyProgress={progress?.completionRate || 0}
+            masteryLevel={progress?.masteryLevel || 0}
+            color={color}
+            size={60}
+            iconName={getIconName()}
+            iconColor={getIconColor()}
+            showCrown={true}
+          />
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={[styles.levelBadge, getBadgeStyle()]}
+          disabled={isLocked}
+          onPress={handleLevelPress}
+        >
+          <FontAwesome5 name={getIconName()} size={22} color={getIconColor()} />
+        </TouchableOpacity>
+      )}
 
       {/* 关卡标题 */}
       <Text style={styles.levelTitle}>{level.title}</Text>
-
-      {/* 星星评分或挑战指示器 */}
-      {!isExerciseUnit && (
-        <RNView style={styles.starsContainer}>
-          {[...Array(3)].map((_, i) => (
-            <FontAwesome5
-              key={i}
-              name="star"
-              size={10}
-              solid={i < stars}
-              color={i < stars ? "#FFD900" : "#E0E0E0"}
-              style={{ marginHorizontal: 1 }}
-            />
-          ))}
-        </RNView>
-      )}
 
       {/* 挑战指示器（仅exercise类型显示） */}
       {isExerciseUnit && (
@@ -904,7 +906,8 @@ export default function HomeScreen() {
                     if (prevLevelInSection && prevLevelInSection.unitType === "normal") {
                       const prevLevelProgress = progressData[prevLevelInSection.id];
                       prevLevelFullyUnlocked =
-                        prevLevelProgress?.stars >= 3 ||
+                        (prevLevelProgress?.completionRate || 0) >= 0.8 ||
+                        (prevLevelProgress?.masteryLevel || 0) >= 0.8 ||
                         prevLevelProgress?.completed === true;
                     } else {
                       // 如果没有找到前面的normal类型单元，则认为已解锁
@@ -931,7 +934,8 @@ export default function HomeScreen() {
                       if (lastLevelOfPrevCourse && lastLevelOfPrevCourse.unitType === "normal") {
                         const prevLevelProgress = progressData[lastLevelOfPrevCourse.id];
                         prevLevelFullyUnlocked =
-                          prevLevelProgress?.stars >= 3 ||
+                          (prevLevelProgress?.completionRate || 0) >= 0.8 ||
+                          (prevLevelProgress?.masteryLevel || 0) >= 0.8 ||
                           prevLevelProgress?.completed === true;
                       } else {
                         // 如果前一个大单元没有normal类型的单元，则认为已解锁
@@ -1254,14 +1258,18 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  levelProgressButton: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
   connector: {
     width: 3,
     height: 20,
     marginTop: 4,
   },
-  starsContainer: {
-    flexDirection: "row",
+  progressContainer: {
     marginTop: 4,
+    alignItems: "center",
     justifyContent: "center",
   },
   unitEnd: {
