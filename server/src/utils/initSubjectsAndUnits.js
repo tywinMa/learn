@@ -43,9 +43,21 @@ const initSubjectsAndUnits = async () => {
       }
     ];
 
-    // 创建学科
-    const createdSubjects = await Subject.bulkCreate(subjects);
-    console.log(`成功创建 ${createdSubjects.length} 条学科记录`);
+    // 创建学科（如果不存在）
+    const createdSubjects = [];
+    for (const subjectData of subjects) {
+      const [subject, created] = await Subject.findOrCreate({
+        where: { code: subjectData.code },
+        defaults: subjectData
+      });
+      createdSubjects.push(subject);
+      if (created) {
+        console.log(`创建学科: ${subject.code}`);
+      } else {
+        console.log(`学科已存在: ${subject.code}`);
+      }
+    }
+    console.log(`处理了 ${createdSubjects.length} 条学科记录`);
 
     // 定义章节颜色库
     const chapterColors = {
@@ -434,9 +446,21 @@ const initSubjectsAndUnits = async () => {
       });
     }
 
-    // 创建单元
-    const createdUnits = await Unit.bulkCreate(units);
-    console.log(`成功创建 ${createdUnits.length} 条单元记录`);
+    // 创建单元（如果不存在）
+    const createdUnits = [];
+    for (const unitData of units) {
+      const [unit, created] = await Unit.findOrCreate({
+        where: { id: unitData.id },
+        defaults: unitData
+      });
+      createdUnits.push(unit);
+      if (created) {
+        console.log(`创建单元: ${unit.id} - ${unit.title}`);
+      } else {
+        console.log(`单元已存在: ${unit.id} - ${unit.title}`);
+      }
+    }
+    console.log(`处理了 ${createdUnits.length} 条单元记录`);
 
   } catch (error) {
     console.error('初始化学科和单元出错:', error);

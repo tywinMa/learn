@@ -86,6 +86,7 @@ module.exports = {
   Subject,
   Unit,
   UnitProgress,
+  AnswerRecord,
   KnowledgePoint,
   sequelize,
   syncDatabase

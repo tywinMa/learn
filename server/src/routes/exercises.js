@@ -74,7 +74,7 @@ router.get("/:subject/:unitId", async (req, res) => {
       const completedExercises = await AnswerRecord.findAll({
         where: {
           userId,
-          exerciseId: { [Op.in]: exerciseIds },
+          exerciseId: { [Op.like]: `${formattedUnitId}-%` },
           isCorrect: true
         },
         attributes: ['exerciseId'],
