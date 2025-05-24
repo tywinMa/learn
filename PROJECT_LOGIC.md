@@ -77,6 +77,14 @@
   - 点击按钮后，在 `AsyncStorage` 中设置 `WELCOME_SCREEN_KEY` 为 `true`，并导航到 `/(tabs)`。
 - **`app/(tabs)/index.tsx` ("课程"页)**:
   - 展示学科列表或当前学科的单元列表。用户可选择学科和单元。单元的解锁状态可能需要前端结合从 `/api/answer-records/:userId/progress/batch` 或 `/api/answer-records/:userId/progress/:unitId` 获取的进度数据判断。
+  - **特殊单元类型处理**:
+    - **`unitType: 'exercise'` 练习单元**: 无需解锁检查，始终可点击，点击后直接跳转到 `/practice` 页面进行习题练习。
+      - **挑战风格UI**: 使用橙色调的挑战风格设计，完成时显示奖杯图标，未完成时显示瞄准镜图标
+      - **特殊指示器**: 不显示星星评分，而是显示"挑战"或"已完成"的状态指示器
+      - **视觉效果**: 具有特殊的阴影和边框效果，突出挑战性质
+    - **`unitType: 'normal'` 普通单元**: 需要解锁检查，只有满足解锁条件才能点击，点击后跳转到 `/study` 页面进行学习。
+      - **传统UI**: 保持原有的星星评分系统和常规的图标设计
+  - **解锁逻辑**: 除exercise类型单元外，其他单元需要前一个单元完成（获得3星或标记为completed）才能解锁。
 - **`app/study.tsx` ("学习"页)**:
   - 接收 `unitId` (通常格式为 `subjectCode-unitIdentifier`) 和 `subjectCode` 参数。
   - 调用后端 API (如 `GET /api/unit-content/:unitId`) 获取该单元的学习内容和媒体资源。

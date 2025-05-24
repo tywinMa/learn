@@ -311,6 +311,8 @@ export default function PracticeScreen() {
   const color = typeof params.color === "string" ? params.color : "#5EC0DE";
   const secondaryColor = typeof params.secondaryColor === "string" ? params.secondaryColor : color;
 
+
+
   // 获取练习题
   const fetchExercises = async () => {
     try {

@@ -401,11 +401,12 @@ export default function StudyScreen() {
               style={[styles.practiceButton, { backgroundColor: primaryColor }]}
               onPress={() => {
                 router.push({
-                  pathname: "/practice",
+                  pathname: "/exercise",
                   params: {
-                    id: lessonId, // 使用id参数代替unitId，与practice.tsx中的处理一致
+                    id: lessonId, // 使用id参数代替unitId，与exercise.tsx中的处理一致
                     unitTitle: Array.isArray(unitTitle) ? unitTitle[0] : unitTitle || "课后练习",
                     color: primaryColor,
+                    secondaryColor: secondaryCol, // 添加缺失的secondaryColor参数
                     subject: subjectCode, // 传递学科代码
                     isUnlockingTest: isTestForUnlocking ? "true" : "false",
                     unlockPreviousUnits: shouldUnlockPreviousUnits ? "true" : "false"
