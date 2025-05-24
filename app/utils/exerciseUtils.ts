@@ -37,8 +37,21 @@ export const checkAnswerCorrect = (
     case "matching":
       // 匹配题 - 比较数组
       if (Array.isArray(userAnswer) && Array.isArray(exercise.correctAnswer)) {
-        return JSON.stringify(userAnswer) === JSON.stringify(exercise.correctAnswer);
+        const userAnswerStr = JSON.stringify(userAnswer);
+        const correctAnswerStr = JSON.stringify(exercise.correctAnswer);
+        const isMatchingCorrect = userAnswerStr === correctAnswerStr;
+        
+        console.log(`匹配题答案比较:`, {
+          用户答案数组: userAnswer,
+          正确答案数组: exercise.correctAnswer,
+          用户答案字符串: userAnswerStr,
+          正确答案字符串: correctAnswerStr,
+          匹配结果: isMatchingCorrect
+        });
+        
+        return isMatchingCorrect;
       }
+    
       return false;
 
     case "application":
@@ -102,6 +115,12 @@ export const processAnswer = async (
   if (exercise.type === "application") {
     console.log("应用题提交成功，等待批改");
     return false; // 返回false表示未通过，但前端可特殊处理
+  }
+
+  // 检查正确答案是否存在
+  if (exercise.correctAnswer === null || exercise.correctAnswer === undefined) {
+    console.warn(`${exercise.type}题的正确答案为空，可能是数据配置问题`);
+    return false;
   }
 
   // 只在这一个地方判断答案正确性

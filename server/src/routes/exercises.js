@@ -83,11 +83,13 @@ router.get('/:subject/:unitId', async (req, res) => {
 
         // 对特定题型的正确答案进行处理
         if (!exerciseData.completed) {
-          if (exercise.type === 'matching' || exercise.type === 'application') {
+          // 匹配题的匹配项是固定的，用户无法从选项推断正确答案，所以可以安全暴露
+          if (exercise.type === 'application') {
             exerciseData.correctAnswer = null;
           } else if (exercise.type === 'math') {
             exerciseData.correctAnswer = null;
           }
+          // 不再隐藏匹配题的正确答案
         }
 
         return exerciseData;
@@ -190,11 +192,13 @@ router.get('/:unitId', async (req, res) => {
 
         // 对特定题型的正确答案进行处理
         if (!exerciseData.completed) {
-          if (exercise.type === 'matching' || exercise.type === 'application') {
+          // 匹配题的匹配项是固定的，用户无法从选项推断正确答案，所以可以安全暴露
+          if (exercise.type === 'application') {
             exerciseData.correctAnswer = null;
           } else if (exercise.type === 'math') {
             exerciseData.correctAnswer = null;
           }
+          // 不再隐藏匹配题的正确答案
         }
 
         return exerciseData;
@@ -272,5 +276,7 @@ router.get('/:unitId/:exerciseId', async (req, res) => {
     });
   }
 });
+
+
 
 module.exports = router;

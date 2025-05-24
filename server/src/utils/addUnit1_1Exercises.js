@@ -504,8 +504,8 @@ const addUnit1_1Exercises = async () => {
 
     // 批量创建所有练习题
     const allExercises = [
-      ...choiceExercises,
-      ...fillBlankExercises,
+      // ...choiceExercises,
+      // ...fillBlankExercises,
       ...matchingExercises,
       ...applicationExercises,
     ];

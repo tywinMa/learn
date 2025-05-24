@@ -482,10 +482,22 @@ export default function PracticeScreen() {
         userAnswer = pendingAnswer.fillBlankAnswers;
         hasUserSelection = true;
         console.log("提交填空题答案:", userAnswer);
-      } else if (pendingAnswer.matchingAnswers) {
-        // 匹配题
-        userAnswer = pendingAnswer.matchingAnswers;
-        hasUserSelection = true;
+      } else if (exercise.type === "matching" && pendingAnswer.matchingAnswers) {
+        // 匹配题：检查是否所有项都已完成匹配
+        const matchingPairs = pendingAnswer.matchingAnswers;
+        const allMatched = Array.isArray(matchingPairs) && matchingPairs.every(pair => pair !== -1);
+        
+        if (allMatched) {
+          // 只有当所有项都匹配时才算有效答案
+          userAnswer = matchingPairs;
+          hasUserSelection = true;
+          console.log("提交匹配题答案:", userAnswer);
+        } else {
+          // 如果还有未匹配的项，使用默认错误答案
+          console.log("匹配题未完全匹配，当前状态:", matchingPairs);
+          userAnswer = Array(matchingPairs?.length || 0).fill(-1);
+          hasUserSelection = false;
+        }
       }
     } else {
       // 如果用户没有做任何选择，使用默认答案
