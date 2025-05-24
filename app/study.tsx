@@ -122,18 +122,19 @@ export default function StudyScreen() {
           // 如果学习时间太短（小于5秒），设置一个合理的最小值
           const reportedTimeSpent = Math.max(timeSpent, 5);
           
-          // 调用API增加学习次数和记录学习时间
-          const activityApiUrl = `${API_BASE_URL}/api/users/${USER_ID}/increment-study/${lessonId}`;
-          
+          // 调用API增加学习次数
+          const activityApiUrl = `${API_BASE_URL}/api/answer-records/${USER_ID}/increment-study/${lessonId}`;
+
           const activityResponse = await fetch(activityApiUrl, {
-            method: 'POST',
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json'
+              "Content-Type": "application/json",
             },
-                      body: JSON.stringify({
-            timeSpent: reportedTimeSpent // 使用与服务器端匹配的字段名
-          })
-        });
+            body: JSON.stringify({
+              activityType: "study_start", // 明确标识活动类型
+              timeSpent: 0, // 开始时没有花费时间
+            }),
+          });
           
           if (activityResponse.ok) {
             console.log(`成功记录用户学习活动: ${lessonId}, 学习时间: ${reportedTimeSpent}秒`);
@@ -171,12 +172,13 @@ export default function StudyScreen() {
         console.log(`用户学习了 ${totalStudyTime} 秒`);
         
         // 发送最终学习时间统计
-        fetch(`${API_BASE_URL}/api/users/${USER_ID}/increment-study/${lessonId}`, {
+        fetch(`${API_BASE_URL}/api/answer-records/${USER_ID}/increment-study/${lessonId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
+            activityType: "study_end", // 明确标识活动类型
             timeSpent: totalStudyTime // 使用与服务器端匹配的字段名
           })
         }).catch(err => {
@@ -399,11 +401,12 @@ export default function StudyScreen() {
               style={[styles.practiceButton, { backgroundColor: primaryColor }]}
               onPress={() => {
                 router.push({
-                  pathname: "/practice",
+                  pathname: "/exercise",
                   params: {
-                    id: lessonId, // 使用id参数代替unitId，与practice.tsx中的处理一致
+                    id: lessonId, // 使用id参数代替unitId，与exercise.tsx中的处理一致
                     unitTitle: Array.isArray(unitTitle) ? unitTitle[0] : unitTitle || "课后练习",
                     color: primaryColor,
+                    secondaryColor: secondaryCol, // 添加缺失的secondaryColor参数
                     subject: subjectCode, // 传递学科代码
                     isUnlockingTest: isTestForUnlocking ? "true" : "false",
                     unlockPreviousUnits: shouldUnlockPreviousUnits ? "true" : "false"

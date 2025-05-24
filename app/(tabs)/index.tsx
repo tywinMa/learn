@@ -11,13 +11,21 @@ import {
   Modal,
 } from "react-native";
 import { Text, View } from "@/components/Themed";
-import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  Ionicons,
+  FontAwesome5,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { getMultipleUnitProgress, USER_ID as PROGRESS_USER_ID, type UnitProgress } from "../services/progressService";
+import {
+  getMultipleUnitProgress,
+  USER_ID as PROGRESS_USER_ID,
+  type UnitProgress,
+} from "../services/progressService";
 import { getUserPoints } from "../services/pointsService";
 import SubjectModal from "@/components/SubjectModal";
 import { useSubject, Subject } from "@/hooks/useSubject";
@@ -84,21 +92,55 @@ const Level = ({
   onShowLockTooltip: (levelId: string, event: any) => void;
   levelIndex: number;
   exerciseTop?: number;
-  onNonExerciseLayout?: (levelId: string, layout: { height: number, y: number }) => void;
+  onNonExerciseLayout?: (
+    levelId: string,
+    layout: { height: number; y: number }
+  ) => void;
 }) => {
   const router = useRouter();
 
   // 简化状态判断
-  const isLocked = previousLevelUnlocked === false;
-  const isExerciseUnit = level.unitType === "exercise"; 
+  const isExerciseUnit = level.unitType === "exercise";
+  const isLocked = isExerciseUnit ? false : previousLevelUnlocked === false;
   const stars = progress?.stars || 0;
   const isCompleted = stars > 0;
-  
+
   // 是否显示掌握度
-  const showMasteryIndicator = progress?.masteryLevel !== undefined && progress.masteryLevel > 0;
+  const showMasteryIndicator =
+    progress?.masteryLevel !== undefined && progress.masteryLevel > 0;
 
   // 处理关卡点击
   const handleLevelPress = (event: any) => {
+    // 对于exercise类型的单元，无需解锁检查，直接跳转到练习页面
+    if (isExerciseUnit) {
+      // 获取当前单元的完整颜色信息
+      const courseId = `unit${Math.floor(levelIndex / 10) + 1}`;
+      const course = courses.find((c) => c.id === courseId) || {
+        color,
+        secondaryColor: color,
+      };
+
+      // 使用关卡所属单元的颜色，或默认使用当前学科颜色
+      const levelColor = course.color || color;
+      const levelSecondaryColor = course.secondaryColor || color;
+
+      // 导航到做题界面（重命名为exercise避免与tabs/practice冲突）
+      router.push({
+        pathname: "/exercise",
+        params: {
+          id: level.id,
+          unitTitle: `${unitTitle} - ${level.title}`,
+          color: levelColor,
+          secondaryColor: levelSecondaryColor,
+          subject: currentSubject.code,
+          isUnlockingTest: "false", // exercise类型单元不是解锁测试
+          unlockPreviousUnits: "false", // exercise类型单元不解锁前面的单元
+        },
+      });
+      return;
+    }
+
+    // 对于普通单元，检查解锁状态
     if (isLocked) {
       // 显示锁定提示tooltip
       onShowLockTooltip(level.id, event);
@@ -107,8 +149,11 @@ const Level = ({
 
     // 获取当前单元的完整颜色信息
     const courseId = `unit${Math.floor(levelIndex / 10) + 1}`;
-    const course = courses.find((c) => c.id === courseId) || { color, secondaryColor: color };
-    
+    const course = courses.find((c) => c.id === courseId) || {
+      color,
+      secondaryColor: color,
+    };
+
     // 使用关卡所属单元的颜色，或默认使用当前学科颜色
     const levelColor = course.color || color;
     const levelSecondaryColor = course.secondaryColor || color;
@@ -122,12 +167,39 @@ const Level = ({
         color: levelColor,
         secondaryColor: levelSecondaryColor,
         subject: currentSubject.code,
-      }
+      },
     });
   };
 
   // 获取徽章样式
   const getBadgeStyle = () => {
+    // exercise类型单元使用特殊的挑战风格
+    if (isExerciseUnit) {
+      if (isCompleted) {
+        return {
+          backgroundColor: "#FF6B35", // 挑战完成的橙色
+          borderColor: "#FF6B35",
+          shadowColor: "#FF6B35",
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.3,
+          shadowRadius: 8,
+          elevation: 8,
+        };
+      } else {
+        return {
+          backgroundColor: "#FFF3E0", // 浅橙色背景
+          borderColor: "#FF6B35",
+          borderWidth: 3,
+          shadowColor: "#FF6B35",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.2,
+          shadowRadius: 6,
+          elevation: 4,
+        };
+      }
+    }
+
+    // 普通单元的原有样式
     if (isLocked) {
       return {
         backgroundColor: "#E5E5E5",
@@ -153,12 +225,15 @@ const Level = ({
   const getExerciseLevelContainerStyle = () => {
     const style: any = {
       position: "absolute",
-      top: typeof exerciseTop === 'number' ? exerciseTop : levelIndex * AVERAGE_ITEM_Y_INCREMENT,
+      top:
+        typeof exerciseTop === "number"
+          ? exerciseTop
+          : levelIndex * AVERAGE_ITEM_Y_INCREMENT,
       width: 100,
       zIndex: 10,
-      alignItems: 'center',
+      alignItems: "center",
     };
-    
+
     if (level.position === "left") {
       style.left = 5;
     } else if (level.position === "right") {
@@ -170,15 +245,27 @@ const Level = ({
   };
 
   // 获取图标名称
-  const getIconName = () => isLocked ? "lock" : (isCompleted ? "star" : "play");
-  
+  const getIconName = () => {
+    if (isExerciseUnit) {
+      return isCompleted ? "trophy" : "crosshairs"; // 挑战风格图标
+    }
+    return isLocked ? "lock" : isCompleted ? "star" : "play";
+  };
+
   // 获取图标颜色
-  const getIconColor = () => isLocked ? "#AAAAAA" : (isCompleted ? "white" : color);
+  const getIconColor = () => {
+    if (isExerciseUnit) {
+      return isCompleted ? "white" : "#FF6B35"; // 挑战风格颜色
+    }
+    return isLocked ? "#AAAAAA" : isCompleted ? "white" : color;
+  };
 
   return (
     <RNView
       style={[
-        isExerciseUnit ? getExerciseLevelContainerStyle() : styles.levelContainer,
+        isExerciseUnit
+          ? getExerciseLevelContainerStyle()
+          : styles.levelContainer,
       ]}
       onLayout={(event) => {
         if (!isExerciseUnit && onNonExerciseLayout) {
@@ -187,35 +274,55 @@ const Level = ({
         }
       }}
     >
-      <TouchableOpacity 
-        style={[styles.levelBadge, getBadgeStyle()]} 
-        disabled={level.locked} 
+      <TouchableOpacity
+        style={[styles.levelBadge, getBadgeStyle()]}
+        disabled={isLocked}
         onPress={handleLevelPress}
       >
-        <FontAwesome5 
-          name={getIconName()} 
-          size={22} 
-          color={getIconColor()} 
-        />
+        <FontAwesome5 name={getIconName()} size={22} color={getIconColor()} />
       </TouchableOpacity>
 
       {/* 关卡标题 */}
       <Text style={styles.levelTitle}>{level.title}</Text>
 
-      {/* 星星评分 */}
-      <RNView style={styles.starsContainer}>
-        {[...Array(3)].map((_, i) => (
-          <FontAwesome5
-            key={i}
-            name="star"
-            size={10}
-            solid={i < stars}
-            color={i < stars ? "#FFD900" : "#E0E0E0"}
-            style={{ marginHorizontal: 1 }}
-          />
-        ))}
-      </RNView>
-      
+      {/* 星星评分或挑战指示器 */}
+      {!isExerciseUnit && (
+        <RNView style={styles.starsContainer}>
+          {[...Array(3)].map((_, i) => (
+            <FontAwesome5
+              key={i}
+              name="star"
+              size={10}
+              solid={i < stars}
+              color={i < stars ? "#FFD900" : "#E0E0E0"}
+              style={{ marginHorizontal: 1 }}
+            />
+          ))}
+        </RNView>
+      )}
+
+      {/* 挑战指示器（仅exercise类型显示） */}
+      {isExerciseUnit && (
+        <RNView style={styles.challengeIndicator}>
+          {isCompleted ? (
+            <RNView style={styles.challengeCompleted}>
+              <FontAwesome5
+                name="check-circle"
+                size={12}
+                color="#FF6B35"
+                solid
+              />
+              <Text style={styles.challengeText}>已完成</Text>
+            </RNView>
+          ) : (
+            <RNView style={styles.challengeReady}>
+              <FontAwesome5 name="bolt" size={12} color="#FF6B35" />
+              <Text style={styles.challengeText}>挑战</Text>
+            </RNView>
+          )}
+        </RNView>
+      )}
+
       {/* 掌握度指示器 */}
       {showMasteryIndicator && progress && (
         <RNView style={styles.masteryContainer}>
@@ -249,11 +356,15 @@ export default function HomeScreen() {
   // 连续天数 临时数据，实际数据从后端获取
   const [streak, setStreak] = useState(0);
   const [xp, setXp] = useState(0);
-  const [progressData, setProgressData] = useState<Record<string, UnitProgress>>({});
+  const [progressData, setProgressData] = useState<
+    Record<string, UnitProgress>
+  >({});
   const [error, setError] = useState<string | null>(null);
 
   // State to store layout information for non-exercise levels
-  const [nonExerciseLevelLayouts, setNonExerciseLevelLayouts] = useState<Record<string, { height: number, y: number }>>({});
+  const [nonExerciseLevelLayouts, setNonExerciseLevelLayouts] = useState<
+    Record<string, { height: number; y: number }>
+  >({});
 
   // 从expo-router获取刷新触发参数
   const refreshTrigger = params.refresh as string | undefined;
@@ -278,10 +389,16 @@ export default function HomeScreen() {
   /**
    * 处理布局信息上报，用于定位练习单元
    */
-  const handleNonExerciseLayout = (levelId: string, layout: { height: number, y: number }) => {
-    setNonExerciseLevelLayouts(prev => {
+  const handleNonExerciseLayout = (
+    levelId: string,
+    layout: { height: number; y: number }
+  ) => {
+    setNonExerciseLevelLayouts((prev) => {
       // 只在布局发生变化时更新，避免不必要的重渲染
-      if (prev[levelId]?.height !== layout.height || prev[levelId]?.y !== layout.y) {
+      if (
+        prev[levelId]?.height !== layout.height ||
+        prev[levelId]?.y !== layout.y
+      ) {
         return { ...prev, [levelId]: layout };
       }
       return prev;
@@ -298,7 +415,8 @@ export default function HomeScreen() {
       // 确保主色存在，否则使用默认颜色
       const primaryColor = course.color || currentSubject.color || "#58CC02";
       // 确保次要色存在，否则基于主色生成
-      const secondaryColor = course.secondaryColor || getLighterColor(primaryColor);
+      const secondaryColor =
+        course.secondaryColor || getLighterColor(primaryColor);
 
       return {
         ...course,
@@ -364,19 +482,19 @@ export default function HomeScreen() {
 
     // 按大单元分组
     // 先找出所有的大单元 (isMajor = true)
-    const majorUnits = sortedUnits.filter(unit => unit.isMajor === true);
+    const majorUnits = sortedUnits.filter((unit) => unit.isMajor === true);
     const unitsByMajor: Record<string, any[]> = {};
 
     // 使用每个大单元的ID作为键初始化分组
-    majorUnits.forEach(majorUnit => {
+    majorUnits.forEach((majorUnit) => {
       unitsByMajor[majorUnit.id] = [majorUnit];
     });
 
     // 将小单元添加到对应的大单元组中
-    sortedUnits.forEach(unit => {
+    sortedUnits.forEach((unit) => {
       // 跳过大单元，因为它们已经在分组中了
       if (unit.isMajor === true) return;
-      
+
       // 如果有parentId，将小单元添加到对应的大单元组
       if (unit.parentId && unitsByMajor[unit.parentId]) {
         unitsByMajor[unit.parentId].push(unit);
@@ -391,35 +509,39 @@ export default function HomeScreen() {
     });
 
     // 转换为课程格式
-    const formattedCourses = Object.keys(unitsByMajor).map((majorUnitId, index) => {
-      const units = unitsByMajor[majorUnitId];
-      // 获取大单元
-      const majorUnit = units.find(unit => unit.isMajor === true) || units[0];
-      // 获取所有小单元（不包括大单元）
-      const minorUnits = units.filter(unit => unit.isMajor !== true);
+    const formattedCourses = Object.keys(unitsByMajor).map(
+      (majorUnitId, index) => {
+        const units = unitsByMajor[majorUnitId];
+        // 获取大单元
+        const majorUnit =
+          units.find((unit) => unit.isMajor === true) || units[0];
+        // 获取所有小单元（不包括大单元）
+        const minorUnits = units.filter((unit) => unit.isMajor !== true);
 
-      // 使用单元的颜色
-      const unitColor = majorUnit.color || subject.color;
-      const unitSecondaryColor = majorUnit.secondaryColor || getLighterColor(unitColor);
+        // 使用单元的颜色
+        const unitColor = majorUnit.color || subject.color;
+        const unitSecondaryColor =
+          majorUnit.secondaryColor || getLighterColor(unitColor);
 
-      return {
-        id: `unit${index + 1}`,
-        title: majorUnit.title,
-        description: majorUnit.description || `学习${subject.name}基础知识`,
-        color: unitColor,
-        secondaryColor: unitSecondaryColor,
-        // 只返回小单元作为实际关卡
-        levels: minorUnits.map((unit) => {
-          return {
-            id: unit.id, // 使用原始ID
-            title: unit.title,
-            unitType: unit.unitType || "normal",
-            position: unit.position || "default",
-            isMajor: false
-          };
-        }),
-      };
-    });
+        return {
+          id: `unit${index + 1}`,
+          title: majorUnit.title,
+          description: majorUnit.description || `学习${subject.name}基础知识`,
+          color: unitColor,
+          secondaryColor: unitSecondaryColor,
+          // 只返回小单元作为实际关卡
+          levels: minorUnits.map((unit) => {
+            return {
+              id: unit.id, // 使用原始ID
+              title: unit.title,
+              unitType: unit.unitType || "normal",
+              position: unit.position || "default",
+              isMajor: false,
+            };
+          }),
+        };
+      }
+    );
 
     // 应用颜色修复
     return ensureCoursesColors(formattedCourses);
@@ -438,21 +560,24 @@ export default function HomeScreen() {
     const lighterB = Math.min(255, b + 50);
 
     // 转回十六进制
-    return `#${lighterR.toString(16).padStart(2, "0")}${lighterG.toString(16).padStart(2, "0")}${lighterB
+    return `#${lighterR.toString(16).padStart(2, "0")}${lighterG
       .toString(16)
-      .padStart(2, "0")}`;
+      .padStart(2, "0")}${lighterB.toString(16).padStart(2, "0")}`;
   };
 
   // 监听滚动
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const currentScrollY = event.nativeEvent.contentOffset.y;
-    const height = bigUnitHeight.current.reduce((result: any, current: any, index: any) => {
-      if (index === 0) {
-        return [current];
-      } else {
-        return [...result, result[result.length - 1] + current];
-      }
-    }, []);
+    const height = bigUnitHeight.current.reduce(
+      (result: any, current: any, index: any) => {
+        if (index === 0) {
+          return [current];
+        } else {
+          return [...result, result[result.length - 1] + current];
+        }
+      },
+      []
+    );
     let currentUnit = 0;
     for (let i = 0; i < height.length; i++) {
       if (currentScrollY + 200 < height[i]) {
@@ -554,7 +679,10 @@ export default function HomeScreen() {
   }, [refreshTrigger, urlSubjectCode]);
 
   // 按阶段获取进度数据的函数
-  const fetchProgressByStage = async (stageIndex: number, coursesData = courses) => {
+  const fetchProgressByStage = async (
+    stageIndex: number,
+    coursesData = courses
+  ) => {
     if (stageIndex < 0 || stageIndex >= coursesData.length) return;
 
     try {
@@ -588,7 +716,9 @@ export default function HomeScreen() {
 
         try {
           // 获取学科详情
-          const response = await fetch(`${API_BASE_URL}/api/subjects/${urlSubjectCode}`);
+          const response = await fetch(
+            `${API_BASE_URL}/api/subjects/${urlSubjectCode}`
+          );
           if (response.ok) {
             const result = await response.json();
             if (result.success && result.data) {
@@ -634,7 +764,8 @@ export default function HomeScreen() {
 
     // 使用默认颜色作为备选方案
     const primaryColor = course.color || "#58CC02";
-    const secondaryColor = course.secondaryColor || getLighterColor(primaryColor);
+    const secondaryColor =
+      course.secondaryColor || getLighterColor(primaryColor);
 
     return (
       <RNView style={styles.fixedBannerContainer}>
@@ -674,7 +805,9 @@ export default function HomeScreen() {
       return (
         <RNView style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={currentSubject.color} />
-          <Text style={styles.loadingText}>正在加载{currentSubject.name}学科内容...</Text>
+          <Text style={styles.loadingText}>
+            正在加载{currentSubject.name}学科内容...
+          </Text>
         </RNView>
       );
     }
@@ -682,10 +815,19 @@ export default function HomeScreen() {
     if (courses.length === 0) {
       return (
         <RNView style={styles.emptyContainer}>
-          <MaterialCommunityIcons name="book-open-variant" size={64} color="#ccc" />
-          <Text style={styles.emptyText}>暂无{currentSubject.name}学科内容</Text>
+          <MaterialCommunityIcons
+            name="book-open-variant"
+            size={64}
+            color="#ccc"
+          />
+          <Text style={styles.emptyText}>
+            暂无{currentSubject.name}学科内容
+          </Text>
           <TouchableOpacity
-            style={[styles.retryButton, { backgroundColor: currentSubject.color }]}
+            style={[
+              styles.retryButton,
+              { backgroundColor: currentSubject.color },
+            ]}
             onPress={() => fetchSubjectCourses(currentSubject.code)}
           >
             <Text style={styles.retryButtonText}>重新加载</Text>
@@ -710,7 +852,7 @@ export default function HomeScreen() {
         {/* 课程列表 */}
         {courses.map((course, courseIndex) => {
           let cumulativeHeightInCourse = 0; // 记录当前课程中累积高度，用于练习单元定位
-          
+
           return (
             <RNView
               key={course.id}
@@ -723,13 +865,15 @@ export default function HomeScreen() {
               {/* 大单元标题 */}
               <RNView style={styles.collapsedHeader}>
                 <RNView style={styles.unitTitleWithIcon}>
-                  <FontAwesome5 
-                    name="bookmark" 
-                    size={18} 
+                  <FontAwesome5
+                    name="bookmark"
+                    size={18}
                     color={course.color}
                     style={{ marginRight: 8 }}
                   />
-                  <Text style={[styles.collapsedTitle, { color: course.color }]}>
+                  <Text
+                    style={[styles.collapsedTitle, { color: course.color }]}
+                  >
                     {course.title}
                   </Text>
                 </RNView>
@@ -743,25 +887,36 @@ export default function HomeScreen() {
                 {course.levels.map((level: any, index: number) => {
                   // 获取当前级别进度
                   const currentLevelProgress = progressData[level.id];
-                  
+
                   // 解锁逻辑：第一个小单元总是解锁的，其他小单元需要前一个完成
                   let prevLevelFullyUnlocked = index === 0;
-                  
+
                   if (!prevLevelFullyUnlocked && index > 0) {
                     // 检查同一大单元中的前一个小单元
                     const prevLevelInSection = course.levels[index - 1];
                     if (prevLevelInSection) {
-                      const prevLevelProgress = progressData[prevLevelInSection.id];
-                      prevLevelFullyUnlocked = prevLevelProgress?.stars >= 3 || prevLevelProgress?.completed === true;
+                      const prevLevelProgress =
+                        progressData[prevLevelInSection.id];
+                      prevLevelFullyUnlocked =
+                        prevLevelProgress?.stars >= 3 ||
+                        prevLevelProgress?.completed === true;
                     }
-                  } else if (!prevLevelFullyUnlocked && courseIndex > 0 && index === 0) {
+                  } else if (
+                    !prevLevelFullyUnlocked &&
+                    courseIndex > 0 &&
+                    index === 0
+                  ) {
                     // 检查前一个大单元的最后一个小单元
                     const prevCourse = courses[courseIndex - 1];
                     if (prevCourse?.levels?.length > 0) {
-                      const lastLevelOfPrevCourse = prevCourse.levels[prevCourse.levels.length - 1];
+                      const lastLevelOfPrevCourse =
+                        prevCourse.levels[prevCourse.levels.length - 1];
                       if (lastLevelOfPrevCourse) {
-                        const prevLevelProgress = progressData[lastLevelOfPrevCourse.id];
-                        prevLevelFullyUnlocked = prevLevelProgress?.stars >= 3 || prevLevelProgress?.completed === true;
+                        const prevLevelProgress =
+                          progressData[lastLevelOfPrevCourse.id];
+                        prevLevelFullyUnlocked =
+                          prevLevelProgress?.stars >= 3 ||
+                          prevLevelProgress?.completed === true;
                       }
                     }
                   }
@@ -773,8 +928,8 @@ export default function HomeScreen() {
                   } else {
                     // 更新累积高度
                     const layoutInfo = nonExerciseLevelLayouts[level.id];
-                    const itemHeight = layoutInfo?.height 
-                      ? layoutInfo.height + 20 
+                    const itemHeight = layoutInfo?.height
+                      ? layoutInfo.height + 20
                       : AVERAGE_ITEM_Y_INCREMENT;
                     cumulativeHeightInCourse += itemHeight;
                   }
@@ -794,7 +949,11 @@ export default function HomeScreen() {
                       onShowLockTooltip={handleShowLockTooltip}
                       levelIndex={index}
                       exerciseTop={exerciseTopValue}
-                      onNonExerciseLayout={level.unitType !== "exercise" ? handleNonExerciseLayout : undefined}
+                      onNonExerciseLayout={
+                        level.unitType !== "exercise"
+                          ? handleNonExerciseLayout
+                          : undefined
+                      }
                     />
                   );
                 })}
@@ -813,7 +972,9 @@ export default function HomeScreen() {
 
     try {
       // 获取学科的单元数据
-      const response = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}/units`);
+      const response = await fetch(
+        `${API_BASE_URL}/api/subjects/${subjectCode}/units`
+      );
 
       if (!response.ok) {
         throw new Error(`获取${subjectCode}学科单元失败`);
@@ -823,7 +984,9 @@ export default function HomeScreen() {
 
       if (result.success) {
         // 获取学科信息
-        const subjectResponse = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}`);
+        const subjectResponse = await fetch(
+          `${API_BASE_URL}/api/subjects/${subjectCode}`
+        );
         let subject = currentSubject;
 
         if (subjectResponse.ok) {
@@ -859,14 +1022,23 @@ export default function HomeScreen() {
     <RNView style={styles.container}>
       {/* 顶部状态栏 */}
       <RNView style={styles.statsBar}>
-        <TouchableOpacity style={styles.statItem} onPress={() => setShowSubjectModal(true)}>
-          <MaterialCommunityIcons name={currentSubject.iconName as any} size={26} color={currentSubject.color} />
+        <TouchableOpacity
+          style={styles.statItem}
+          onPress={() => setShowSubjectModal(true)}
+        >
+          <MaterialCommunityIcons
+            name={currentSubject.iconName as any}
+            size={26}
+            color={currentSubject.color}
+          />
         </TouchableOpacity>
 
         <RNView style={styles.statItem}>
           <RNView style={styles.streakContainer}>
             <Ionicons name="flame" size={22} color="#FF9600" />
-            <Text style={[styles.statText, { color: "#FF9600" }]}>{streak}</Text>
+            <Text style={[styles.statText, { color: "#FF9600" }]}>
+              {streak}
+            </Text>
           </RNView>
         </RNView>
 
@@ -1040,7 +1212,7 @@ const styles = StyleSheet.create({
     padding: 24,
     flexDirection: "column",
     alignItems: "center",
-    position: 'relative',
+    position: "relative",
   },
   levelContainer: {
     alignItems: "center",
@@ -1306,5 +1478,31 @@ const styles = StyleSheet.create({
   masteryContainer: {
     marginTop: 8,
     alignItems: "center",
+  },
+  challengeIndicator: {
+    marginTop: 8,
+    alignItems: "center",
+  },
+  challengeCompleted: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "#FF6B35",
+    borderRadius: 8,
+  },
+  challengeReady: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 4,
+    borderWidth: 1,
+    borderColor: "#FF6B35",
+    borderRadius: 8,
+  },
+  challengeText: {
+    marginLeft: 4,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FF6B35",
   },
 });

@@ -149,14 +149,16 @@ const initSubjectsAndUnits = async () => {
       units.push({
         id: `${mathSubject.code}-1-4`,
         subject: mathSubject.code,
-        title: '公式法',
+        title: '第一次月考',
         description: '使用公式法解一元二次方程',
         parentId: `${mathSubject.code}-1`,
         level: 1,
         order: 5,
         color: chapterColors.math[0].primary,
         secondaryColor: chapterColors.math[0].secondary,
-        isMajor: false
+        isMajor: false,
+        unitType: 'exercise',
+        position: 'right'
       });
 
       // 小节：二次函数

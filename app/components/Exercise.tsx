@@ -89,6 +89,19 @@ export const Exercise = ({
     const newMatchingPairs = [...matchingPairs];
     newMatchingPairs[leftIndex] = rightIndex;
     setMatchingPairs(newMatchingPairs);
+    
+    // 检查是否所有左侧选项都已匹配
+    const allMatched = newMatchingPairs.every(pair => pair !== -1);
+    
+    // 无论是否完成匹配，都记录当前状态，但不自动提交
+    if (allMatched) {
+      console.log('匹配题所有项已匹配完成，等待用户点击提交按钮:', newMatchingPairs);
+      onAnswer(exercise.id, 0, newMatchingPairs);
+    } else {
+      console.log('匹配题部分匹配，当前状态:', newMatchingPairs);
+      // 部分匹配时也传递当前状态，但不会被当作有效答案
+      onAnswer(exercise.id, -1, newMatchingPairs);
+    }
   };
 
   // 填空题输入处理函数
@@ -264,6 +277,17 @@ export const Exercise = ({
                       const newMatchingPairs = [...matchingPairs];
                       newMatchingPairs[leftIndex] = -1;
                       setMatchingPairs(newMatchingPairs);
+                      
+                      // 删除匹配后，重新检查是否所有项都已匹配
+                      const allMatched = newMatchingPairs.every(pair => pair !== -1);
+                      if (allMatched) {
+                        console.log('匹配题删除后重新匹配完成，等待用户点击提交按钮:', newMatchingPairs);
+                        onAnswer(exercise.id, 0, newMatchingPairs);
+                      } else {
+                        // 如果不是全部匹配，传递当前匹配状态
+                        console.log('匹配题删除后未完全匹配，当前状态:', newMatchingPairs);
+                        onAnswer(exercise.id, -1, newMatchingPairs); // 传递当前状态但标记为未完成
+                      }
                     }}
                     disabled={isAnsweredLocally || isAnswered}
                   >

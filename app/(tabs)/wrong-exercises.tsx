@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore
 import { useRouter } from "expo-router";
+import { API_BASE_URL } from "@/constants/apiConfig";
 
 // 临时用户ID，实际应用中应该从认证系统获取
 const USER_ID = "user1";
@@ -20,8 +21,8 @@ export default function WrongExercisesScreen() {
     const fetchWrongExercises = async () => {
       try {
         setLoading(true);
-        // 使用 IP 地址而不是 localhost，这样在真机上也能正常工作
-        const apiUrl = `http://101.126.135.102:3000/api/users/${USER_ID}/wrong-exercises`;
+        // 使用新的AnswerRecord API端点
+        const apiUrl = `${API_BASE_URL}/api/answer-records/${USER_ID}/wrong-exercises`;
         const response = await fetch(apiUrl);
 
         if (!response.ok) {
@@ -50,8 +51,8 @@ export default function WrongExercisesScreen() {
   // 从错题本中删除一道题
   const handleRemoveExercise = async (exerciseId: string) => {
     try {
-      // 使用 IP 地址而不是 localhost，这样在真机上也能正常工作
-      const apiUrl = `http://101.126.135.102:3000/api/users/${USER_ID}/wrong-exercises/${exerciseId}`;
+      // 使用新的AnswerRecord API端点
+      const apiUrl = `${API_BASE_URL}/api/answer-records/${USER_ID}/wrong-exercises/${exerciseId}`;
       const response = await fetch(apiUrl, {
         method: "DELETE",
       });
