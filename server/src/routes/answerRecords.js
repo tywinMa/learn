@@ -301,15 +301,34 @@ router.get('/:userId/progress/:unitId', async (req, res) => {
       const exercisesInUnit = await Exercise.count({ where: { unitId } });
       const unlockNextStatus = unitProgressEntry.stars === 3;
 
-      console.log(`[Progress Details] From UnitProgress: ${unitId}, Stars: ${unitProgressEntry.stars}, Completed: ${unitProgressEntry.completed}`);
+      // 获取实际完成的题目数（基于正确的答题记录）
+      const exercises = await Exercise.findAll({
+        where: { unitId },
+        attributes: ['id']
+      });
+      
+      const exerciseIds = exercises.map(ex => ex.id);
+      const correctAnswerRecords = await AnswerRecord.findAll({
+        where: {
+          userId,
+          exerciseId: { [Op.in]: exerciseIds },
+          isCorrect: true
+        },
+        attributes: ['exerciseId'],
+        group: ['exerciseId']
+      });
+      
+      const actualCompletedExercises = correctAnswerRecords.length;
+
+      console.log(`[Progress Details] From UnitProgress: ${unitId}, Stars: ${unitProgressEntry.stars}, Completed: ${unitProgressEntry.completed}, ActualCompleted: ${actualCompletedExercises}/${exercisesInUnit}`);
       
       return res.json({
         success: true,
         data: {
           unitId,
           totalExercises: exercisesInUnit,
-          completedExercises: (unitProgressEntry.stars > 0 && exercisesInUnit > 0) ? exercisesInUnit : 0,
-          completionRate: (unitProgressEntry.stars > 0 && exercisesInUnit > 0) ? 1.0 : 0,
+          completedExercises: actualCompletedExercises,
+          completionRate: exercisesInUnit > 0 ? actualCompletedExercises / exercisesInUnit : 0,
           stars: unitProgressEntry.stars,
           unlockNext: unlockNextStatus,
           completed: unitProgressEntry.completed,
@@ -463,11 +482,31 @@ router.post('/:userId/progress/batch', async (req, res) => {
 
         if (unitProgressEntry && unitProgressEntry.completed) {
           const exercisesInUnit = await Exercise.count({ where: { unitId } });
+          
+          // 获取实际完成的题目数（基于正确的答题记录）
+          const exercises = await Exercise.findAll({
+            where: { unitId },
+            attributes: ['id']
+          });
+          
+          const exerciseIds = exercises.map(ex => ex.id);
+          const correctAnswerRecords = await AnswerRecord.findAll({
+            where: {
+              userId,
+              exerciseId: { [Op.in]: exerciseIds },
+              isCorrect: true
+            },
+            attributes: ['exerciseId'],
+            group: ['exerciseId']
+          });
+          
+          const actualCompletedExercises = correctAnswerRecords.length;
+          
           progressData[unitId] = {
             unitId,
             totalExercises: exercisesInUnit,
-            completedExercises: (unitProgressEntry.stars > 0 && exercisesInUnit > 0) ? exercisesInUnit : 0,
-            completionRate: (unitProgressEntry.stars > 0 && exercisesInUnit > 0) ? 1.0 : 0,
+            completedExercises: actualCompletedExercises,
+            completionRate: exercisesInUnit > 0 ? actualCompletedExercises / exercisesInUnit : 0,
             stars: unitProgressEntry.stars,
             unlockNext: unitProgressEntry.stars === 3,
             completed: unitProgressEntry.completed,

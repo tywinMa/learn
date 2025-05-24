@@ -103,7 +103,12 @@ const Level = ({
   const isExerciseUnit = level.unitType === "exercise";
   const isLocked = isExerciseUnit ? false : previousLevelUnlocked === false;
   const stars = progress?.stars || 0;
-  const isCompleted = stars > 0;
+  
+  // 对于exercise类型单元，需要完成所有题目才算已完成
+  // 对于普通单元，有星级就算已完成
+  const isCompleted = isExerciseUnit 
+    ? (progress?.completedExercises || 0) >= (progress?.totalExercises || 1)
+    : stars > 0;
 
   // 是否显示掌握度
   const showMasteryIndicator =
@@ -320,13 +325,6 @@ const Level = ({
               <Text style={styles.challengeText}>挑战</Text>
             </RNView>
           )}
-        </RNView>
-      )}
-
-      {/* 掌握度指示器 */}
-      {showMasteryIndicator && progress && (
-        <RNView style={styles.masteryContainer}>
-          <MasteryIndicator progress={progress} color={color} size="small" />
         </RNView>
       )}
 
@@ -893,13 +891,24 @@ export default function HomeScreen() {
 
                   if (!prevLevelFullyUnlocked && index > 0) {
                     // 检查同一大单元中的前一个小单元
-                    const prevLevelInSection = course.levels[index - 1];
-                    if (prevLevelInSection) {
-                      const prevLevelProgress =
-                        progressData[prevLevelInSection.id];
+                    // 需要跳过exercise类型的单元，找到前一个normal类型的单元
+                    let prevNormalLevelIndex = index - 1;
+                    let prevLevelInSection = course.levels[prevNormalLevelIndex];
+                    
+                    // 向前查找最近的normal类型单元
+                    while (prevNormalLevelIndex >= 0 && prevLevelInSection?.unitType === "exercise") {
+                      prevNormalLevelIndex--;
+                      prevLevelInSection = course.levels[prevNormalLevelIndex];
+                    }
+                    
+                    if (prevLevelInSection && prevLevelInSection.unitType === "normal") {
+                      const prevLevelProgress = progressData[prevLevelInSection.id];
                       prevLevelFullyUnlocked =
                         prevLevelProgress?.stars >= 3 ||
                         prevLevelProgress?.completed === true;
+                    } else {
+                      // 如果没有找到前面的normal类型单元，则认为已解锁
+                      prevLevelFullyUnlocked = true;
                     }
                   } else if (
                     !prevLevelFullyUnlocked &&
@@ -909,14 +918,24 @@ export default function HomeScreen() {
                     // 检查前一个大单元的最后一个小单元
                     const prevCourse = courses[courseIndex - 1];
                     if (prevCourse?.levels?.length > 0) {
-                      const lastLevelOfPrevCourse =
-                        prevCourse.levels[prevCourse.levels.length - 1];
-                      if (lastLevelOfPrevCourse) {
-                        const prevLevelProgress =
-                          progressData[lastLevelOfPrevCourse.id];
+                      // 找到前一个大单元中最后一个normal类型的单元
+                      let lastNormalLevelIndex = prevCourse.levels.length - 1;
+                      let lastLevelOfPrevCourse = prevCourse.levels[lastNormalLevelIndex];
+                      
+                      // 向前查找最后一个normal类型单元
+                      while (lastNormalLevelIndex >= 0 && lastLevelOfPrevCourse?.unitType === "exercise") {
+                        lastNormalLevelIndex--;
+                        lastLevelOfPrevCourse = prevCourse.levels[lastNormalLevelIndex];
+                      }
+                      
+                      if (lastLevelOfPrevCourse && lastLevelOfPrevCourse.unitType === "normal") {
+                        const prevLevelProgress = progressData[lastLevelOfPrevCourse.id];
                         prevLevelFullyUnlocked =
                           prevLevelProgress?.stars >= 3 ||
                           prevLevelProgress?.completed === true;
+                      } else {
+                        // 如果前一个大单元没有normal类型的单元，则认为已解锁
+                        prevLevelFullyUnlocked = true;
                       }
                     }
                   }
