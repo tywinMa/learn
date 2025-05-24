@@ -36,3 +36,14 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+# logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# pm2
+.pm2/

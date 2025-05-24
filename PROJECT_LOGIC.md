@@ -1324,3 +1324,173 @@ done
 - 📝 **易于维护**: 减少代码复杂度
 
 这种简化体现了"少即是多"的设计哲学，通过减少功能选项来提升用户体验和系统可靠性。用户现在可以放心地使用 `./reset-data.sh` 进行测试，不用担心数据不完整的问题。
+
+### 12. 自动化部署系统 (2024-12-23)
+
+**新增功能**: 为项目添加了完整的自动化部署方案，支持GitHub Actions自动构建和服务器部署。
+
+#### 12.1. GitHub Actions工作流配置
+
+**部署方案**:
+1. **标准部署** (`deploy.yml`) - 使用PM2进程管理器
+2. **简单部署** (`deploy-simple.yml`) - 使用nohup后台运行
+
+**工作流特性**:
+- 🔄 **自动触发**: 代码推送到main/master分支时自动执行
+- 🏗️ **多步骤构建**: Node.js环境设置 → 依赖安装 → 项目构建 → 部署
+- 🔐 **安全SSH部署**: 通过GitHub Secrets管理服务器凭证
+- ✅ **构建验证**: 部署前验证前端构建和后端数据库连接
+
+**核心配置文件**:
+```yaml
+# .github/workflows/deploy.yml (标准部署)
+- 使用PM2管理Node.js进程
+- 自动重启和监控功能
+- 完善的日志管理
+- 适合生产环境
+
+# .github/workflows/deploy-simple.yml (简单部署)  
+- 使用nohup后台运行
+- 配置简单，依赖较少
+- 适合小型项目或测试环境
+```
+
+#### 12.2. PM2进程管理配置
+
+**PM2配置文件** (`server/ecosystem.config.js`):
+```javascript
+{
+  name: 'learn-server',
+  script: 'src/index.js',
+  instances: 1,
+  env_production: {
+    NODE_ENV: 'production',
+    PORT: 3000
+  },
+  autorestart: true,
+  max_memory_restart: '1G',
+  log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
+}
+```
+
+**PM2特性**:
+- 🔄 **自动重启**: 应用崩溃时自动重启
+- 📊 **资源监控**: 内存使用监控和限制
+- 📝 **日志管理**: 统一的日志收集和轮转
+- ⚡ **零停机部署**: 平滑重启和更新
+
+#### 12.3. 部署脚本和工具
+
+**手动部署脚本** (`deploy.sh`):
+```bash
+# 功能
+- 停止现有服务进程
+- 安装前后端依赖  
+- 构建前端项目
+- 测试数据库连接
+- 启动后端服务 (nohup)
+- 验证服务状态
+```
+
+**日志目录结构**:
+```
+logs/
+├── server.log          # 简单部署的服务日志
+server/logs/
+├── combined.log        # PM2合并日志
+├── out.log            # 标准输出日志
+└── error.log          # 错误日志
+```
+
+#### 12.4. 安全和配置管理
+
+**GitHub Secrets配置**:
+```
+SERVER_HOST=服务器IP地址
+SERVER_USER=服务器用户名  
+SERVER_PASSWORD=服务器密码
+SERVER_PORT=SSH端口(可选,默认22)
+PROJECT_PATH=项目路径(可选,默认/var/www/learn)
+```
+
+**密码认证管理**:
+- 🔐 服务器账户密码认证
+- 📋 SSH配置允许密码登录
+- 🔒 密码安全存储在GitHub Secrets
+- 🛡️ 安全连接和身份验证
+
+#### 12.5. 部署流程和监控
+
+**自动部署流程**:
+```
+1. 代码提交到main/master分支
+2. GitHub Actions自动触发
+3. 在Ubuntu容器中构建项目
+4. SSH连接到服务器执行部署
+5. 拉取最新代码并重新构建
+6. 重启Node.js服务
+7. 验证部署状态
+```
+
+**服务监控命令**:
+```bash
+# PM2部署监控
+pm2 status              # 查看进程状态
+pm2 logs learn-server   # 查看实时日志
+pm2 restart learn-server # 重启服务
+
+# 简单部署监控  
+tail -f logs/server.log  # 查看服务日志
+ps aux | grep node      # 查看Node进程
+lsof -i:3000           # 检查端口占用
+```
+
+#### 12.6. 文档和使用指南
+
+**部署文档** (`DEPLOYMENT.md`):
+- 📖 **配置指南**: 详细的GitHub Secrets设置步骤
+- 🔧 **服务器准备**: Node.js环境和PM2安装指引  
+- 🚀 **部署方案选择**: 两种部署方案的对比和选择建议
+- 🛠️ **故障排除**: 常见问题的诊断和解决方案
+- 🔐 **安全建议**: 密码认证管理和服务器安全配置
+
+**项目结构更新**:
+```
+learn/
+├── .github/workflows/    # GitHub Actions工作流
+│   ├── deploy.yml       # PM2部署方案
+│   └── deploy-simple.yml # 简单部署方案
+├── server/
+│   ├── ecosystem.config.js # PM2配置
+│   └── logs/           # PM2日志目录
+├── logs/               # 简单部署日志目录
+├── deploy.sh           # 手动部署脚本
+├── DEPLOYMENT.md       # 部署文档
+└── .gitignore         # 增加日志文件忽略规则
+```
+
+#### 12.7. 优化和最佳实践
+
+**性能优化**:
+- ⚡ 使用`npm ci`替代`npm install`提升安装速度
+- 📦 npm缓存配置减少重复下载
+- 🔄 仅在main/master分支执行实际部署
+
+**错误处理**:
+- ✅ 数据库连接测试确保服务可用性
+- 🔍 详细的错误日志便于问题诊断  
+- 🛡️ 优雅的进程停止和启动机制
+
+**扩展性设计**:
+- 🎯 支持多环境部署 (dev/staging/production)
+- 🔧 可配置的项目路径和端口
+- 📊 通知系统集成 (成功/失败通知)
+
+**总结**:
+自动化部署系统的加入大大提升了项目的开发和运维效率：
+- 🚀 **开发效率**: 代码推送即可自动部署，减少手动操作
+- 🔄 **持续交付**: 支持持续集成和持续部署的DevOps实践  
+- 🛡️ **服务稳定性**: PM2进程管理确保服务高可用性
+- 📊 **运维便利**: 完善的日志和监控体系便于问题定位
+
+这套部署方案提供了从简单到专业的多层次选择，适应不同规模和需求的部署场景，为项目的长期发展奠定了坚实的基础设施支持。
