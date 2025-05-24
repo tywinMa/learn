@@ -40,6 +40,11 @@ jobs:
           
           # 拉取最新代码
           git pull origin main
+
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          node -v
+          npm -v
           
           # 安装前端依赖
           npm i
