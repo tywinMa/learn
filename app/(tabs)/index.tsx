@@ -102,12 +102,13 @@ const Level = ({
   // 简化状态判断
   const isExerciseUnit = level.unitType === "exercise";
   const isLocked = isExerciseUnit ? false : previousLevelUnlocked === false;
-  
+
   // 对于exercise类型单元，需要完成所有题目才算已完成
   // 对于普通单元，学习进度超过50%或掌握程度超过50%就算已完成
-  const isCompleted = isExerciseUnit 
+  const isCompleted = isExerciseUnit
     ? (progress?.completedExercises || 0) >= (progress?.totalExercises || 1)
-    : (progress?.completionRate || 0) > 0.5 || (progress?.masteryLevel || 0) > 0.5;
+    : (progress?.completionRate || 0) > 0.5 ||
+      (progress?.masteryLevel || 0) > 0.5;
 
   // 是否显示掌握度
   const showMasteryIndicator =
@@ -259,9 +260,10 @@ const Level = ({
   // 获取图标颜色
   const getIconColor = () => {
     if (isExerciseUnit) {
-      return isCompleted ? "white" : "#FF6B35"; // 挑战风格颜色
+      return isCompleted ? "#FFD700" : "#FF6B35"; // 挑战风格：完成黄色，未完成橙色
     }
-    return isLocked ? "#AAAAAA" : isCompleted ? "white" : color;
+    // 普通单元：未解锁灰色，进行中绿色，完全解锁黄色
+    return isLocked ? "#AAAAAA" : isCompleted ? "#FFD700" : color;
   };
 
   return (
@@ -486,7 +488,8 @@ export default function HomeScreen() {
     const formattedCourses = unitsData.map((unit: any, index: number) => {
       // 使用大单元的颜色
       const unitColor = unit.color || subject.color;
-      const unitSecondaryColor = unit.secondaryColor || getLighterColor(unitColor);
+      const unitSecondaryColor =
+        unit.secondaryColor || getLighterColor(unitColor);
 
       return {
         id: `unit${index + 1}`,
@@ -857,16 +860,24 @@ export default function HomeScreen() {
                     // 检查同一大单元中的前一个小单元
                     // 需要跳过exercise类型的单元，找到前一个normal类型的单元
                     let prevNormalLevelIndex = index - 1;
-                    let prevLevelInSection = course.levels[prevNormalLevelIndex];
-                    
+                    let prevLevelInSection =
+                      course.levels[prevNormalLevelIndex];
+
                     // 向前查找最近的normal类型单元
-                    while (prevNormalLevelIndex >= 0 && prevLevelInSection?.unitType === "exercise") {
+                    while (
+                      prevNormalLevelIndex >= 0 &&
+                      prevLevelInSection?.unitType === "exercise"
+                    ) {
                       prevNormalLevelIndex--;
                       prevLevelInSection = course.levels[prevNormalLevelIndex];
                     }
-                    
-                    if (prevLevelInSection && prevLevelInSection.unitType === "normal") {
-                      const prevLevelProgress = progressData[prevLevelInSection.id];
+
+                    if (
+                      prevLevelInSection &&
+                      prevLevelInSection.unitType === "normal"
+                    ) {
+                      const prevLevelProgress =
+                        progressData[prevLevelInSection.id];
                       prevLevelFullyUnlocked =
                         (prevLevelProgress?.completionRate || 0) >= 0.8 ||
                         (prevLevelProgress?.masteryLevel || 0) >= 0.8 ||
@@ -885,16 +896,25 @@ export default function HomeScreen() {
                     if (prevCourse?.levels?.length > 0) {
                       // 找到前一个大单元中最后一个normal类型的单元
                       let lastNormalLevelIndex = prevCourse.levels.length - 1;
-                      let lastLevelOfPrevCourse = prevCourse.levels[lastNormalLevelIndex];
-                      
+                      let lastLevelOfPrevCourse =
+                        prevCourse.levels[lastNormalLevelIndex];
+
                       // 向前查找最后一个normal类型单元
-                      while (lastNormalLevelIndex >= 0 && lastLevelOfPrevCourse?.unitType === "exercise") {
+                      while (
+                        lastNormalLevelIndex >= 0 &&
+                        lastLevelOfPrevCourse?.unitType === "exercise"
+                      ) {
                         lastNormalLevelIndex--;
-                        lastLevelOfPrevCourse = prevCourse.levels[lastNormalLevelIndex];
+                        lastLevelOfPrevCourse =
+                          prevCourse.levels[lastNormalLevelIndex];
                       }
-                      
-                      if (lastLevelOfPrevCourse && lastLevelOfPrevCourse.unitType === "normal") {
-                        const prevLevelProgress = progressData[lastLevelOfPrevCourse.id];
+
+                      if (
+                        lastLevelOfPrevCourse &&
+                        lastLevelOfPrevCourse.unitType === "normal"
+                      ) {
+                        const prevLevelProgress =
+                          progressData[lastLevelOfPrevCourse.id];
                         prevLevelFullyUnlocked =
                           (prevLevelProgress?.completionRate || 0) >= 0.8 ||
                           (prevLevelProgress?.masteryLevel || 0) >= 0.8 ||
