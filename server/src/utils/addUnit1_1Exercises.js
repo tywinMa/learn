@@ -241,8 +241,7 @@ const addUnit1_1Exercises = async () => {
         subject: subjectCode,
         title: "数学单元1-1",
         description: "数学第一单元第一部分",
-        level: 2,
-        order: 1,
+
       });
       console.log(`已创建单元: ${unit.id}`);
     }
@@ -504,10 +503,10 @@ const addUnit1_1Exercises = async () => {
 
     // 批量创建所有练习题
     const allExercises = [
-      // ...choiceExercises,
-      // ...fillBlankExercises,
+      ...choiceExercises,
+      ...fillBlankExercises,
       ...matchingExercises,
-      ...applicationExercises,
+      // ...applicationExercises,
     ];
 
     // 检查是否已存在相同ID的练习题

@@ -39,18 +39,6 @@ const Course = sequelize.define('Course', {
     allowNull: true,
     comment: '媒体资源数组，包含图片、视频等媒体资源'
   },
-  level: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 1,
-    comment: '层级，继承自大单元'
-  },
-  order: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 1,
-    comment: '在大单元中的显示顺序'
-  },
   isPublished: {
     type: DataTypes.BOOLEAN,
     allowNull: false,

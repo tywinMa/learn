@@ -213,7 +213,7 @@ router.get("/:subject/:unitId", async (req, res) => {
   }
 });
 
-// 获取特定单元的练习题（保留向后兼容）
+// 获取特定单元的练习题
 router.get("/:unitId", async (req, res) => {
   try {
     const { unitId } = req.params;

@@ -98,12 +98,12 @@ router.get('/:code', async (req, res) => {
   }
 });
 
-// 获取特定学科的所有单元和小单元（新API，支持新的数据结构）
+// 获取特定学科的单元结构
 router.get('/:code/units', async (req, res) => {
   try {
     const { code } = req.params;
 
-    // 先查询学科
+    // 查询学科
     const subject = await Subject.findOne({
       where: { code }
     });
@@ -122,73 +122,51 @@ router.get('/:code/units', async (req, res) => {
     });
 
     // 获取该学科的所有小单元
-    const courses = await Course.findAll({
-      where: { subject: subject.code },
-      order: [['level', 'ASC'], ['order', 'ASC']]
+    const allCourses = await Course.findAll({
+      where: { subject: subject.code }
     });
 
-    // 组合数据，将小单元按大单元分组
-    const enhancedUnits = await Promise.all(units.map(async unit => {
-      const unitData = unit.toJSON();
-
-      // 获取属于该大单元的小单元
-      const unitCourses = courses.filter(course => course.unitId === unit.id);
+    // 构建结构化数据
+    const structuredData = await Promise.all(units.map(async unit => {
+      // 根据Unit的courseIds数组按顺序获取小单元
+      const courseIds = unit.courseIds || [];
+      const unitCourses = courseIds.map(courseId => 
+        allCourses.find(course => course.id === courseId)
+      ).filter(course => course !== undefined);
 
       // 为每个小单元添加练习题数量
-      const enhancedCourses = await Promise.all(unitCourses.map(async course => {
-        const courseData = course.toJSON();
-
-        // 获取该小单元的练习题数量
+      const courses = await Promise.all(unitCourses.map(async course => {
         const exercisesCount = await Exercise.count({
           where: { unitId: course.id }
         });
 
         return {
-          ...courseData,
-          exercisesCount,
-          // 保持与旧API兼容的字段
-          isMajor: false,
+          id: course.id,
+          title: course.title,
+          description: course.description,
+          unitType: course.unitType,
+          position: course.position,
+          exercisesCount
         };
       }));
 
-      // 添加大单元图标URL
-      unitData.iconUrl = getIconUrlByTitle(unit.title);
-
-      // 保持与旧API兼容的字段
-      unitData.isMajor = true;
-      unitData.level = enhancedCourses.length > 0 ? enhancedCourses[0].level : 1;
-      unitData.position = 'default';
-      unitData.unitType = 'normal';
+      // 计算大单元总练习题数量
+      const totalExercisesCount = courses.reduce((sum, course) => sum + course.exercisesCount, 0);
 
       return {
-        ...unitData,
-        courses: enhancedCourses, // 包含的小单元
-        exercisesCount: enhancedCourses.reduce((sum, course) => sum + course.exercisesCount, 0),
+        id: unit.id,
+        title: unit.title,
+        description: unit.description,
+        color: unit.color,
+        secondaryColor: unit.secondaryColor,
+        exercisesCount: totalExercisesCount,
+        courses: courses
       };
     }));
 
-    // 为了保持向后兼容，还需要返回扁平化的单元列表
-    const flatUnits = [];
-
-    enhancedUnits.forEach(unit => {
-      // 添加大单元
-      flatUnits.push({
-        ...unit,
-        courses: undefined, // 移除courses字段避免循环引用
-      });
-
-      // 添加小单元
-      if (unit.courses) {
-        unit.courses.forEach(course => {
-          flatUnits.push(course);
-        });
-      }
-    });
-
     res.json({
       success: true,
-      data: flatUnits,
-      structured: enhancedUnits, // 额外提供结构化数据
+      data: structuredData
     });
   } catch (error) {
     console.error('获取学科单元出错:', error);
@@ -199,130 +177,86 @@ router.get('/:code/units', async (req, res) => {
   }
 });
 
-// 根据单元标题生成图标URL的辅助函数
-function getIconUrlByTitle(title) {
-  // 根据单元标题返回相应的图标
-  if (title.includes('代数') || title.includes('方程') || title.includes('函数')) {
-    return 'calculator';
-  } else if (title.includes('几何') || title.includes('三角') || title.includes('圆')) {
-    return 'triangle';
-  } else if (title.includes('统计') || title.includes('概率')) {
-    return 'chart-bar';
-  } else if (title.includes('力学') || title.includes('运动')) {
-    return 'car';
-  } else if (title.includes('电') || title.includes('磁')) {
-    return 'flash';
-  } else if (title.includes('元素') || title.includes('周期')) {
-    return 'atom';
-  } else if (title.includes('细胞') || title.includes('生物')) {
-    return 'leaf';
-  }
-  return 'book'; // 默认图标
-}
 
-// 根据级别和顺序生成默认单元颜色
-function getDefaultUnitColor(level, order) {
-  const colors = [
-    '#58CC02', '#1CB0F6', '#FF9600', '#9E58FF', '#DD6154',
-    '#8CB153', '#5EC0DE', '#FF4B4B', '#9069CD', '#32CD32'
-  ];
-  
-  const index = ((level - 1) * 10 + (order - 1)) % colors.length;
-  return colors[index];
-}
 
-// 生成较浅的颜色
-function getLighterColor(hexColor) {
-  // 从十六进制颜色中提取RGB
-  const r = parseInt(hexColor.slice(1, 3), 16);
-  const g = parseInt(hexColor.slice(3, 5), 16);
-  const b = parseInt(hexColor.slice(5, 7), 16);
-
-  // 计算较浅的颜色（混合白色）
-  const lighterR = Math.min(255, r + 50);
-  const lighterG = Math.min(255, g + 50);
-  const lighterB = Math.min(255, b + 50);
-
-  // 转回十六进制
-  return `#${lighterR.toString(16).padStart(2, "0")}${lighterG
-    .toString(16)
-    .padStart(2, "0")}${lighterB.toString(16).padStart(2, "0")}`;
-}
-
-// 获取特定单元（兼容性API，现在可以处理大单元或小单元）
+// 获取特定单元详情
 router.get('/units/:unitId', async (req, res) => {
   try {
     const { unitId } = req.params;
 
     // 首先尝试查找大单元
     let unit = await Unit.findByPk(unitId);
-    let isUnit = true;
-
-    // 如果不是大单元，尝试查找小单元
-    if (!unit) {
-      unit = await Course.findByPk(unitId);
-      isUnit = false;
-    }
-
-    if (!unit) {
-      return res.status(404).json({
-        success: false,
-        message: `未找到ID为 ${unitId} 的单元`
-      });
-    }
-
-    let enhancedUnit;
-
-    if (isUnit) {
+    
+    if (unit) {
       // 处理大单元
-      const unitData = unit.toJSON();
-
-      // 获取属于该大单元的小单元
-      const courses = await Course.findAll({
-        where: { unitId: unit.id },
-        order: [['order', 'ASC']]
+      const courseIds = unit.courseIds || [];
+      const allCourses = await Course.findAll({
+        where: { unitId: unit.id }
       });
+      
+      // 按courseIds数组的顺序排列小单元
+      const courses = courseIds.map(courseId => 
+        allCourses.find(course => course.id === courseId)
+      ).filter(course => course !== undefined);
 
-      // 计算总练习题数量
-      let totalExercisesCount = 0;
-      for (const course of courses) {
+      // 为每个小单元添加练习题数量
+      const coursesWithExercises = await Promise.all(courses.map(async course => {
         const exercisesCount = await Exercise.count({
           where: { unitId: course.id }
         });
-        totalExercisesCount += exercisesCount;
-      }
 
-      unitData.iconUrl = getIconUrlByTitle(unit.title);
-      unitData.isMajor = true;
-      unitData.level = courses.length > 0 ? courses[0].level : 1;
+        return {
+          id: course.id,
+          title: course.title,
+          description: course.description,
+          unitType: course.unitType,
+          position: course.position,
+          exercisesCount
+        };
+      }));
 
-      enhancedUnit = {
-        ...unitData,
-        exercisesCount: totalExercisesCount,
-        courses: courses,
-      };
-    } else {
-      // 处理小单元
-      const courseData = unit.toJSON();
+      const totalExercisesCount = coursesWithExercises.reduce((sum, course) => sum + course.exercisesCount, 0);
 
-      // 获取该小单元的练习题数量
-      const exercisesCount = await Exercise.count({
-        where: { unitId: unit.id }
+      return res.json({
+        success: true,
+        data: {
+          id: unit.id,
+          title: unit.title,
+          description: unit.description,
+          color: unit.color,
+          secondaryColor: unit.secondaryColor,
+          exercisesCount: totalExercisesCount,
+          courses: coursesWithExercises
+        }
       });
-
-      courseData.iconUrl = getIconUrlByTitle(unit.title);
-      courseData.isMajor = false;
-
-      enhancedUnit = {
-        ...courseData,
-        exercisesCount,
-      };
     }
 
-    res.json({
-      success: true,
-      data: enhancedUnit
+    // 尝试查找小单元
+    const course = await Course.findByPk(unitId);
+    if (course) {
+      const exercisesCount = await Exercise.count({
+        where: { unitId: course.id }
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          id: course.id,
+          title: course.title,
+          description: course.description,
+          unitType: course.unitType,
+          position: course.position,
+          exercisesCount
+        }
+      });
+    }
+
+    // 都没找到
+    res.status(404).json({
+      success: false,
+      message: `未找到ID为 ${unitId} 的单元`
     });
+
   } catch (error) {
     console.error('获取单元详情出错:', error);
     res.status(500).json({
@@ -346,33 +280,36 @@ router.get('/units/:unitId/courses', async (req, res) => {
       });
     }
 
-    // 获取该大单元的所有小单元
-    const courses = await Course.findAll({
-      where: { unitId: unitId },
-      order: [['order', 'ASC']]
+    // 根据大单元的courseIds数组按顺序获取小单元
+    const courseIds = unit.courseIds || [];
+    const allCourses = await Course.findAll({
+      where: { unitId: unitId }
     });
+    
+    // 按courseIds数组的顺序排列小单元
+    const courses = courseIds.map(courseId => 
+      allCourses.find(course => course.id === courseId)
+    ).filter(course => course !== undefined);
 
-    // 为每个小单元添加额外信息
-    const enhancedCourses = await Promise.all(courses.map(async course => {
-      const courseData = course.toJSON();
-
-      // 获取该小单元的练习题数量
+    // 为每个小单元添加练习题数量
+    const coursesWithExercises = await Promise.all(courses.map(async course => {
       const exercisesCount = await Exercise.count({
         where: { unitId: course.id }
       });
 
-      courseData.iconUrl = getIconUrlByTitle(course.title);
-      courseData.isMajor = false;
-
       return {
-        ...courseData,
-        exercisesCount,
+        id: course.id,
+        title: course.title,
+        description: course.description,
+        unitType: course.unitType,
+        position: course.position,
+        exercisesCount
       };
     }));
 
     res.json({
       success: true,
-      data: enhancedCourses
+      data: coursesWithExercises
     });
   } catch (error) {
     console.error('获取小单元列表出错:', error);

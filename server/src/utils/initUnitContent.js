@@ -1,4 +1,4 @@
-const { Unit, Subject } = require('../models');
+const { Unit, Course, Subject } = require('../models');
 
 /**
  * 初始化单元内容
@@ -14,16 +14,16 @@ const initUnitContent = async () => {
     }
     const mathSubjectCode = mathSubject.code;
 
-    // 查找一元二次方程单元
-    const unit = await Unit.findOne({ where: { id: `${mathSubjectCode}-1-1` } });
-    if (!unit) {
-      console.log(`未找到 ${mathSubjectCode}-1-1 单元，跳过内容初始化`);
+    // 查找一元二次方程小单元（Course）
+    const course = await Course.findOne({ where: { id: `${mathSubjectCode}-1-1` } });
+    if (!course) {
+      console.log(`未找到 ${mathSubjectCode}-1-1 小单元，跳过内容初始化`);
       return;
     }
 
-    // 检查单元是否已有内容
-    if (unit.content) {
-      console.log(`单元 ${mathSubjectCode}-1-1 已有内容，跳过初始化`);
+    // 检查小单元是否已有内容
+    if (course.content) {
+      console.log(`小单元 ${mathSubjectCode}-1-1 已有内容，跳过初始化`);
       return;
     }
 
@@ -93,13 +93,13 @@ const initUnitContent = async () => {
       }
     ];
 
-    // 更新单元内容
-    await unit.update({
+    // 更新小单元内容
+    await course.update({
       content,
       media
     });
 
-    console.log(`成功初始化单元 ${mathSubjectCode}-1-1 的内容`);
+    console.log(`成功初始化小单元 ${mathSubjectCode}-1-1 的内容`);
   } catch (error) {
     console.error('初始化单元内容出错:', error);
     throw error;

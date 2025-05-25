@@ -100,8 +100,6 @@ const initSubjectsAndUnits = async () => {
           unitId: algebraUnit.id,
           title: '一元二次方程',
           description: '一元二次方程的解法和应用',
-          level: 1,
-          order: 1,
           unitType: 'normal'
         },
         {
@@ -110,8 +108,6 @@ const initSubjectsAndUnits = async () => {
           unitId: algebraUnit.id,
           title: '因式分解',
           description: '多项式的因式分解方法',
-          level: 1,
-          order: 2,
           unitType: 'normal'
         },
         {
@@ -120,8 +116,6 @@ const initSubjectsAndUnits = async () => {
           unitId: algebraUnit.id,
           title: '配方法',
           description: '使用配方法解一元二次方程',
-          level: 1,
-          order: 3,
           unitType: 'normal'
         },
         {
@@ -130,8 +124,6 @@ const initSubjectsAndUnits = async () => {
           unitId: algebraUnit.id,
           title: '第一次月考',
           description: '使用公式法解一元二次方程',
-          level: 1,
-          order: 4,
           unitType: 'exercise',
           position: 'right'
         },
@@ -141,8 +133,6 @@ const initSubjectsAndUnits = async () => {
           unitId: algebraUnit.id,
           title: '二次函数',
           description: '二次函数的性质和图像',
-          level: 1,
-          order: 5,
           unitType: 'normal'
         },
         {
@@ -151,8 +141,6 @@ const initSubjectsAndUnits = async () => {
           unitId: algebraUnit.id,
           title: '二次函数应用',
           description: '二次函数在实际问题中的应用',
-          level: 1,
-          order: 6,
           unitType: 'normal'
         }
       ];
@@ -178,8 +166,6 @@ const initSubjectsAndUnits = async () => {
           unitId: geometryUnit.id,
           title: '三角形',
           description: '三角形的性质和计算',
-          level: 2,
-          order: 1,
           unitType: 'normal'
         },
         {
@@ -188,8 +174,6 @@ const initSubjectsAndUnits = async () => {
           unitId: geometryUnit.id,
           title: '直角三角形',
           description: '直角三角形的性质和勾股定理',
-          level: 2,
-          order: 2,
           unitType: 'normal'
         },
         {
@@ -198,8 +182,6 @@ const initSubjectsAndUnits = async () => {
           unitId: geometryUnit.id,
           title: '四边形',
           description: '平行四边形、矩形、正方形等四边形的性质',
-          level: 2,
-          order: 3,
           unitType: 'normal'
         },
         {
@@ -208,8 +190,6 @@ const initSubjectsAndUnits = async () => {
           unitId: geometryUnit.id,
           title: '圆',
           description: '圆的性质和计算',
-          level: 2,
-          order: 4,
           unitType: 'normal'
         }
       ];
@@ -235,8 +215,6 @@ const initSubjectsAndUnits = async () => {
           unitId: statisticsUnit.id,
           title: '数据分析',
           description: '数据的收集、整理和分析',
-          level: 3,
-          order: 1,
           unitType: 'normal'
         },
         {
@@ -245,8 +223,6 @@ const initSubjectsAndUnits = async () => {
           unitId: statisticsUnit.id,
           title: '概率基础',
           description: '随机事件与概率',
-          level: 3,
-          order: 2,
           unitType: 'normal'
         },
         {
@@ -255,8 +231,6 @@ const initSubjectsAndUnits = async () => {
           unitId: statisticsUnit.id,
           title: '概率论基础',
           description: '随机事件、条件概率、独立性等概念',
-          level: 3,
-          order: 3,
           unitType: 'normal'
         }
       ];
@@ -286,8 +260,6 @@ const initSubjectsAndUnits = async () => {
           unitId: mechanicsUnit.id,
           title: '牛顿运动定律',
           description: '牛顿三大运动定律及其应用',
-          level: 1,
-          order: 1,
           unitType: 'normal'
         }
       ];
@@ -313,8 +285,6 @@ const initSubjectsAndUnits = async () => {
           unitId: electromagnetismUnit.id,
           title: '电场',
           description: '电场的性质和计算',
-          level: 2,
-          order: 1,
           unitType: 'normal'
         }
       ];
@@ -344,8 +314,6 @@ const initSubjectsAndUnits = async () => {
           unitId: elementsUnit.id,
           title: '元素周期表',
           description: '元素周期表的规律和应用',
-          level: 1,
-          order: 1,
           unitType: 'normal'
         }
       ];
@@ -375,8 +343,6 @@ const initSubjectsAndUnits = async () => {
           unitId: cellBiologyUnit.id,
           title: '细胞结构',
           description: '细胞的基本结构和功能',
-          level: 1,
-          order: 1,
           unitType: 'normal'
         }
       ];

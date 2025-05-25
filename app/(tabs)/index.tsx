@@ -466,7 +466,7 @@ export default function HomeScreen() {
     initSubject();
   }, []);
 
-  // 修改formatCoursesData返回值，应用颜色修复
+  // 格式化API数据为前端所需格式
   const formatCoursesData = (apiData: any, subject: any) => {
     // 验证参数
     if (!apiData || !subject) {
@@ -474,119 +474,38 @@ export default function HomeScreen() {
       return [];
     }
 
-    // 新API结构：优先使用structured数据
-    if (apiData.structured && Array.isArray(apiData.structured)) {
-      console.log("使用新的结构化数据");
-      
-      const formattedCourses = apiData.structured.map((unit: any, index: number) => {
-        // 使用大单元的颜色
-        const unitColor = unit.color || subject.color;
-        const unitSecondaryColor = unit.secondaryColor || getLighterColor(unitColor);
-
-        return {
-          id: `unit${index + 1}`,
-          title: unit.title,
-          description: unit.description || `学习${subject.name}基础知识`,
-          color: unitColor,
-          secondaryColor: unitSecondaryColor,
-          // 将小单元作为关卡
-          levels: (unit.courses || []).map((course: any) => {
-            return {
-              id: course.id, // 使用原始ID
-              title: course.title,
-              unitType: course.unitType || "normal",
-              position: course.position || "default",
-              isMajor: false,
-            };
-          }),
-        };
-      });
-
-      return ensureCoursesColors(formattedCourses);
-    }
-
-    // 兼容旧API结构：使用扁平化数据
     const unitsData = apiData.data || apiData;
     if (!Array.isArray(unitsData)) {
       console.error("API数据格式无效：", { unitsData });
       return [];
     }
 
-    console.log("使用兼容的扁平化数据");
+    console.log("使用新的简化API数据结构");
 
-    // 首先按level和order排序
-    const sortedUnits = [...unitsData].sort((a, b) => {
-      if (a.level !== b.level) return a.level - b.level;
-      return a.order - b.order;
+    // 直接使用API返回的结构化数据，转换为前端格式
+    const formattedCourses = unitsData.map((unit: any, index: number) => {
+      // 使用大单元的颜色
+      const unitColor = unit.color || subject.color;
+      const unitSecondaryColor = unit.secondaryColor || getLighterColor(unitColor);
+
+      return {
+        id: `unit${index + 1}`,
+        title: unit.title,
+        description: unit.description || `学习${subject.name}基础知识`,
+        color: unitColor,
+        secondaryColor: unitSecondaryColor,
+        // 将小单元作为关卡
+        levels: (unit.courses || []).map((course: any) => {
+          return {
+            id: course.id, // 使用原始ID
+            title: course.title,
+            unitType: course.unitType || "normal",
+            position: course.position || "default",
+          };
+        }),
+      };
     });
 
-    // 按大单元分组
-    // 先找出所有的大单元 (isMajor = true)
-    const majorUnits = sortedUnits.filter((unit) => unit.isMajor === true);
-    const unitsByMajor: Record<string, any[]> = {};
-
-    // 使用每个大单元的ID作为键初始化分组
-    majorUnits.forEach((majorUnit) => {
-      unitsByMajor[majorUnit.id] = [majorUnit];
-    });
-
-    // 将小单元添加到对应的大单元组中
-    sortedUnits.forEach((unit) => {
-      // 跳过大单元，因为它们已经在分组中了
-      if (unit.isMajor === true) return;
-
-      // 如果有unitId字段，将小单元添加到对应的大单元组
-      if (unit.unitId && unitsByMajor[unit.unitId]) {
-        unitsByMajor[unit.unitId].push(unit);
-      } else if (unit.parentId && unitsByMajor[unit.parentId]) {
-        // 兼容旧的parentId字段
-        unitsByMajor[unit.parentId].push(unit);
-      } else {
-        // 如果没有找到对应的大单元组，使用level分组的后备逻辑
-        const levelKey = `level-${unit.level}`;
-        if (!unitsByMajor[levelKey]) {
-          unitsByMajor[levelKey] = [];
-        }
-        unitsByMajor[levelKey].push(unit);
-      }
-    });
-
-    // 转换为课程格式
-    const formattedCourses = Object.keys(unitsByMajor).map(
-      (majorUnitId, index) => {
-        const units = unitsByMajor[majorUnitId];
-        // 获取大单元
-        const majorUnit =
-          units.find((unit) => unit.isMajor === true) || units[0];
-        // 获取所有小单元（不包括大单元）
-        const minorUnits = units.filter((unit) => unit.isMajor !== true);
-
-        // 使用单元的颜色
-        const unitColor = majorUnit.color || subject.color;
-        const unitSecondaryColor =
-          majorUnit.secondaryColor || getLighterColor(unitColor);
-
-        return {
-          id: `unit${index + 1}`,
-          title: majorUnit.title,
-          description: majorUnit.description || `学习${subject.name}基础知识`,
-          color: unitColor,
-          secondaryColor: unitSecondaryColor,
-          // 只返回小单元作为实际关卡
-          levels: minorUnits.map((unit) => {
-            return {
-              id: unit.id, // 使用原始ID
-              title: unit.title,
-              unitType: unit.unitType || "normal",
-              position: unit.position || "default",
-              isMajor: false,
-            };
-          }),
-        };
-      }
-    );
-
-    // 应用颜色修复
     return ensureCoursesColors(formattedCourses);
   };
 
