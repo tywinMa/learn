@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @font-face {
+      font-family: 'KaTeX_AMS';
+      src: url('./fonts/KaTeX_AMS-Regular.woff2') format('woff2');
+      font-weight: normal;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'KaTeX_Main';
+      src: url('./fonts/KaTeX_Main-Regular.woff2') format('woff2');
+      font-weight: normal;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'KaTeX_Math';
+      src: url('./fonts/KaTeX_Math-Italic.woff2') format('woff2');
+      font-weight: normal;
+      font-style: italic;
+    }
+    @font-face {
+      font-family: 'KaTeX_Size1';
+      src: url('./fonts/KaTeX_Size1-Regular.woff2') format('woff2');
+      font-weight: normal;
+      font-style: normal;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      font-size: {{FONT_SIZE}}px;
+      display: flex;
+      align-items: center;
+      justify-content: {{JUSTIFY_CONTENT}};
+      color: {{TEXT_COLOR}};
+      background-color: transparent;
+      overflow: hidden;
+    }
+    
+    .math-container {
+      {{CONTAINER_STYLE}}
+      padding: 8px 0;
+    }
+    
+    .katex {
+      font-size: 1.1em;
+      font-family: KaTeX_Main, KaTeX_Math, KaTeX_AMS, KaTeX_Size1, serif;
+      text-rendering: auto;
+      line-height: 1.2;
+    }
+    
+    .katex .mfrac .frac-line {
+      border-bottom-width: 1px;
+      border-bottom-style: solid;
+    }
+    
+    .katex .mspace {
+      display: inline-block;
+    }
+    
+    .katex .mord, .katex .mbin, .katex .mrel, .katex .mopen, .katex .mclose, .katex .mpunct, .katex .minner {
+      display: inline-block;
+    }
+    
+    .katex .mord + .mbin, .katex .mord + .mrel, .katex .mop + .mord, .katex .mop + .mbin, .katex .mop + .mrel, .katex .mclose + .mbin, .katex .mclose + .mrel {
+      margin-left: 0.2778em;
+    }
+    
+    .katex .mbin + .mrel, .katex .mbin + .minner, .katex .mrel + .minner, .katex .mrel + .mopen, .katex .mrel + .mrel, .katex .mpunct + .mord, .katex .mpunct + .mbin, .katex .mpunct + .mrel, .katex .mpunct + .mopen, .katex .mpunct + .mclose {
+      margin-left: 0.2778em;
+    }
+    
+    .katex .mord.mtight {
+      margin-right: 0.0612em;
+    }
+    
+    .katex .minner {
+      margin-left: 0.0556em;
+      margin-right: 0.0556em;
+    }
+    
+    .katex .mopen + .mord, .katex .mopen + .mop, .katex .mopen + .mbin, .katex .mopen + .mrel, .katex .mopen + .mopen, .katex .mopen + .mclose, .katex .mopen + .mpunct, .katex .mopen + .minner {
+      margin-left: 0;
+    }
+    
+    .katex .mclose + .mop, .katex .mclose + .mord, .katex .mclose + .minner {
+      margin-left: 0;
+    }
+    
+    .katex .mord.mathit {
+      font-family: KaTeX_Math;
+      font-style: italic;
+    }
+    
+    .katex .mathbf {
+      font-weight: bold;
+    }
+    
+    .katex .sqrt {
+      display: inline-block;
+    }
+    
+    .katex .sqrt .sqrt-sign {
+      display: inline-block;
+      margin-right: 0.2778em;
+    }
+    
+    .katex .sqrt .sqrt-line {
+      display: inline-block;
+      border-top: 1px solid;
+      width: 100%;
+    }
+    
+    .katex .frac-line {
+      width: 100%;
+      position: relative;
+    }
+    
+    .katex .mfrac {
+      display: inline-block;
+      vertical-align: middle;
+    }
+    
+    .katex .mfrac .frac-line {
+      width: 100%;
+    }
+    
+    /* 简化版KaTeX CSS */
+  </style>
+  <script src="./katex.min.js"></script>
+  <script src="./auto-render.min.js"></script>
+</head>
+<body>
+  <div class="math-container" id="formula"></div>
+  <script>
+    document.addEventListener("DOMContentLoaded", function() {
+      try {
+        const element = document.getElementById('formula');
+        const formula = '{{FORMULA}}';
+        
+        katex.render(
+          formula, 
+          element, 
+          {
+            displayMode: {{DISPLAY_MODE}}, 
+            throwOnError: false,
+            output: 'html'
+          }
+        );
+        
+        // 通知React Native调整大小
+        setTimeout(function() {
+          const height = document.body.scrollHeight;
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'resize',
+            height: height
+          }));
+        }, 100);
+      } catch (e) {
+        console.error("KaTeX渲染错误:", e);
+        document.getElementById('formula').textContent = '{{FORMULA}}';
+      }
+    });
+  </script>
+</body>
+</html> 

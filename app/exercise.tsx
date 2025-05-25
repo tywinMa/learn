@@ -21,6 +21,7 @@ import { MasteryIndicator } from "./components/MasteryIndicator";
 
 // 正确导入Exercise组件
 import { Exercise } from "./components/Exercise";
+import EnhancedThemedText from "./components/EnhancedThemedText";
 import { useSubject } from "@/hooks/useSubject";
 import { LinearGradient } from "expo-linear-gradient";
 import { API_BASE_URL } from "@/constants/apiConfig";
@@ -126,7 +127,7 @@ const ResultFeedback = ({
           {explanation && (
             <RNView style={styles.explanationContainer}>
               <Text style={styles.explanationTitle}>解析：</Text>
-              <Text style={styles.explanationText}>{explanation}</Text>
+              <EnhancedThemedText style={styles.explanationText}>{explanation}</EnhancedThemedText>
             </RNView>
           )}
 

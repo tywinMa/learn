@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { StyleSheet, View as RNView, TouchableOpacity, TextInput, Image, Platform, Alert } from "react-native";
 import { Text } from "../components/Themed";
+import EnhancedThemedText from "../components/EnhancedThemedText";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 
@@ -466,7 +467,7 @@ export const Exercise = ({
                   onPress={() => handleChoiceSelection(index)}
                   disabled={isAnsweredLocally || isAnswered}
                 >
-                  <Text style={styles.optionText}>{option}</Text>
+                  <EnhancedThemedText style={styles.optionText}>{option}</EnhancedThemedText>
                   {localSelection === index && !isAnswered && (
                     <Ionicons name="radio-button-on" size={20} color="#5EC0DE" style={styles.icon} />
                   )}
@@ -535,7 +536,7 @@ export const Exercise = ({
   return (
     <RNView style={styles.exerciseContainer}>
       <RNView style={styles.questionContainer}>
-        <Text style={styles.questionText}>{exercise.question}</Text>
+        <EnhancedThemedText style={styles.questionText}>{exercise.question}</EnhancedThemedText>
         {exercise.isAI && (
           <RNView style={styles.aiIconContainer}>
             <Ionicons name="sparkles" size={16} color="#FF9500" />

@@ -24,17 +24,17 @@ const addExerciseUnitExercises = async () => {
         id: "math-1-4-1",
         unitId: unitId,
         subject: "math",
-        question: "解一元二次方程：$x^2 - 5x + 6 = 0$",
+        question: "求解方程 $3x^2 - 5x + 2 = 0$ 的根，并描述函数 $f(x) = 3x^2 - 5x + 2$ 的图像特征。",
         type: "choice",
         options: [
-          "$x = 2$ 或 $x = 3$",
-          "$x = 1$ 或 $x = 6$",
-          "$x = -2$ 或 $x = -3$",
-          "$x = 5$ 或 $x = 6$",
+          "$x = 1$ 或 $x = \\frac{2}{3}$，抛物线开口向上，对称轴 $x = \\frac{5}{6}$，顶点坐标为 $(\\frac{5}{6}, \\frac{-1}{12})$",
+          "$x = \\frac{1}{3}$ 或 $x = 2$，抛物线开口向上，对称轴 $x = \\frac{5}{6}$，顶点坐标为 $(\\frac{5}{6}, \\frac{-1}{12})$",
+          "$x = 1$ 或 $x = \\frac{2}{3}$，抛物线开口向下，对称轴 $x = \\frac{5}{6}$，顶点坐标为 $(\\frac{5}{6}, \\frac{1}{12})$",
+          "$x = \\frac{1}{3}$ 或 $x = 2$，抛物线开口向下，对称轴 $x = \\frac{5}{6}$，顶点坐标为 $(\\frac{5}{6}, \\frac{1}{12})$",
         ],
         correctAnswer: 0,
         explanation:
-          "使用因式分解法：$x^2 - 5x + 6 = (x-2)(x-3) = 0$，所以 $x = 2$ 或 $x = 3$。",
+          "解：(1) 使用求根公式：$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$，其中 $a=3$, $b=-5$, $c=2$\n(2) 计算判别式：$\\Delta = b^2 - 4ac = (-5)^2 - 4 \\times 3 \\times 2 = 25 - 24 = 1$\n(3) 代入求根公式：$x = \\frac{5 \\pm \\sqrt{1}}{6} = \\frac{5 \\pm 1}{6}$，所以 $x_1 = \\frac{6}{6} = 1$，$x_2 = \\frac{4}{6} = \\frac{2}{3}$\n(4) 由于 $a = 3 > 0$，抛物线开口向上\n(5) 对称轴 $x = \\frac{-b}{2a} = \\frac{5}{6}$\n(6) 顶点坐标 $(\\frac{5}{6}, \\frac{-1}{12})$",
         difficulty: "medium",
         points: 5,
         knowledgePoints: [
@@ -45,8 +45,8 @@ const addExerciseUnitExercises = async () => {
             type: "text",
           },
           {
-            title: "因式分解法",
-            content: "当一元二次方程可以因式分解时，可以通过因式分解法求解。",
+            title: "二次函数图像",
+            content: "二次函数 $f(x) = ax^2 + bx + c$ 的图像是抛物线，开口方向由系数 $a$ 决定。",
             type: "text",
           },
         ],
@@ -161,18 +161,28 @@ const addExerciseUnitExercises = async () => {
         id: "math-1-4-7",
         unitId: unitId,
         question:
-          "已知 $a = 2 + \\sqrt{3}$，$b = 2 - \\sqrt{3}$，求 $a^2 + b^2$ 的值。",
+          "从一个装有5个红球和3个白球的袋子中随机抽取2个球，求抽到的两个球都是红球的概率。",
         type: "choice",
-        options: ["14", "10", "8", "12"],
-        correctAnswer: 0,
+        options: [
+          "$\\frac{5}{8} \\times \\frac{4}{7} = \\frac{20}{56} = \\frac{5}{14}$",
+          "$\\frac{5}{8} \\times \\frac{5}{7} = \\frac{25}{56}$",
+          "$\\frac{C_5^2}{C_8^2} = \\frac{10}{28} = \\frac{5}{14}$",
+          "$\\frac{5 \\cdot 4}{8 \\cdot 7} = \\frac{20}{56} = \\frac{5}{14}$"
+        ],
+        correctAnswer: 2,
         explanation:
-          "$a^2 = (2+\\sqrt{3})^2 = 4 + 4\\sqrt{3} + 3 = 7 + 4\\sqrt{3}$，$b^2 = (2-\\sqrt{3})^2 = 4 - 4\\sqrt{3} + 3 = 7 - 4\\sqrt{3}$，所以 $a^2 + b^2 = 14$。",
-        difficulty: "hard",
-        points: 6,
+          "解：(1) 总共有 $C_8^2 = \\frac{8 \\times 7}{2 \\times 1} = 28$ 种不同的抽取方式\n(2) 抽到2个红球的方式有 $C_5^2 = \\frac{5 \\times 4}{2 \\times 1} = 10$ 种\n(3) 所以抽到2个红球的概率是 $\\frac{C_5^2}{C_8^2} = \\frac{10}{28} = \\frac{5}{14}$\n(4) 选项A和D的结果也是 $\\frac{5}{14}$，但计算方法不同。选项A是先抽一个红球，再抽一个红球的概率。选项B的计算有误。",
+        difficulty: "medium",
+        points: 5,
         knowledgePoints: [
           {
-            title: "根式运算",
-            content: "含根式的运算需要注意完全平方公式的应用。",
+            title: "组合数",
+            content: "组合数 $C_n^m$ 表示从n个不同元素中取出m个元素的不同组合数量，计算公式为 $C_n^m = \\frac{n!}{m!(n-m)!}$。",
+            type: "text",
+          },
+          {
+            title: "概率计算",
+            content: "概率 = 所求情况数 / 总情况数，在组合问题中，常用组合数来计算概率。",
             type: "text",
           },
         ],
@@ -258,19 +268,32 @@ const addUnit1_1Exercises = async () => {
         id: `${fullUnitId}-1`,
         unitId: fullUnitId,
         subject: subjectCode,
-        question: "以下哪个是解一元一次方程 3x + 6 = 0 的正确步骤？",
+        question: "求解方程 $3x^2 - 5x + 2 = 0$ 的根，并描述函数 $f(x) = 3x^2 - 5x + 2$ 的图像特征。",
+        type: "choice",
         options: [
-          "3x = -6，x = -2",
-          "3x = 6，x = 2",
-          "3x = -6，x = 2",
-          "3x = 6，x = -2",
+          "$x = 1$ 或 $x = \\frac{2}{3}$，抛物线开口向上，对称轴 $x = \\frac{5}{6}$，顶点坐标为 $(\\frac{5}{6}, \\frac{-1}{12})$",
+          "$x = \\frac{1}{3}$ 或 $x = 2$，抛物线开口向上，对称轴 $x = \\frac{5}{6}$，顶点坐标为 $(\\frac{5}{6}, \\frac{-1}{12})$",
+          "$x = 1$ 或 $x = \\frac{2}{3}$，抛物线开口向下，对称轴 $x = \\frac{5}{6}$，顶点坐标为 $(\\frac{5}{6}, \\frac{1}{12})$",
+          "$x = \\frac{1}{3}$ 或 $x = 2$，抛物线开口向下，对称轴 $x = \\frac{5}{6}$，顶点坐标为 $(\\frac{5}{6}, \\frac{1}{12})$",
         ],
         correctAnswer: 0,
-        type: "choice",
-        difficulty: 1,
-        isAI: true,
         explanation:
-          "解一元一次方程的步骤：移项得 3x = -6，然后两边同除以3得 x = -2",
+          "解：(1) 使用求根公式：$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$，其中 $a=3$, $b=-5$, $c=2$\n(2) 计算判别式：$\\Delta = b^2 - 4ac = (-5)^2 - 4 \\times 3 \\times 2 = 25 - 24 = 1$\n(3) 代入求根公式：$x = \\frac{5 \\pm \\sqrt{1}}{6} = \\frac{5 \\pm 1}{6}$，所以 $x_1 = \\frac{6}{6} = 1$，$x_2 = \\frac{4}{6} = \\frac{2}{3}$\n(4) 由于 $a = 3 > 0$，抛物线开口向上\n(5) 对称轴 $x = \\frac{-b}{2a} = \\frac{5}{6}$\n(6) 顶点坐标 $(\\frac{5}{6}, \\frac{-1}{12})$",
+        difficulty: "medium",
+        points: 5,
+        knowledgePoints: [
+          {
+            title: "一元二次方程",
+            content:
+              "一元二次方程的标准形式为 $ax^2 + bx + c = 0$ (其中 $a ≠ 0$)。",
+            type: "text",
+          },
+          {
+            title: "二次函数图像",
+            content: "二次函数 $f(x) = ax^2 + bx + c$ 的图像是抛物线，开口方向由系数 $a$ 决定。",
+            type: "text",
+          },
+        ],
       },
       {
         id: `${fullUnitId}-2`,
