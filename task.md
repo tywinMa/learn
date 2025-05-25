@@ -1,3 +1,1 @@
-# learn-admin知识点管理界面
-- 根据项目中的代码，在后台管理页面请帮我创建一个知识点管理界面
-- Exercise习题保存了knowledgePointIds知识点的id，在习题管理界面要进行习题与知识点的关联
+帮我写个脚本，可以同时启动app端，后台端和server三个服务。再写个脚本，可以把数据库删了，然后初始化重置数据。类似learn目录下的start-dev.sh和reset-data.sh
