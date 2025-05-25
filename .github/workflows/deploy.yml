@@ -1,0 +1,86 @@
+name: 自动构建部署
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      
+    - name: 设置Node.js环境
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: 部署到服务器
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        password: ${{ secrets.SERVER_PASSWORD }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        script: |
+          # 进入项目目录
+          cd ${{ secrets.PROJECT_PATH || '/var/www/learn' }}
+
+          # 删除dist目录
+          rm -rf dist
+
+          # 把现有的代码隐藏了
+          git stash
+          
+          # 拉取最新代码
+          git pull origin main
+
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          node -v
+          npm -v
+          
+          # 安装前端依赖
+          npm i
+          
+          # 安装后端依赖
+          cd server
+          npm i
+          cd ..
+          
+          # 构建前端项目
+          npm run build
+          
+          # 停止现有的Node服务
+          pm2 stop learn-server 2>/dev/null || true
+          
+          # 启动Node服务
+          cd server
+          pm2 start ecosystem.config.js --env production
+          
+          # 重新加载pm2配置
+          pm2 save
+          pm2 startup
+          
+          echo "部署完成！"
+
+  notify:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: 通知部署结果
+      if: always()
+      run: |
+        if [ "${{ needs.build-and-deploy.result }}" == "success" ]; then
+          echo "✅ 部署成功！服务已重启。"
+        else
+          echo "❌ 部署失败，请检查日志。"
+        fi 
