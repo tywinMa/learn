@@ -9,7 +9,7 @@ const Exercise = sequelize.define(
       type: DataTypes.STRING,
       primaryKey: true,
       allowNull: false,
-      comment: "练习题ID，如1-1-1表示数学学科第1单元第1关卡第1题",
+      comment: "练习题ID，如math-1-1表示数学学科第1单元第1关卡第1题",
     },
     subject: {
       type: DataTypes.STRING,
@@ -42,7 +42,7 @@ const Exercise = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
       defaultValue: "choice", // 选择题
-      // 可能的值: 'choice', 'matching', 'fill_blank', 'application', 'sort', 'math'
+      // 可能的值: 'choice', 'matching', 'fill_blank', 'application', 'math'
     },
     difficulty: {
       type: DataTypes.INTEGER,
@@ -66,6 +66,12 @@ const Exercise = sequelize.define(
       allowNull: true,
       comment: "关联的知识点ID数组",
       defaultValue: []
+    },
+    isAI: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+      comment: "是否为AI生成的习题，true表示AI生成，false表示人工创建"
     },
   },
   {

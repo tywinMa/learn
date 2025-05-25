@@ -268,6 +268,7 @@ const addUnit1_1Exercises = async () => {
         correctAnswer: 0,
         type: "choice",
         difficulty: 1,
+        isAI: true,
         explanation:
           "解一元一次方程的步骤：移项得 3x = -6，然后两边同除以3得 x = -2",
       },
@@ -305,6 +306,7 @@ const addUnit1_1Exercises = async () => {
         type: "fill_blank",
         correctAnswer: ["4"],
         difficulty: 2,
+        isAI: true,
         explanation: "2x - 5 > 3，移项得 2x > 8，两边除以2得 x > 4",
       },
       {

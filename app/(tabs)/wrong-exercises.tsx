@@ -121,7 +121,15 @@ export default function WrongExercisesScreen() {
               }
               return (
                 <RNView key={index} style={styles.exerciseCard}>
-                  <Text style={styles.questionText}>{item.exerciseData.question}</Text>
+                  <RNView style={styles.questionContainer}>
+                    <Text style={styles.questionText}>{item.exerciseData.question}</Text>
+                    {item.exerciseData.isAI && (
+                      <RNView style={styles.aiIconContainer}>
+                        <Ionicons name="sparkles" size={16} color="#FF9500" />
+                        <Text style={styles.aiText}>AI</Text>
+                      </RNView>
+                    )}
+                  </RNView>
 
                   <RNView style={styles.optionsContainer}>
                     {item.exerciseData.options && Array.isArray(item.exerciseData.options) ? (
@@ -260,11 +268,34 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
+  questionContainer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
   questionText: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 12,
     color: "#333",
+    flex: 1,
+    marginRight: 8,
+  },
+  aiIconContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 149, 0, 0.1)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 149, 0, 0.3)",
+  },
+  aiText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FF9500",
+    marginLeft: 2,
   },
   optionsContainer: {
     marginBottom: 12,

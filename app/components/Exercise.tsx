@@ -21,6 +21,7 @@ export const Exercise = ({
     type?: string;
     explanation?: string;
     knowledgePoints?: any[];
+    isAI?: boolean;
   };
   onAnswer: (exerciseId: string, optionIndex: number, matchingAnswers?: number[], fillBlankAnswers?: string[]) => void;
   userAnswers: Record<string, number | number[] | string[] | boolean>;
@@ -533,7 +534,15 @@ export const Exercise = ({
 
   return (
     <RNView style={styles.exerciseContainer}>
-      <Text style={styles.questionText}>{exercise.question}</Text>
+      <RNView style={styles.questionContainer}>
+        <Text style={styles.questionText}>{exercise.question}</Text>
+        {exercise.isAI && (
+          <RNView style={styles.aiIconContainer}>
+            <Ionicons name="sparkles" size={16} color="#FF9500" />
+            <Text style={styles.aiText}>AI</Text>
+          </RNView>
+        )}
+      </RNView>
       {renderExerciseContent()}
     </RNView>
   );
@@ -548,11 +557,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#eaeaea",
   },
+  questionContainer: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
   questionText: {
     fontSize: 16,
     fontWeight: "600",
-    marginBottom: 14,
     lineHeight: 22,
+    flex: 1,
+    marginRight: 8,
+  },
+  aiIconContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 149, 0, 0.1)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 149, 0, 0.3)",
+  },
+  aiText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FF9500",
+    marginLeft: 2,
   },
   optionButton: {
     flexDirection: "row",
