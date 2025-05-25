@@ -1,0 +1,84 @@
+const sequelize = require('../config/database');
+const { Subject } = require('../models');
+
+/**
+ * 添加基础学科数据
+ */
+async function addBasicSubjects() {
+  console.log('执行基础学科数据添加迁移...');
+  const transaction = await sequelize.transaction();
+  
+  try {
+    // 预定义常见学科及其颜色
+    const commonSubjects = [
+      { name: '语文', code: 'CHIN', color: '#f5222d', description: '语言文学基础课程' },
+      { name: '数学', code: 'MATH', color: '#52c41a', description: '数学基础与应用' },
+      { name: '英语', code: 'ENG', color: '#722ed1', description: '英语语言学习' },
+      { name: '物理', code: 'PHY', color: '#eb2f96', description: '物理学基础与实验' },
+      { name: '化学', code: 'CHEM', color: '#fa8c16', description: '化学原理与实验' },
+      { name: '生物', code: 'BIO', color: '#13c2c2', description: '生物学与生命科学' },
+      { name: '历史', code: 'HIST', color: '#faad14', description: '历史发展与文明演进' },
+      { name: '地理', code: 'GEO', color: '#cf1322', description: '地理环境与人文地理' },
+      { name: '政治', code: 'POL', color: '#2f54eb', description: '政治理论与思想教育' },
+      { name: '信息技术', code: 'IT', color: '#08979c', description: '计算机与信息技术基础' },
+      { name: '美术', code: 'ART', color: '#ff7a45', description: '美术基础与创作' },
+      { name: '音乐', code: 'MUS', color: '#9254de', description: '音乐鉴赏与表演' },
+      { name: '体育', code: 'PE', color: '#389e0d', description: '体育运动与健康' },
+      { name: '心理学', code: 'PSY', color: '#7cb305', description: '心理健康与发展' }
+    ];
+    
+    // 首先检查color字段是否存在
+    const tableInfo = await sequelize.query(
+      "PRAGMA table_info('subjects');",
+      { type: sequelize.QueryTypes.SELECT, transaction }
+    );
+    
+    const hasColorColumn = tableInfo.some(column => column.name === 'color');
+    
+    // 如果不存在color字段，添加该字段
+    if (!hasColorColumn) {
+      console.log('添加color字段到subjects表...');
+      await sequelize.query(
+        "ALTER TABLE subjects ADD COLUMN color TEXT;",
+        { transaction }
+      );
+    }
+    
+    // 遍历学科列表，检查是否存在，不存在则创建，存在则更新颜色
+    for (const subjectData of commonSubjects) {
+      const [subject, created] = await Subject.findOrCreate({
+        where: { name: subjectData.name },
+        defaults: {
+          ...subjectData,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        transaction
+      });
+      
+      if (!created) {
+        // 如果学科已存在，更新其属性（只更新颜色和描述，不更新代码，避免冲突）
+        await subject.update({ 
+          color: subjectData.color,
+          description: subjectData.description,
+          updatedAt: new Date()
+        }, { transaction });
+        console.log(`更新学科: ${subjectData.name}, 颜色: ${subjectData.color}`);
+      } else {
+        console.log(`创建新学科: ${subjectData.name}, 颜色: ${subjectData.color}`);
+      }
+    }
+    
+    // 提交事务
+    await transaction.commit();
+    console.log('基础学科数据添加完成');
+    return true;
+  } catch (error) {
+    // 发生错误时回滚事务
+    await transaction.rollback();
+    console.error('基础学科数据添加失败:', error);
+    throw error;
+  }
+}
+
+module.exports = addBasicSubjects; 

@@ -1,0 +1,170 @@
+const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
+
+/**
+ * 添加学科颜色字段并更新学科数据
+ */
+async function addSubjectsColor() {
+  console.log('开始执行学科颜色字段添加与数据更新...');
+  
+  // 数据库文件路径
+  const dbPath = path.resolve(__dirname, '../../school_management.sqlite');
+  console.log(`数据库路径: ${dbPath}`);
+  
+  return new Promise((resolve, reject) => {
+    // 连接数据库
+    const db = new sqlite3.Database(dbPath, (err) => {
+      if (err) {
+        console.error('连接数据库失败:', err.message);
+        reject(err);
+        return;
+      }
+      console.log('成功连接到数据库');
+      
+      // 开始事务
+      db.run('BEGIN TRANSACTION', (err) => {
+        if (err) {
+          console.error('开始事务失败:', err.message);
+          reject(err);
+          return;
+        }
+        
+        // 1. 检查color字段是否存在，如果不存在则添加
+        db.all("PRAGMA table_info(subjects);", [], (err, rows) => {
+          if (err) {
+            console.error('获取表信息失败:', err.message);
+            db.run('ROLLBACK');
+            reject(err);
+            return;
+          }
+          
+          const hasColorColumn = rows.some(row => row.name === 'color');
+          
+          if (!hasColorColumn) {
+            console.log('添加color字段到subjects表...');
+            db.run("ALTER TABLE subjects ADD COLUMN color TEXT;", [], (err) => {
+              if (err) {
+                console.error('添加color字段失败:', err.message);
+                db.run('ROLLBACK');
+                reject(err);
+                return;
+              }
+              insertOrUpdateSubjects();
+            });
+          } else {
+            console.log('color字段已存在，继续更新数据...');
+            insertOrUpdateSubjects();
+          }
+        });
+        
+        // 2. 更新现有学科并添加新学科
+        function insertOrUpdateSubjects() {
+          // 常见学科数据
+          const subjects = [
+            { name: '语文', code: 'CHIN', color: '#f5222d', description: '语言文学基础课程' },
+            { name: '数学', code: 'MATH', color: '#52c41a', description: '数学基础与应用' },
+            { name: '英语', code: 'ENG', color: '#722ed1', description: '英语语言学习' },
+            { name: '物理', code: 'PHY', color: '#eb2f96', description: '物理学基础与实验' },
+            { name: '化学', code: 'CHEM', color: '#fa8c16', description: '化学原理与实验' },
+            { name: '生物', code: 'BIO', color: '#13c2c2', description: '生物学与生命科学' },
+            { name: '历史', code: 'HIST', color: '#faad14', description: '历史发展与文明演进' },
+            { name: '地理', code: 'GEO', color: '#cf1322', description: '地理环境与人文地理' },
+            { name: '政治', code: 'POL', color: '#2f54eb', description: '政治理论与思想教育' },
+            { name: '信息技术', code: 'IT', color: '#08979c', description: '计算机与信息技术基础' },
+            { name: '美术', code: 'ART', color: '#ff7a45', description: '美术基础与创作' },
+            { name: '音乐', code: 'MUS', color: '#9254de', description: '音乐鉴赏与表演' },
+            { name: '体育', code: 'PE', color: '#389e0d', description: '体育运动与健康' },
+            { name: '心理学', code: 'PSY', color: '#7cb305', description: '心理健康与发展' },
+            // 保留原有学科数据
+            { name: '计算机科学', code: 'CS', color: '#0958d9', description: '计算机科学与编程' },
+            // 更新物理学的数据
+            { name: '物理学', code: 'PHYS', color: '#eb2f96', description: '物理相关课程' }
+          ];
+          
+          let processed = 0;
+          const now = new Date().toISOString();
+          
+          subjects.forEach((subject) => {
+            // 先检查学科是否存在
+            db.get('SELECT id FROM subjects WHERE name = ?', [subject.name], (err, row) => {
+              if (err) {
+                console.error(`查询学科 ${subject.name} 失败:`, err.message);
+                return;
+              }
+              
+              if (row) {
+                // 存在则更新
+                db.run(
+                  'UPDATE subjects SET code = ?, color = ?, description = ?, updated_at = ? WHERE id = ?',
+                  [subject.code, subject.color, subject.description, now, row.id],
+                  function(err) {
+                    if (err) {
+                      console.error(`更新学科 ${subject.name} 失败:`, err.message);
+                      return;
+                    }
+                    console.log(`更新学科: ${subject.name}, 颜色: ${subject.color}`);
+                    checkCompletion();
+                  }
+                );
+              } else {
+                // 不存在则插入
+                db.run(
+                  'INSERT INTO subjects (name, code, color, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+                  [subject.name, subject.code, subject.color, subject.description, now, now],
+                  function(err) {
+                    if (err) {
+                      console.error(`插入学科 ${subject.name} 失败:`, err.message);
+                      return;
+                    }
+                    console.log(`创建新学科: ${subject.name}, 颜色: ${subject.color}`);
+                    checkCompletion();
+                  }
+                );
+              }
+            });
+          });
+          
+          function checkCompletion() {
+            processed++;
+            if (processed === subjects.length) {
+              // 所有学科处理完成，提交事务
+              db.run('COMMIT', (err) => {
+                if (err) {
+                  console.error('提交事务失败:', err.message);
+                  db.run('ROLLBACK');
+                  reject(err);
+                  return;
+                }
+                
+                console.log('学科数据更新完成，提交事务成功');
+                db.close((err) => {
+                  if (err) {
+                    console.error('关闭数据库连接失败:', err.message);
+                  } else {
+                    console.log('数据库连接已关闭');
+                  }
+                  resolve(true);
+                });
+              });
+            }
+          }
+        }
+      });
+    });
+  });
+}
+
+// 如果直接运行此文件，执行迁移
+if (require.main === module) {
+  addSubjectsColor()
+    .then(() => {
+      console.log('学科颜色字段和数据更新成功');
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error('学科颜色字段和数据更新失败:', err);
+      process.exit(1);
+    });
+}
+
+module.exports = addSubjectsColor; 

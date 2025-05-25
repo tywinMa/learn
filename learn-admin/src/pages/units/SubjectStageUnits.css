@@ -1,0 +1,231 @@
+/* 拖拽相关样式 */
+.draggable-course {
+  opacity: 1;
+  cursor: move;
+  padding: 12px;
+  margin: 8px 0;
+  background-color: #fff;
+  border-radius: 6px;
+  border: 1px solid #f0f0f0;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  transition: all 0.2s;
+}
+
+.draggable-course.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+  box-shadow: 0 0 12px rgba(0,0,0,0.1);
+}
+
+.draggable-course.not-draggable {
+  cursor: default;
+}
+
+.draggable-course:hover {
+  background-color: #f9f9f9;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+  transform: translateY(-2px);
+}
+
+/* 学科选择器样式 */
+.subject-selector {
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.subject-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 15px;
+  margin-right: 12px;
+  margin-bottom: 12px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.03);
+}
+
+.subject-tag:hover {
+  border-color: transparent;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+.subject-tag-selected {
+  font-weight: 600;
+  border-width: 0;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.subject-tag-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 10px;
+}
+
+/* 格子相关样式 */
+.course-grid {
+  background-color: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 20px;
+  height: 320px;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.course-grid.over {
+  background-color: #f0f5ff;
+  border: 1px solid #1890ff;
+  box-shadow: 0 0 12px rgba(24,144,255,0.5);
+}
+
+.grid-cell-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.grid-cell-title {
+  font-weight: bold;
+  font-size: 16px;
+  letter-spacing: 0.5px;
+  position: relative;
+  padding-left: 10px;
+}
+
+.grid-cell-courses {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 120px;
+  padding-right: 4px;
+}
+
+.grid-cell-courses::-webkit-scrollbar {
+  width: 4px;
+}
+
+.grid-cell-courses::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.grid-cell-courses::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 4px;
+}
+
+.grid-cell-courses::-webkit-scrollbar-thumb:hover {
+  background: #ccc;
+}
+
+.grid-cell-empty {
+  color: #bfbfbf;
+  text-align: center;
+  padding: 32px 0;
+  font-size: 14px;
+  border: 1px dashed #e0e0e0;
+  border-radius: 6px;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.grid-cell-empty .empty-icon {
+  margin-bottom: 12px;
+}
+
+.add-grid-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f5f5f5;
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+  height: 320px;
+  min-height: 320px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.add-grid-cell:hover {
+  background-color: #f0f0f0;
+  border-color: #1890ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
+
+.add-grid-cell-content {
+  text-align: center;
+}
+
+.add-grid-cell-icon {
+  font-size: 28px;
+  color: #1677ff;
+  margin-bottom: 8px;
+}
+
+.available-courses {
+  height: 100%;
+  overflow: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+
+.available-courses .ant-card-body {
+  max-height: 600px;
+  overflow: auto;
+  padding: 16px;
+}
+
+.available-courses .ant-card-head {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 0 16px;
+}
+
+.available-courses-dropzone {
+  min-height: 320px;
+  padding: 8px 4px;
+  border-radius: 6px;
+  transition: background-color 0.3s;
+}
+
+.available-courses-dropzone.drop-over {
+  background-color: #f0f5ff;
+  border: 1px dashed #1890ff;
+}
+
+.available-courses-dropzone .ant-empty {
+  margin: 60px 0;
+}
+
+.available-courses-dropzone .ant-empty-description {
+  color: #b0b0b0;
+}
+
+/* 在拖拽模式下突出显示可放置区域的视觉提示 */
+.edit-mode .available-courses-dropzone {
+  border: 1px dashed #f0f0f0;
+}
+
+.edit-mode .available-courses-dropzone:hover {
+  background-color: #f9f9f9;
+} 
