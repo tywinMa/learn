@@ -31,6 +31,7 @@ import {
   updateExercise
 } from '../../services/exerciseService';
 import { getCourses } from '../../services/courseService';
+import { getKnowledgePointsForSelect } from '../../services/knowledgePointService';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -74,6 +75,7 @@ interface FormValues {
   options?: any;
   correctAnswer?: any;
   explanation?: string;
+  knowledgePointIds?: string[];
 }
 
 const ExerciseForm: React.FC = () => {
@@ -85,6 +87,7 @@ const ExerciseForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [courses, setCourses] = useState<any[]>([]);
+  const [knowledgePoints, setKnowledgePoints] = useState<any[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   
   // 初始化表单
@@ -101,10 +104,11 @@ const ExerciseForm: React.FC = () => {
       { content: '', isCorrect: false }
     ],
     correctAnswer: null,
-    explanation: ''
+    explanation: '',
+    knowledgePointIds: []
   };
   
-  // 获取课程列表
+  // 获取课程列表和知识点列表
   useEffect(() => {
     const fetchCourses = async () => {
       try {
@@ -114,13 +118,33 @@ const ExerciseForm: React.FC = () => {
         console.error('获取课程列表失败:', error);
       }
     };
+    
+    const fetchKnowledgePoints = async () => {
+      try {
+        const kpData = await getKnowledgePointsForSelect();
+        setKnowledgePoints(kpData);
+      } catch (error) {
+        console.error('获取知识点列表失败:', error);
+      }
+    };
+    
     fetchCourses();
+    fetchKnowledgePoints();
   }, []);
   
-  // 学科变化时过滤课程
-  const handleSubjectChange = (subject: string) => {
+  // 学科变化时过滤课程和知识点
+  const handleSubjectChange = async (subject: string) => {
     setSelectedSubject(subject);
     form.setFieldValue('unitId', ''); // 清空课程选择
+    form.setFieldValue('knowledgePointIds', []); // 清空知识点选择
+    
+    // 重新获取该学科的知识点
+    try {
+      const kpData = await getKnowledgePointsForSelect(subject);
+      setKnowledgePoints(kpData);
+    } catch (error) {
+      console.error('获取知识点列表失败:', error);
+    }
   };
   
   // 获取当前学科的课程
@@ -199,9 +223,18 @@ const ExerciseForm: React.FC = () => {
               question: exerciseData.question,
               options: exerciseData.options,
               correctAnswer: exerciseData.correctAnswer,
-              explanation: exerciseData.explanation
+              explanation: exerciseData.explanation,
+              knowledgePointIds: exerciseData.knowledgePointIds || []
             });
             setSelectedSubject(exerciseData.subject);
+            
+            // 加载该学科的知识点
+            try {
+              const kpData = await getKnowledgePointsForSelect(exerciseData.subject);
+              setKnowledgePoints(kpData);
+            } catch (error) {
+              console.error('获取知识点列表失败:', error);
+            }
           } else {
             message.error('未找到习题信息');
             navigate('/exercises');
@@ -244,7 +277,8 @@ const ExerciseForm: React.FC = () => {
         difficulty: values.difficulty,
         explanation: values.explanation || '',
         options: values.options,
-        correctAnswer: values.correctAnswer
+        correctAnswer: values.correctAnswer,
+        knowledgePointIds: values.knowledgePointIds || []
       };
       
       // 如果是选择题，从options中提取正确答案
@@ -381,6 +415,28 @@ const ExerciseForm: React.FC = () => {
               theme="snow"
               style={{ height: 150, marginBottom: 40 }}
             />
+          </Form.Item>
+          
+          <Form.Item
+            name="knowledgePointIds"
+            label="关联知识点"
+            extra="选择与此题目相关的知识点，可多选"
+          >
+            <Select
+              mode="multiple"
+              placeholder="请选择相关知识点"
+              allowClear
+              showSearch
+              filterOption={(input, option) =>
+                option?.children?.toString().toLowerCase().includes(input.toLowerCase()) || false
+              }
+            >
+              {knowledgePoints.map(kp => (
+                <Option key={kp.id} value={kp.id.toString()}>
+                  {kp.title}
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
           
           <Form.Item shouldUpdate={(prevValues, currentValues) => prevValues.type !== currentValues.type}>

@@ -22,6 +22,7 @@ const adminUnitRoutes = require('./routes/admin/unitRoutes');
 const adminExerciseRoutes = require('./routes/admin/exerciseRoutes');
 const adminUploadRoutes = require('./routes/admin/uploadRoutes');
 const adminSubjectRoutes = require('./routes/admin/subjectRoutes');
+const adminKnowledgePointRoutes = require('./routes/admin/knowledgePointRoutes');
 
 const app = express();
 const PORT = config.port;
@@ -60,6 +61,7 @@ app.use('/api/admin/units', adminUnitRoutes);
 app.use('/api/admin/exercises', adminExerciseRoutes);
 app.use('/api/admin/upload', adminUploadRoutes);
 app.use('/api/admin/subjects', adminSubjectRoutes);
+app.use('/api/admin/knowledge-points', adminKnowledgePointRoutes);
 
 // 根路由
 app.get('/', (req, res) => {

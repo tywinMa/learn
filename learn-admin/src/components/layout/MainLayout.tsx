@@ -164,6 +164,12 @@ const MainLayout: React.FC = () => {
           label: "练习题管理",
           onClick: () => navigate("/exercises"),
         },
+        {
+          key: "knowledge-points",
+          icon: <ReadOutlined />,
+          label: "知识点管理",
+          onClick: () => navigate("/knowledge-points"),
+        },
       ],
     },
     {
@@ -216,6 +222,7 @@ const MainLayout: React.FC = () => {
     if (path.includes("subjects")) return ["course-group", "subjects"];
     if (path.includes("units")) return ["course-group", "units"];
     if (path.includes("exercises")) return ["course-group", "exercises"];
+    if (path.includes("knowledge-points")) return ["course-group", "knowledge-points"];
     if (path.includes("students")) return ["students"];
     if (path.includes("settings")) return ["settings"];
     return ["dashboard"];
@@ -229,6 +236,7 @@ const MainLayout: React.FC = () => {
     if (path.includes("subjects")) return "学科管理";
     if (path.includes("units")) return "单元管理";
     if (path.includes("exercises")) return "练习题管理";
+    if (path.includes("knowledge-points")) return "知识点管理";
     if (path.includes("students")) return "学生管理";
     if (path.includes("settings")) return "系统设置";
     return "仪表盘";
