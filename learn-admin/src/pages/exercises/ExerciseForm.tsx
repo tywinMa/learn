@@ -220,6 +220,31 @@ const ExerciseForm: React.FC = () => {
         try {
           const exerciseData = await getExerciseById(id);
           if (exerciseData) {
+            // 处理选项数据格式转换
+            let processedOptions: any = exerciseData.options;
+            if (exerciseData.type === 'choice' && Array.isArray(exerciseData.options)) {
+              // 将字符串数组转换为对象数组格式
+              processedOptions = exerciseData.options.map((optionText: string) => ({
+                content: optionText,
+                isCorrect: false // 初始化为false，后续根据correctAnswer设置
+              }));
+              
+              // 根据correctAnswer设置正确答案
+              if (Array.isArray(exerciseData.correctAnswer)) {
+                exerciseData.correctAnswer.forEach((correctOption: any) => {
+                  const correctIndex = exerciseData.options.findIndex((option: string) => option === String(correctOption));
+                  if (correctIndex >= 0 && processedOptions[correctIndex]) {
+                    processedOptions[correctIndex].isCorrect = true;
+                  }
+                });
+              } else if (typeof exerciseData.correctAnswer === 'number') {
+                // 如果correctAnswer是数字索引
+                if (processedOptions[exerciseData.correctAnswer]) {
+                  processedOptions[exerciseData.correctAnswer].isCorrect = true;
+                }
+              }
+            }
+
             // 设置表单数据
             form.setFieldsValue({
               subject: exerciseData.subject,
@@ -228,7 +253,7 @@ const ExerciseForm: React.FC = () => {
               type: exerciseData.type,
               difficulty: exerciseData.difficulty,
               question: exerciseData.question,
-              options: exerciseData.options,
+              options: processedOptions,
               correctAnswer: exerciseData.correctAnswer,
               explanation: exerciseData.explanation,
               knowledgePointIds: exerciseData.knowledgePointIds || []

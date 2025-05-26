@@ -302,6 +302,23 @@ exports.createExercise = async (req, res) => {
       exerciseId = `${unitId}-${nextNumber}`;
     }
     
+    // 处理选择题的选项格式
+    let processedOptions = options;
+    if (type === 'choice' && Array.isArray(options)) {
+      processedOptions = options.map(option => {
+        if (typeof option === 'object' && option.content !== undefined) {
+          // 如果是对象格式 {content: "选项A", isCorrect: false}，提取content
+          return option.content;
+        } else if (typeof option === 'string') {
+          // 如果已经是字符串，直接使用
+          return option;
+        } else {
+          // 如果是其他格式，转换为字符串
+          return String(option);
+        }
+      });
+    }
+
     // 创建练习题数据
     const exerciseData = {
       id: exerciseId,
@@ -309,7 +326,7 @@ exports.createExercise = async (req, res) => {
       unitId,
       title,
       question,
-      options: options || null,
+      options: processedOptions || null,
       correctAnswer: correctAnswer || null,
       explanation: explanation || null,
       type: type || 'choice',
@@ -386,10 +403,30 @@ exports.updateExercise = async (req, res) => {
       'knowledgePointIds', 'isAI'
     ];
     
-    // 只更新提供的字段
+    // 只更新提供的字段，并进行数据格式处理
     fields.forEach(field => {
       if (req.body[field] !== undefined) {
-        updateData[field] = req.body[field];
+        if (field === 'options' && req.body.type === 'choice') {
+          // 对选择题的选项进行格式处理
+          if (Array.isArray(req.body[field])) {
+            updateData[field] = req.body[field].map(option => {
+              if (typeof option === 'object' && option.content !== undefined) {
+                // 如果是对象格式 {content: "选项A", isCorrect: false}，提取content
+                return option.content;
+              } else if (typeof option === 'string') {
+                // 如果已经是字符串，直接使用
+                return option;
+              } else {
+                // 如果是其他格式，转换为字符串
+                return String(option);
+              }
+            });
+          } else {
+            updateData[field] = req.body[field];
+          }
+        } else {
+          updateData[field] = req.body[field];
+        }
       }
     });
     

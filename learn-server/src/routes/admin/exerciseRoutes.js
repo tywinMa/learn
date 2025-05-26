@@ -17,6 +17,7 @@ const mockUser = (req, res, next) => {
 router.post('/test', mockUser, exerciseController.createExercise);
 router.get('/test', exerciseController.getAllExercises);
 router.get('/test/:id', exerciseController.getExerciseById);
+router.put('/test/:id', mockUser, exerciseController.updateExercise);
 
 // 获取所有练习题
 router.get('/', authenticate, exerciseController.getAllExercises);

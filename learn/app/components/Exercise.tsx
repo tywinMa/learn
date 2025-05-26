@@ -455,32 +455,44 @@ export const Exercise = ({
         return (
           <>
             {Array.isArray(exercise.options) ? (
-              exercise.options.map((option: string, index: number) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.optionButton,
-                    localSelection === index && styles.selectedOption,
-                    isAnswered && showAnswers && index === exercise.correctAnswer && styles.correctOption,
-                  ]}
-                  onPress={() => handleChoiceSelection(index)}
-                  disabled={isAnsweredLocally || isAnswered}
-                >
-                  <Text style={styles.optionText}>{option}</Text>
-                  {localSelection === index && !isAnswered && (
-                    <Ionicons name="radio-button-on" size={20} color="#5EC0DE" style={styles.icon} />
-                  )}
-                  {isAnswered && showAnswers && index === exercise.correctAnswer && (
-                    <Ionicons name="checkmark-circle" size={24} color="green" style={styles.icon} />
-                  )}
-                  {isAnswered &&
-                    showAnswers &&
-                    userAnswers[exercise.id] === index &&
-                    index !== exercise.correctAnswer && (
-                      <Ionicons name="close-circle" size={24} color="red" style={styles.icon} />
+              exercise.options.map((option: any, index: number) => {
+                // 处理不同格式的选项数据
+                let optionText: string;
+                if (typeof option === 'string') {
+                  optionText = option;
+                } else if (typeof option === 'object' && option.content) {
+                  optionText = option.content;
+                } else {
+                  optionText = String(option);
+                }
+                
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.optionButton,
+                      localSelection === index && styles.selectedOption,
+                      isAnswered && showAnswers && index === exercise.correctAnswer && styles.correctOption,
+                    ]}
+                    onPress={() => handleChoiceSelection(index)}
+                    disabled={isAnsweredLocally || isAnswered}
+                  >
+                    <Text style={styles.optionText}>{optionText}</Text>
+                    {localSelection === index && !isAnswered && (
+                      <Ionicons name="radio-button-on" size={20} color="#5EC0DE" style={styles.icon} />
                     )}
-                </TouchableOpacity>
-              ))
+                    {isAnswered && showAnswers && index === exercise.correctAnswer && (
+                      <Ionicons name="checkmark-circle" size={24} color="green" style={styles.icon} />
+                    )}
+                    {isAnswered &&
+                      showAnswers &&
+                      userAnswers[exercise.id] === index &&
+                      index !== exercise.correctAnswer && (
+                        <Ionicons name="close-circle" size={24} color="red" style={styles.icon} />
+                      )}
+                  </TouchableOpacity>
+                );
+              })
             ) : (
               <Text style={styles.errorText}>选项数据格式错误</Text>
             )}
