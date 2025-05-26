@@ -4,9 +4,30 @@ const {
   Exercise,
   AnswerRecord,
   KnowledgePoint,
+  Student,
   sequelize,
 } = require("../models");
 const { Op } = require("sequelize");
+
+/**
+ * 获取学生的数字ID
+ * @param {string} userId - 字符串形式的学生ID（如"student1"）
+ * @returns {number|null} - 数字形式的学生ID，如果未找到则返回null
+ */
+const getStudentId = async (userId) => {
+  if (!userId) return null;
+  
+  try {
+    const student = await Student.findOne({
+      where: { studentId: userId },
+      attributes: ['id']
+    });
+    return student ? student.id : null;
+  } catch (error) {
+    console.error('查找学生ID失败:', error);
+    return null;
+  }
+};
 
 // 获取所有练习题单元
 router.get("/", async (req, res) => {
@@ -70,26 +91,32 @@ router.get("/:subject/:unitId", async (req, res) => {
     // 如果需要过滤已完成的题目，且提供了用户ID
     let completedExerciseIds = [];
     if (userId) {
-      // 使用AnswerRecord查询已完成的题目
-      const completedExercises = await AnswerRecord.findAll({
-        where: {
-          userId,
-          exerciseId: { [Op.like]: `${formattedUnitId}-%` },
-          isCorrect: true
-        },
-        attributes: ['exerciseId'],
-        raw: true
-      });
+      // 获取学生的数字ID
+      const studentId = await getStudentId(userId);
+      if (studentId) {
+        // 使用AnswerRecord查询已完成的题目
+        const completedExercises = await AnswerRecord.findAll({
+          where: {
+            studentId,
+            exerciseId: { [Op.like]: `${formattedUnitId}-%` },
+            isCorrect: true
+          },
+          attributes: ['exerciseId'],
+          raw: true
+        });
 
-      // 提取已完成的练习题ID数组
-      completedExerciseIds = completedExercises.map(
-        (record) => record.exerciseId
-      );
-      console.log(
-        `用户 ${userId} 已完成的练习题: ${
-          completedExerciseIds.join(", ") || "无"
-        }`
-      );
+        // 提取已完成的练习题ID数组
+        completedExerciseIds = completedExercises.map(
+          (record) => record.exerciseId
+        );
+        console.log(
+          `用户 ${userId} (studentId: ${studentId}) 已完成的练习题: ${
+            completedExerciseIds.join(", ") || "无"
+          }`
+        );
+      } else {
+        console.warn(`未找到用户: ${userId}`);
+      }
     }
 
     // 查询练习题
@@ -239,26 +266,32 @@ router.get("/:unitId", async (req, res) => {
     // 如果需要过滤已完成的题目，且提供了用户ID
     let completedExerciseIds = [];
     if (userId) {
-      // 查找用户已正确完成的练习题ID
-      const completedExercises = await AnswerRecord.findAll({
-        where: {
-          userId,
-          exerciseId: { [Op.like]: `${unitId}-%` }, // 直接使用unitId，假定已包含学科前缀
-          isCorrect: true,
-        },
-        attributes: ["exerciseId"],
-        raw: true,
-      });
+      // 获取学生的数字ID
+      const studentId = await getStudentId(userId);
+      if (studentId) {
+        // 查找用户已正确完成的练习题ID
+        const completedExercises = await AnswerRecord.findAll({
+          where: {
+            studentId,
+            exerciseId: { [Op.like]: `${unitId}-%` }, // 直接使用unitId，假定已包含学科前缀
+            isCorrect: true,
+          },
+          attributes: ["exerciseId"],
+          raw: true,
+        });
 
-      // 提取已完成的练习题ID数组
-      completedExerciseIds = completedExercises.map(
-        (record) => record.exerciseId
-      );
-      console.log(
-        `用户 ${userId} 已完成的练习题: ${
-          completedExerciseIds.join(", ") || "无"
-        }`
-      );
+        // 提取已完成的练习题ID数组
+        completedExerciseIds = completedExercises.map(
+          (record) => record.exerciseId
+        );
+        console.log(
+          `用户 ${userId} (studentId: ${studentId}) 已完成的练习题: ${
+            completedExerciseIds.join(", ") || "无"
+          }`
+        );
+      } else {
+        console.warn(`未找到用户: ${userId}`);
+      }
     }
 
     // 查询练习题

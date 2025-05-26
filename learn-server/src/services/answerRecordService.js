@@ -203,8 +203,7 @@ class AnswerRecordService {
     const wrongAnswers = await AnswerRecord.findAll({
       where: whereClause,
       include: [{
-        model: Exercise,
-        as: 'exercise'
+        model: Exercise
       }],
       order: [['submitTime', 'DESC']]
     });
@@ -331,32 +330,72 @@ class AnswerRecordService {
    * 获取学习模式分析
    */
   static async getLearningPatternAnalysis(studentId) {
-    // 时间模式分析
-    const timePattern = await AnswerRecord.findAll({
-      where: { studentId: studentId },
-      attributes: [
-        [sequelize.fn('HOUR', sequelize.col('submitTime')), 'hour'],
-        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
-      ],
-      group: [sequelize.fn('HOUR', sequelize.col('submitTime'))],
-      order: [[sequelize.fn('HOUR', sequelize.col('submitTime')), 'ASC']]
-    });
+    try {
+      // 获取所有答题记录
+      const allRecords = await AnswerRecord.findAll({
+        where: { studentId: studentId },
+        attributes: ['submitTime', 'practiceMode', 'responseTime'],
+        order: [['submitTime', 'ASC']]
+      });
 
-    // 练习模式分析
-    const practiceModeAnalysis = await AnswerRecord.findAll({
-      where: { studentId: studentId },
-      attributes: [
-        'practiceMode',
-        [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
-        [sequelize.fn('AVG', sequelize.col('responseTime')), 'avgResponseTime']
-      ],
-      group: ['practiceMode']
-    });
+      if (allRecords.length === 0) {
+        return {
+          timePattern: [],
+          practiceModeAnalysis: []
+        };
+      }
 
-    return {
-      timePattern,
-      practiceModeAnalysis
-    };
+      // 时间模式分析（按小时统计）
+      const hourStats = {};
+      allRecords.forEach(record => {
+        const hour = new Date(record.submitTime).getHours();
+        hourStats[hour] = (hourStats[hour] || 0) + 1;
+      });
+
+      const timePattern = Object.entries(hourStats)
+        .map(([hour, count]) => ({ hour: parseInt(hour), count }))
+        .sort((a, b) => a.hour - b.hour);
+
+      // 练习模式分析
+      const modeStats = {};
+      const modeResponseTimes = {};
+      
+      allRecords.forEach(record => {
+        const mode = record.practiceMode || 'normal';
+        modeStats[mode] = (modeStats[mode] || 0) + 1;
+        
+        if (record.responseTime) {
+          if (!modeResponseTimes[mode]) {
+            modeResponseTimes[mode] = [];
+          }
+          modeResponseTimes[mode].push(record.responseTime);
+        }
+      });
+
+      const practiceModeAnalysis = Object.entries(modeStats).map(([mode, count]) => {
+        const responseTimes = modeResponseTimes[mode] || [];
+        const avgResponseTime = responseTimes.length > 0 
+          ? responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length 
+          : 0;
+        
+        return {
+          practiceMode: mode,
+          count,
+          avgResponseTime: Math.round(avgResponseTime)
+        };
+      });
+
+      return {
+        timePattern,
+        practiceModeAnalysis
+      };
+    } catch (error) {
+      console.error('获取学习模式分析失败:', error);
+      return {
+        timePattern: [],
+        practiceModeAnalysis: []
+      };
+    }
   }
 
   /**

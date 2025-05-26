@@ -10,9 +10,22 @@ const { AnswerRecord, Exercise, UnitProgress, Student, sequelize } = require('..
  */
 router.post('/:studentId/submit', async (req, res) => {
   try {
-    const { studentId } = req.params;
+    const { studentId: studentIdParam } = req.params;
+    
+    // 查找学生记录，获取数字ID
+    const student = await Student.findOne({
+      where: { studentId: studentIdParam }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: `未找到学生: ${studentIdParam}`
+      });
+    }
+
     const answerData = {
-      userId: studentId, // AnswerRecordService中的参数仍然叫userId
+      userId: student.id, // 传递数字ID给service
       ...req.body
     };
 
@@ -36,15 +49,27 @@ router.post('/:studentId/submit', async (req, res) => {
  */
 router.get('/:studentId/wrong-exercises', async (req, res) => {
   try {
-    const { studentId } = req.params;
+    const { studentId: studentIdParam } = req.params;
     const { subject, unitId, exerciseType } = req.query;
+
+    // 查找学生记录，获取数字ID
+    const student = await Student.findOne({
+      where: { studentId: studentIdParam }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: `未找到学生: ${studentIdParam}`
+      });
+    }
 
     const filters = {};
     if (subject) filters.subject = subject;
     if (unitId) filters.unitId = unitId;
     if (exerciseType) filters.exerciseType = exerciseType;
 
-    const wrongAnswers = await AnswerRecordService.getWrongAnswers(studentId, filters);
+    const wrongAnswers = await AnswerRecordService.getWrongAnswers(student.id, filters);
 
     res.json({
       success: true,
@@ -65,9 +90,21 @@ router.get('/:studentId/wrong-exercises', async (req, res) => {
  */
 router.delete('/:studentId/wrong-exercises/:exerciseId', async (req, res) => {
   try {
-    const { studentId, exerciseId } = req.params;
+    const { studentId: studentIdParam, exerciseId } = req.params;
 
-    const result = await AnswerRecordService.removeFromWrongAnswers(studentId, exerciseId);
+    // 查找学生记录，获取数字ID
+    const student = await Student.findOne({
+      where: { studentId: studentIdParam }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: `未找到学生: ${studentIdParam}`
+      });
+    }
+
+    const result = await AnswerRecordService.removeFromWrongAnswers(student.id, exerciseId);
 
     res.json({
       success: true,
@@ -89,10 +126,22 @@ router.delete('/:studentId/wrong-exercises/:exerciseId', async (req, res) => {
  */
 router.get('/:studentId/stats', async (req, res) => {
   try {
-    const { studentId } = req.params;
+    const { studentId: studentIdParam } = req.params;
     const { timeRange = 30 } = req.query;
 
-    const stats = await AnswerRecordService.getStudentLearningStats(studentId, parseInt(timeRange));
+    // 查找学生记录，获取数字ID
+    const student = await Student.findOne({
+      where: { studentId: studentIdParam }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: `未找到学生: ${studentIdParam}`
+      });
+    }
+
+    const stats = await AnswerRecordService.getStudentLearningStats(student.id, parseInt(timeRange));
 
     res.json({
       success: true,
@@ -113,9 +162,21 @@ router.get('/:studentId/stats', async (req, res) => {
  */
 router.get('/:studentId/pattern-analysis', async (req, res) => {
   try {
-    const { studentId } = req.params;
+    const { studentId: studentIdParam } = req.params;
 
-    const analysis = await AnswerRecordService.getLearningPatternAnalysis(studentId);
+    // 查找学生记录，获取数字ID
+    const student = await Student.findOne({
+      where: { studentId: studentIdParam }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: `未找到学生: ${studentIdParam}`
+      });
+    }
+
+    const analysis = await AnswerRecordService.getLearningPatternAnalysis(student.id);
 
     res.json({
       success: true,
@@ -136,7 +197,7 @@ router.get('/:studentId/pattern-analysis', async (req, res) => {
  */
 router.get('/:studentId/history', async (req, res) => {
   try {
-    const { studentId } = req.params;
+    const { studentId: studentIdParam } = req.params;
     const { 
       subject, 
       unitId, 
@@ -147,7 +208,19 @@ router.get('/:studentId/history', async (req, res) => {
       offset = 0 
     } = req.query;
 
-    const whereClause = { studentId };
+    // 查找学生记录，获取数字ID
+    const student = await Student.findOne({
+      where: { studentId: studentIdParam }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: `未找到学生: ${studentIdParam}`
+      });
+    }
+
+    const whereClause = { studentId: student.id };
     
     if (subject) whereClause.subject = subject;
     if (unitId) whereClause.unitId = unitId;
@@ -195,14 +268,26 @@ router.get('/:studentId/history', async (req, res) => {
  */
 router.get('/:studentId/detailed-analysis', async (req, res) => {
   try {
-    const { studentId } = req.params;
+    const { studentId: studentIdParam } = req.params;
     const { subject, timeRange = 30 } = req.query;
+
+    // 查找学生记录，获取数字ID
+    const student = await Student.findOne({
+      where: { studentId: studentIdParam }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: `未找到学生: ${studentIdParam}`
+      });
+    }
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - parseInt(timeRange));
 
     const whereClause = {
-      studentId,
+      studentId: student.id,
       submitTime: {
         [Op.gte]: startDate
       }
@@ -290,7 +375,21 @@ router.get('/:studentId/detailed-analysis', async (req, res) => {
  */
 router.get('/:studentId/progress/:unitId', async (req, res) => {
   try {
-    const { studentId, unitId } = req.params;
+    const { studentId: studentIdParam, unitId } = req.params;
+
+    // 查找学生记录，获取数字ID
+    const student = await Student.findOne({
+      where: { studentId: studentIdParam }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: `未找到学生: ${studentIdParam}`
+      });
+    }
+
+    const studentId = student.id;
 
     // 1. 优先查询UnitProgress表
     const unitProgressEntry = await UnitProgress.findOne({ 
@@ -461,8 +560,22 @@ router.get('/:studentId/progress/:unitId', async (req, res) => {
  */
 router.post('/:studentId/progress/batch', async (req, res) => {
   try {
-    const { studentId } = req.params;
+    const { studentId: studentIdParam } = req.params;
     const { unitIds } = req.body;
+
+    // 查找学生记录，获取数字ID
+    const student = await Student.findOne({
+      where: { studentId: studentIdParam }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: `未找到学生: ${studentIdParam}`
+      });
+    }
+
+    const studentId = student.id;
 
     if (!unitIds || !Array.isArray(unitIds)) {
       return res.status(400).json({
