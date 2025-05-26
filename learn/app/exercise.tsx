@@ -14,7 +14,7 @@ import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { USER_ID, getUserUnitProgress, type UnitProgress } from "./services/progressService";
+import { getCurrentStudentIdForProgress, getStudentUnitProgress, type UnitProgress } from "./services/progressService";
 // 导入工具函数，添加新的 processAnswer 函数
 import { processAnswer } from "./utils/exerciseUtils";
 import { MasteryIndicator } from "./components/MasteryIndicator";
@@ -338,7 +338,8 @@ export default function PracticeScreen() {
       }
 
       // 构建API URL，直接使用lessonId
-      const apiUrl = `${API_BASE_URL}/api/exercises/${lessonId}?userId=${USER_ID}&filterCompleted=true`;
+      const studentId = await getCurrentStudentIdForProgress();
+      const apiUrl = `${API_BASE_URL}/api/exercises/${lessonId}?userId=${studentId}&filterCompleted=true`;
 
       console.log("请求练习题URL:", apiUrl);
 
@@ -368,7 +369,7 @@ export default function PracticeScreen() {
           setPracticeStartTime(Date.now());
 
           // 调用API增加练习次数
-          const activityApiUrl = `${API_BASE_URL}/api/answer-records/${USER_ID}/increment-practice/${lessonId}`;
+          const activityApiUrl = `${API_BASE_URL}/api/answer-records/${studentId}/increment-practice/${lessonId}`;
 
           const activityResponse = await fetch(activityApiUrl, {
             method: "POST",
@@ -386,7 +387,7 @@ export default function PracticeScreen() {
 
             // 获取并保存当前单元的进度数据
             try {
-              const progress = await getUserUnitProgress(lessonId);
+              const progress = await getStudentUnitProgress(lessonId);
               setUnitProgress(progress);
               console.log("获取到单元进度:", progress);
             } catch (progressErr) {
@@ -410,9 +411,16 @@ export default function PracticeScreen() {
     }
   };
 
+  // 存储学生ID用于清理函数
+  const [currentStudentId, setCurrentStudentId] = useState<string>("");
+
   // 初始加载
   useEffect(() => {
     if (lessonId) {
+      // 获取并保存学生ID
+      getCurrentStudentIdForProgress().then((id) => {
+        setCurrentStudentId(id);
+      });
       fetchExercises();
     } else {
       setError("无法加载练习题：缺少单元ID");
@@ -423,11 +431,11 @@ export default function PracticeScreen() {
     return () => {
       const totalPracticeTime = Math.floor((Date.now() - practiceStartTime) / 1000);
       // 仅当练习时间超过5秒时才记录
-      if (totalPracticeTime > 5 && lessonId) {
+      if (totalPracticeTime > 5 && lessonId && currentStudentId) {
         console.log(`用户练习了 ${totalPracticeTime} 秒`);
 
         // 发送最终练习时间统计
-        fetch(`${API_BASE_URL}/api/answer-records/${USER_ID}/increment-practice/${lessonId}`, {
+        fetch(`${API_BASE_URL}/api/answer-records/${currentStudentId}/increment-practice/${lessonId}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -441,7 +449,7 @@ export default function PracticeScreen() {
         });
       }
     };
-  }, [lessonId]);
+  }, [lessonId, currentStudentId]);
 
   // 计算正确答题数
   const getCorrectCount = () => {
@@ -563,7 +571,8 @@ export default function PracticeScreen() {
   const submitAnswerToServer = async (exerciseId: string, isCorrect: boolean) => {
     try {
       // 使用新的AnswerRecord API端点
-      const apiUrl = `${API_BASE_URL}/api/answer-records/${USER_ID}/submit`;
+      const studentId = await getCurrentStudentIdForProgress();
+      const apiUrl = `${API_BASE_URL}/api/answer-records/${studentId}/submit`;
       const currentExercise = exercises.find(ex => ex.id === exerciseId);
       
       // 计算响应时间 (秒)
@@ -732,7 +741,7 @@ export default function PracticeScreen() {
                 },
                 body: JSON.stringify({
                   unitIds: unitsToUnlock,
-                  userId: USER_ID,
+                  userId: currentStudentId,
                 }),
               });
 
@@ -763,7 +772,8 @@ export default function PracticeScreen() {
   // 保留这个函数以备后用，但在handleExit中不再调用它
   const awardPoints = async (points: number) => {
     try {
-      const apiUrl = `${API_BASE_URL}/api/users/${USER_ID}/points/add`;
+      const studentId = await getCurrentStudentIdForProgress();
+      const apiUrl = `${API_BASE_URL}/api/students/${studentId}/points/add`;
 
       const response = await fetch(apiUrl, {
         method: "POST",

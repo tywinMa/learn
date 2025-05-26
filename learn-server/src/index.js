@@ -4,19 +4,22 @@ const morgan = require('morgan');
 const path = require('path');
 const config = require('./config');
 const { testConnection } = require('./config/database');
+const { syncDatabase } = require('./models');
 
 // 导入 app 端路由
 const exercisesRoutes = require('./routes/exercises');
-const userPointsRoutes = require('./routes/userPoints');
+const studentPointsRoutes = require('./routes/studentPoints');
 const unitContentRoutes = require('./routes/unitContent');
 const subjectsRoutes = require('./routes/subjects');
 const unitsRouter = require('./routes/units');
 const knowledgePointsRoutes = require('./routes/knowledgePoints');
 const answerRecordsRoutes = require('./routes/answerRecords');
+const studentsRoutes = require('./routes/students');
 
 // 导入 admin 端路由
 const adminAuthRoutes = require('./routes/admin/authRoutes');
 const adminUserRoutes = require('./routes/admin/userRoutes');
+const adminStudentRoutes = require('./routes/admin/studentRoutes');
 const adminCourseRoutes = require('./routes/admin/courseRoutes');
 const adminUnitRoutes = require('./routes/admin/unitRoutes');
 const adminExerciseRoutes = require('./routes/admin/exerciseRoutes');
@@ -46,16 +49,18 @@ app.options('*', cors());
 
 // App端路由 - 以 /api 开头
 app.use('/api/exercises', exercisesRoutes);
-app.use('/api/users', userPointsRoutes);
 app.use('/api/unit-content', unitContentRoutes);
 app.use('/api/subjects', subjectsRoutes);
 app.use('/api/units', unitsRouter);
 app.use('/api/answer-records', answerRecordsRoutes);
 app.use('/api/knowledge-points', knowledgePointsRoutes);
+app.use('/api/students', studentsRoutes);
+app.use('/api/students', studentPointsRoutes);
 
 // Admin端路由 - 以 /api/admin 开头
 app.use('/api/admin/auth', adminAuthRoutes);
 app.use('/api/admin/users', adminUserRoutes);
+app.use('/api/admin/students', adminStudentRoutes);
 app.use('/api/admin/courses', adminCourseRoutes);
 app.use('/api/admin/units', adminUnitRoutes);
 app.use('/api/admin/exercises', adminExerciseRoutes);
@@ -90,6 +95,10 @@ const startServer = async () => {
     // 测试数据库连接
     await testConnection();
     console.log('数据库连接测试成功');
+    
+    // 同步数据库模型
+    await syncDatabase();
+    console.log('数据库模型同步完成');
 
     // 尝试启动服务器，如果端口被占用则尝试杀掉占用进程
     const server = app.listen(PORT, () => {

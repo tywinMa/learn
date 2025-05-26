@@ -3,7 +3,33 @@ const { Exercise, Course, Subject } = require('../../models');
 // 获取所有练习题
 exports.getAllExercises = async (req, res) => {
   try {
+    const { search, subject, difficulty, type } = req.query;
+    const whereClause = {};
+    
+    // 添加搜索条件
+    if (search) {
+      const { Op } = require('sequelize');
+      whereClause[Op.or] = [
+        { title: { [Op.like]: `%${search}%` } },
+        { question: { [Op.like]: `%${search}%` } }
+      ];
+    }
+    
+    // 添加筛选条件
+    if (subject) {
+      whereClause.subject = subject;
+    }
+    
+    if (difficulty) {
+      whereClause.difficulty = parseInt(difficulty);
+    }
+    
+    if (type) {
+      whereClause.type = type;
+    }
+    
     const exercises = await Exercise.findAll({
+      where: whereClause,
       include: [
         { 
           model: Course, 
@@ -23,6 +49,7 @@ exports.getAllExercises = async (req, res) => {
         id: exercise.id,
         subject: exercise.subject,
         unitId: exercise.unitId,
+        title: exercise.title,
         question: exercise.question,
         options: exercise.options,
         correctAnswer: exercise.correctAnswer,
@@ -83,6 +110,7 @@ exports.getExercisesByCourse = async (req, res) => {
       id: exercise.id,
       subject: exercise.subject,
       unitId: exercise.unitId,
+      title: exercise.title,
       question: exercise.question,
       options: exercise.options,
       correctAnswer: exercise.correctAnswer,
@@ -128,6 +156,7 @@ exports.getExercisesByUnit = async (req, res) => {
       id: exercise.id,
       subject: exercise.subject,
       unitId: exercise.unitId,
+      title: exercise.title,
       question: exercise.question,
       options: exercise.options,
       correctAnswer: exercise.correctAnswer,
@@ -182,6 +211,7 @@ exports.getExerciseById = async (req, res) => {
       id: exercise.id,
       subject: exercise.subject,
       unitId: exercise.unitId,
+      title: exercise.title,
       question: exercise.question,
       options: exercise.options,
       correctAnswer: exercise.correctAnswer,
@@ -218,6 +248,7 @@ exports.createExercise = async (req, res) => {
       id,
       subject,
       unitId,
+      title,
       question,
       options,
       correctAnswer,
@@ -231,10 +262,10 @@ exports.createExercise = async (req, res) => {
     } = req.body;
     
     // 验证必填字段
-    if (!subject || !unitId || !question || !type) {
+    if (!subject || !unitId || !title || !question || !type) {
       return res.status(400).json({ 
         err_no: 400,
-        message: '缺少必填字段：subject, unitId, question, type',
+        message: '缺少必填字段：subject, unitId, title, question, type',
         data: null
       });
     }
@@ -276,6 +307,7 @@ exports.createExercise = async (req, res) => {
       id: exerciseId,
       subject,
       unitId,
+      title,
       question,
       options: options || null,
       correctAnswer: correctAnswer || null,
@@ -304,6 +336,7 @@ exports.createExercise = async (req, res) => {
         id: createdExercise.id,
         subject: createdExercise.subject,
         unitId: createdExercise.unitId,
+        title: createdExercise.title,
         question: createdExercise.question,
         options: createdExercise.options,
         correctAnswer: createdExercise.correctAnswer,
@@ -348,7 +381,7 @@ exports.updateExercise = async (req, res) => {
     
     const updateData = {};
     const fields = [
-      'subject', 'unitId', 'question', 'options', 'correctAnswer',
+      'subject', 'unitId', 'title', 'question', 'options', 'correctAnswer',
       'explanation', 'type', 'difficulty', 'media', 'hints',
       'knowledgePointIds', 'isAI'
     ];

@@ -70,6 +70,7 @@ const subjectOptions = [
 interface FormValues {
   subject: string;
   unitId: string;
+  title: string;
   type: 'choice' | 'fill_blank' | 'application' | 'matching';
   difficulty: number;
   question: string;
@@ -95,6 +96,7 @@ const ExerciseForm: React.FC = () => {
   const initialValues: FormValues = {
     subject: 'math',
     unitId: '',
+    title: '',
     type: 'choice',
     difficulty: 2,
     question: '',
@@ -122,8 +124,11 @@ const ExerciseForm: React.FC = () => {
     
     const fetchKnowledgePoints = async () => {
       try {
-        const kpData = await getKnowledgePointsForSelect();
+        // 初始化时加载默认学科（math）的知识点
+        const defaultSubject = 'math';
+        const kpData = await getKnowledgePointsForSelect(defaultSubject);
         setKnowledgePoints(kpData);
+        setSelectedSubject(defaultSubject);
       } catch (error) {
         console.error('获取知识点列表失败:', error);
       }
@@ -219,6 +224,7 @@ const ExerciseForm: React.FC = () => {
             form.setFieldsValue({
               subject: exerciseData.subject,
               unitId: exerciseData.unitId,
+              title: exerciseData.title || '',
               type: exerciseData.type,
               difficulty: exerciseData.difficulty,
               question: exerciseData.question,
@@ -273,6 +279,7 @@ const ExerciseForm: React.FC = () => {
       const exerciseData: any = {
         subject: values.subject,
         unitId: values.unitId,
+        title: values.title,
         question: values.question,
         type: values.type,
         difficulty: values.difficulty,
@@ -352,7 +359,7 @@ const ExerciseForm: React.FC = () => {
       >
         <Card className="mb-4">
           <Row gutter={16}>
-            <Col span={8}>
+            <Col span={6}>
               <Form.Item
                 name="subject"
                 label="学科"
@@ -365,7 +372,7 @@ const ExerciseForm: React.FC = () => {
                 </Select>
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col span={6}>
               <Form.Item
                 name="unitId"
                 label="所属课程"
@@ -380,7 +387,7 @@ const ExerciseForm: React.FC = () => {
                 </Select>
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col span={6}>
               <Form.Item
                 name="difficulty"
                 label="难度级别"
@@ -391,6 +398,15 @@ const ExerciseForm: React.FC = () => {
                     <Radio key={option.value} value={option.value}>{option.label}</Radio>
                   ))}
                 </Radio.Group>
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item
+                name="title"
+                label="习题标题"
+                rules={[{ required: true, message: '请输入习题标题' }]}
+              >
+                <Input placeholder="输入习题标题" />
               </Form.Item>
             </Col>
           </Row>

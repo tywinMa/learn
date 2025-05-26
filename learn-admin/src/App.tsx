@@ -10,6 +10,8 @@ import ExerciseForm from './pages/exercises/ExerciseForm';
 import KnowledgePointList from './pages/knowledgePoints/KnowledgePointList';
 import KnowledgePointForm from './pages/knowledgePoints/KnowledgePointForm';
 import StudentList from './pages/students/StudentList';
+import StudentProgress from './pages/students/StudentProgress';
+import TestProgress from './pages/students/TestProgress';
 import SubjectList from './pages/subjects/SubjectList';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
@@ -61,7 +63,11 @@ function App() {
           </Route>
           
           {/* 学生管理 */}
-          <Route path="students" element={<StudentList />} />
+          <Route path="students">
+            <Route index element={<StudentList />} />
+            <Route path=":userId/progress" element={<StudentProgress />} />
+            <Route path="test" element={<TestProgress />} />
+          </Route>
           
           {/* 学科管理 */}
           <Route path="subjects" element={<SubjectList />} />

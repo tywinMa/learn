@@ -133,6 +133,9 @@ done
 # 等待进程完全终止
 sleep 3
 
+# 创建日志目录
+mkdir -p "$SCRIPT_DIR/logs"
+
 echo -e "${GREEN}==============================================${NC}"
 echo -e "${BLUE}🚀 启动 Learn 项目所有服务${NC}"
 echo -e "${GREEN}==============================================${NC}"
@@ -217,9 +220,6 @@ if ! lsof -i:8082 >/dev/null 2>&1; then
   exit 1
 fi
 echo -e "${GREEN}   ✅ App端启动成功: http://localhost:8082${NC}"
-
-# 创建日志目录
-mkdir -p "$SCRIPT_DIR/logs"
 
 echo -e "${GREEN}==============================================${NC}"
 echo -e "${BLUE}🎉 所有服务启动成功！${NC}"

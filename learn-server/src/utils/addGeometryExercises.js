@@ -27,6 +27,7 @@ const addGeometryExercises = async () => {
         id: `${unitId}-1`,
         unitId: unitId,
         subject: subjectCode,
+        title: '三角形内角和',
         question: '三角形内角和等于多少度？',
         options: [
           '90度',
@@ -43,6 +44,7 @@ const addGeometryExercises = async () => {
         id: `${unitId}-2`,
         unitId: unitId,
         subject: subjectCode,
+        title: '等边三角形内角',
         question: '等边三角形的每个内角度数是多少？',
         options: [
           '30度',
@@ -59,6 +61,7 @@ const addGeometryExercises = async () => {
         id: `${unitId}-3`,
         unitId: unitId,
         subject: subjectCode,
+        title: '勾股定理判断直角三角形',
         question: '下列哪个三角形一定是直角三角形？',
         options: [
           '三边长分别为3、4、5的三角形',

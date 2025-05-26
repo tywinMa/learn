@@ -24,6 +24,7 @@ const addExerciseUnitExercises = async () => {
         id: "math-1-4-1",
         unitId: unitId,
         subject: "math",
+        title: "一元二次方程求解",
         question: "解一元二次方程：$x^2 - 5x + 6 = 0$",
         type: "choice",
         options: [
@@ -54,6 +55,8 @@ const addExerciseUnitExercises = async () => {
       {
         id: "math-1-4-2",
         unitId: unitId,
+        subject: "math",
+        title: "平方差公式因式分解",
         question: "因式分解：$x^2 - 9$",
         type: "choice",
         options: ["$(x+3)(x-3)$", "$(x+9)(x-1)$", "$(x+1)(x-9)$", "$(x-3)^2$"],
@@ -72,6 +75,8 @@ const addExerciseUnitExercises = async () => {
       {
         id: "math-1-4-3",
         unitId: unitId,
+        subject: "math",
+        title: "配方法解一元二次方程",
         question: "用配方法解方程：$x^2 + 6x + 5 = 0$",
         type: "choice",
         options: [
@@ -97,6 +102,8 @@ const addExerciseUnitExercises = async () => {
       {
         id: "math-1-4-4",
         unitId: unitId,
+        subject: "math",
+        title: "判别式与根的关系",
         question: "若 $x^2 - 4x + k = 0$ 有两个相等的实数根，则 $k$ 的值为：",
         type: "choice",
         options: ["$k = 4$", "$k = 2$", "$k = -4$", "$k = 0$"],
@@ -117,6 +124,8 @@ const addExerciseUnitExercises = async () => {
       {
         id: "math-1-4-5",
         unitId: unitId,
+        subject: "math",
+        title: "完全平方公式计算",
         question: "计算：$(x+2)^2 - (x-1)^2$",
         type: "fill_blank",
         question_template: "$(x+2)^2 - (x-1)^2 = $ ___",
@@ -136,6 +145,8 @@ const addExerciseUnitExercises = async () => {
       {
         id: "math-1-4-6",
         unitId: unitId,
+        subject: "math",
+        title: "列方程解应用题",
         question: "一个数的平方与这个数的3倍的差等于4，求这个数。",
         type: "choice",
         options: [
@@ -160,6 +171,8 @@ const addExerciseUnitExercises = async () => {
       {
         id: "math-1-4-7",
         unitId: unitId,
+        subject: "math",
+        title: "根式运算综合题",
         question:
           "已知 $a = 2 + \\sqrt{3}$，$b = 2 - \\sqrt{3}$，求 $a^2 + b^2$ 的值。",
         type: "choice",
@@ -180,6 +193,8 @@ const addExerciseUnitExercises = async () => {
       {
         id: "math-1-4-8",
         unitId: unitId,
+        subject: "math",
+        title: "因式分解匹配题",
         question: "匹配下列因式分解的结果：",
         type: "matching",
         options: {
@@ -203,8 +218,6 @@ const addExerciseUnitExercises = async () => {
 
     // 批量创建练习题
     for (const exercise of exercises) {
-      // 为每个练习题添加subject字段
-      exercise.subject = "math";
       await Exercise.create(exercise);
       console.log(`已创建练习题: ${exercise.id}`);
     }
@@ -258,6 +271,7 @@ const addUnit1_1Exercises = async () => {
         id: `${fullUnitId}-1`,
         unitId: fullUnitId,
         subject: subjectCode,
+        title: "一元一次方程求解",
         question: "以下哪个是解一元一次方程 3x + 6 = 0 的正确步骤？",
         options: [
           "3x = -6，x = -2",
@@ -276,6 +290,7 @@ const addUnit1_1Exercises = async () => {
         id: `${fullUnitId}-2`,
         unitId: fullUnitId,
         subject: subjectCode,
+        title: "实数运算",
         question: "实数的基本运算中，以下哪个表达式计算结果为负数？",
         options: ["|-5| + |5|", "|-7| - |3|", "|-4| - |6|", "|-8| × |-2|"],
         correctAnswer: 2,
@@ -287,6 +302,7 @@ const addUnit1_1Exercises = async () => {
         id: `${fullUnitId}-3`,
         unitId: fullUnitId,
         subject: subjectCode,
+        title: "一次函数求值",
         question: "若一次函数f(x) = 2x - 3，则f(2)的值是？",
         options: ["1", "2", "3", "4"],
         correctAnswer: 0,
@@ -302,6 +318,7 @@ const addUnit1_1Exercises = async () => {
         id: `${fullUnitId}-4`,
         unitId: fullUnitId,
         subject: subjectCode,
+        title: "不等式求解",
         question: "解不等式 2x - 5 > 3，解得 x > ____。",
         type: "fill_blank",
         correctAnswer: ["4"],
@@ -313,6 +330,7 @@ const addUnit1_1Exercises = async () => {
         id: `${fullUnitId}-5`,
         unitId: fullUnitId,
         subject: subjectCode,
+        title: "二次函数参数求解",
         question:
           "已知函数f(x) = ax² + bx + c的图像通过点(1, 2)、(2, 1)和(-1, 4)，则a = ____, b = ____, c = ____。",
         type: "fill_blank",
@@ -329,6 +347,7 @@ const addUnit1_1Exercises = async () => {
         id: `${fullUnitId}-6`,
         unitId: fullUnitId,
         subject: subjectCode,
+        title: "代数式因式分解匹配",
         question: "将左侧的代数式与右侧的等价形式匹配",
         type: "matching",
         options: {
@@ -344,6 +363,7 @@ const addUnit1_1Exercises = async () => {
         id: `${fullUnitId}-7`,
         unitId: fullUnitId,
         subject: subjectCode,
+        title: "函数图像特征匹配",
         question: "匹配函数与其图像特征",
         type: "matching",
         options: {
@@ -363,6 +383,7 @@ const addUnit1_1Exercises = async () => {
         id: `${fullUnitId}-8`,
         unitId: fullUnitId,
         subject: subjectCode,
+        title: "平均数应用题",
         question:
           "在一次数学考试中，班级的平均分是72分。已知及格线是60分，班级内及格人数占总人数的80%。如果班级总人数是50人，请计算班级内不及格同学的平均分是多少？请写出完整的解题过程并拍照上传。",
         type: "application",
@@ -391,6 +412,7 @@ const addUnit1_1Exercises = async () => {
         id: `${fullUnitId}-9`,
         unitId: fullUnitId,
         subject: subjectCode,
+        title: "购买问题应用题",
         question:
           "小明有100元钱，他想买3个价格相同的笔记本和2支价格相同的钢笔，已知每个笔记本的价格是每支钢笔价格的2倍。如果刚好用完100元，请计算每个笔记本和每支钢笔的价格。请写出完整的解题过程并拍照上传。",
         type: "application",
@@ -419,6 +441,7 @@ const addUnit1_1Exercises = async () => {
         id: `${fullUnitId}-10`,
         unitId: fullUnitId,
         subject: subjectCode,
+        title: "几何面积计算应用题",
         question:
           "一个长方形花坛，长是宽的1.5倍，花坛的周长是50米。请计算这个花坛的面积，并画出示意图。完成后拍照上传你的解答。",
         type: "application",

@@ -16,8 +16,8 @@ import { Video, ResizeMode } from "expo-av";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { getUserPoints } from "../app/services/pointsService";
-import { USER_ID } from "../app/services/progressService";
+import { getStudentPoints } from "../app/services/pointsService";
+import { getCurrentStudentIdForProgress } from "../app/services/progressService";
 import RenderHtml from "react-native-render-html";
 import { LinearGradient } from "expo-linear-gradient";
 import { API_BASE_URL } from "@/constants/apiConfig";
@@ -35,11 +35,12 @@ export default function StudyScreen() {
 
   const router = useRouter();
   const [videoStatus, setVideoStatus] = React.useState<any>({});
-  const [userPoints, setUserPoints] = React.useState(0);
+  const [studentPoints, setStudentPoints] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [learningContents, setLearningContents] = React.useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const [currentStudentId, setCurrentStudentId] = useState<string>("");
   const screenWidth = Dimensions.get("window").width;
   const flatListRef = useRef<FlatList>(null);
 
@@ -123,7 +124,8 @@ export default function StudyScreen() {
           const reportedTimeSpent = Math.max(timeSpent, 5);
           
           // 调用API增加学习次数
-          const activityApiUrl = `${API_BASE_URL}/api/answer-records/${USER_ID}/increment-study/${lessonId}`;
+          const studentId = await getCurrentStudentIdForProgress();
+          const activityApiUrl = `${API_BASE_URL}/api/answer-records/${studentId}/increment-study/${lessonId}`;
 
           const activityResponse = await fetch(activityApiUrl, {
             method: "POST",
@@ -172,7 +174,7 @@ export default function StudyScreen() {
         console.log(`用户学习了 ${totalStudyTime} 秒`);
         
         // 发送最终学习时间统计
-        fetch(`${API_BASE_URL}/api/answer-records/${USER_ID}/increment-study/${lessonId}`, {
+        fetch(`${API_BASE_URL}/api/answer-records/${currentStudentId}/increment-study/${lessonId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -188,18 +190,20 @@ export default function StudyScreen() {
     };
   }, [lessonId]);
 
-  // 加载用户积分
+  // 加载学生积分
   useEffect(() => {
-    const fetchUserPoints = async () => {
+    const fetchStudentPoints = async () => {
       try {
-        const points = await getUserPoints(USER_ID);
-        setUserPoints(points);
+        const studentId = await getCurrentStudentIdForProgress();
+        setCurrentStudentId(studentId);
+        const points = await getStudentPoints();
+        setStudentPoints(points);
       } catch (err) {
-        console.error("获取用户积分失败:", err);
+        console.error("获取学生积分失败:", err);
       }
     };
 
-    fetchUserPoints();
+    fetchStudentPoints();
   }, []);
 
   // 处理视频状态变化
@@ -288,7 +292,7 @@ export default function StudyScreen() {
           headerRight: () => (
             <RNView style={{ flexDirection: "row", alignItems: "center", marginRight: 16 }}>
               <Ionicons name="star" size={20} color="#FFD900" />
-              <Text style={{ color: "white", marginLeft: 4, fontWeight: "bold" }}>{userPoints}</Text>
+              <Text style={{ color: "white", marginLeft: 4, fontWeight: "bold" }}>{studentPoints}</Text>
             </RNView>
           ),
         }}

@@ -22,6 +22,11 @@ const Exercise = sequelize.define(
       allowNull: false,
       comment: "所属单元ID，如1-1",
     },
+    title: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      comment: "习题标题，用于快速识别和搜索",
+    },
     question: {
       type: DataTypes.TEXT,
       allowNull: false,

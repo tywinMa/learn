@@ -6,9 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 // @ts-ignore
 import { useRouter } from "expo-router";
 import { API_BASE_URL } from "@/constants/apiConfig";
-
-// 临时用户ID，实际应用中应该从认证系统获取
-const USER_ID = "user1";
+import { getCurrentStudentIdForProgress } from "../services/progressService";
 
 export default function WrongExercisesScreen() {
   const router = useRouter();
@@ -22,7 +20,8 @@ export default function WrongExercisesScreen() {
       try {
         setLoading(true);
         // 使用新的AnswerRecord API端点
-        const apiUrl = `${API_BASE_URL}/api/answer-records/${USER_ID}/wrong-exercises`;
+        const studentId = await getCurrentStudentIdForProgress();
+        const apiUrl = `${API_BASE_URL}/api/answer-records/${studentId}/wrong-exercises`;
         const response = await fetch(apiUrl);
 
         if (!response.ok) {
@@ -52,7 +51,8 @@ export default function WrongExercisesScreen() {
   const handleRemoveExercise = async (exerciseId: string) => {
     try {
       // 使用新的AnswerRecord API端点
-      const apiUrl = `${API_BASE_URL}/api/answer-records/${USER_ID}/wrong-exercises/${exerciseId}`;
+      const studentId = await getCurrentStudentIdForProgress();
+      const apiUrl = `${API_BASE_URL}/api/answer-records/${studentId}/wrong-exercises/${exerciseId}`;
       const response = await fetch(apiUrl, {
         method: "DELETE",
       });

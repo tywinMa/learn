@@ -1,1 +1,3 @@
-帮我写个脚本，可以同时启动app端，后台端和server三个服务。再写个脚本，可以把数据库删了，然后初始化重置数据。类似learn目录下的start-dev.sh和reset-data.sh
+现在有Student模型，但没有相关路由和控制器
+- 请不要把User和Student混淆，User是后台管理界面的人员，Student是学生，是APP端的用户
+- 请检查相关代码，确保Student模型和路由、控制器都正确，包括learn app端，admin后台管理，server服务端的所有代码

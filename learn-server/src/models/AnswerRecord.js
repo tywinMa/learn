@@ -13,10 +13,10 @@ const AnswerRecord = sequelize.define('AnswerRecord', {
   },
   
   // ===== 基础信息 =====
-  userId: {
-    type: DataTypes.STRING,
+  studentId: {
+    type: DataTypes.INTEGER,
     allowNull: false,
-    comment: '用户ID'
+    comment: '学生ID，关联Student表'
   },
   exerciseId: {
     type: DataTypes.STRING,
@@ -218,9 +218,9 @@ const AnswerRecord = sequelize.define('AnswerRecord', {
   timestamps: true,
   indexes: [
     // 基础查询索引
-    { fields: ['userId', 'exerciseId'] },
-    { fields: ['userId', 'unitId'] },
-    { fields: ['userId', 'subject'] },
+    { fields: ['studentId', 'exerciseId'] },
+    { fields: ['studentId', 'unitId'] },
+    { fields: ['studentId', 'subject'] },
     
     // 结果分析索引
     { fields: ['isCorrect'] },
@@ -238,8 +238,8 @@ const AnswerRecord = sequelize.define('AnswerRecord', {
     { fields: ['responseTime'] },
     
     // 复合索引用于复杂查询
-    { fields: ['userId', 'isCorrect', 'submitTime'] },
-    { fields: ['userId', 'practiceMode', 'isCorrect'] },
+    { fields: ['studentId', 'isCorrect', 'submitTime'] },
+    { fields: ['studentId', 'practiceMode', 'isCorrect'] },
     { fields: ['subject', 'exerciseType', 'isCorrect'] }
   ],
   hooks: {

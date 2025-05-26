@@ -45,7 +45,7 @@ interface CourseFormData {
   content: string;
   category: string;
   sources?: Array<{type: 'image' | 'video', url: string}>;
-  relatedExerciseId?: string;
+  relatedExerciseIds?: string[];
   students?: number;
   media?: UploadFile[];
 }
@@ -189,14 +189,16 @@ const CourseForm: React.FC = () => {
       });
 
       // 设置表单值
-      const relatedExerciseIdValue = course.relatedExercise?.exerciseCode || course.relatedExercise?.id?.toString() || course.relatedExerciseId || '';
-      console.log('CourseForm - 设置relatedExerciseId值:', relatedExerciseIdValue);
+      const relatedExerciseIds = course.relatedExercises?.map(ex => ex.id?.toString()) || 
+                                course.relatedExerciseIds || 
+                                (course.relatedExerciseId ? [course.relatedExerciseId] : []);
+      console.log('CourseForm - 设置relatedExerciseIds值:', relatedExerciseIds);
       
       form.setFieldsValue({
         title: course.name || course.title,
         description: course.description,
         category: course.subject?.name || course.category,
-        relatedExerciseId: relatedExerciseIdValue
+        relatedExerciseIds: relatedExerciseIds
       });
       
       // 设置富文本内容
@@ -290,9 +292,9 @@ const CourseForm: React.FC = () => {
         sources,
         // 使用category字段作为学科分类，将由服务层转换为subjectId
         category: values.category,
-        // 直接使用relatedExerciseId字段
-        relatedExerciseId: values.relatedExerciseId || '',
-        instructor: values.relatedExerciseId ? '关联习题教师' : '', // 保持向后兼容
+        // 直接使用relatedExerciseIds字段
+        relatedExerciseIds: values.relatedExerciseIds || [],
+        instructor: values.relatedExerciseIds && values.relatedExerciseIds.length > 0 ? '关联习题教师' : '', // 保持向后兼容
         students: values.students || 0,
         // 如果是新建课程，生成courseCode作为课程ID
         courseCode: isEditing ? undefined : `C${Date.now().toString().substring(7, 12)}`,
@@ -314,7 +316,7 @@ const CourseForm: React.FC = () => {
         description: formattedValues.description,
         category: formattedValues.category,
         contentLength: formattedValues.content?.length || 0,
-        relatedExerciseId: formattedValues.relatedExerciseId,
+        relatedExerciseIds: formattedValues.relatedExerciseIds,
         sourcesCount: formattedValues.sources?.length || 0
       }));
       
@@ -616,12 +618,13 @@ const CourseForm: React.FC = () => {
                 关联习题
               </h3>
               <Form.Item
-                name="relatedExerciseId"
+                name="relatedExerciseIds"
                 label="选择习题"
-                help="选择一个习题与本课程关联，学生可以通过课程直接访问相关练习（可选）"
+                help="选择多个习题与本课程关联，学生可以通过课程直接访问相关练习（可选）"
                 className="mb-0"
               >
                 <Select 
+                  mode="multiple"
                   placeholder="请选择关联习题" 
                   loading={loadingExercises}
                   allowClear
@@ -642,11 +645,8 @@ const CourseForm: React.FC = () => {
                   {exercises.map(exercise => {
                     // 安全地处理习题ID和编号显示
                     let displayNumber = '';
-                    if (exercise.exerciseCode) {
-                      // 如果有exerciseCode，直接使用（如E10001）
-                      displayNumber = exercise.exerciseCode;
-                    } else if (exercise.id) {
-                      // 否则使用ID，确保转换为字符串
+                    if (exercise.id) {
+                      // 使用ID，确保转换为字符串
                       const exerciseId = exercise.id.toString();
                       if (exerciseId.includes('-')) {
                         // 如果是类似 "exercise-123" 的格式，提取最后一部分
@@ -657,48 +657,10 @@ const CourseForm: React.FC = () => {
                       }
                     }
                     
-                    const label = `${displayNumber} - ${formatExerciseTitle(exercise.title, 30)}`;
-                    // 调试信息和匹配逻辑
-                    const formValue = form.getFieldValue('relatedExerciseId');
-                    const exerciseIdStr = exercise.id.toString();
-                    console.log(999999, exerciseIdStr, formValue);
-                    
-                    // 多种匹配方式：
-                    // 1. 直接匹配 exercise.id
-                    // 2. 匹配 exercise.exerciseCode
-                    // 3. 如果formValue是数字，尝试匹配exerciseCode中的数字部分
-                    let isMatched = false;
-                    if (formValue) {
-                      // 直接匹配
-                      isMatched = exerciseIdStr === formValue || exercise.exerciseCode === formValue;
-                      
-                      // 如果还没匹配，尝试提取数字部分匹配
-                      if (!isMatched && exercise.exerciseCode && exercise.exerciseCode.startsWith('E')) {
-                        const exerciseNumber = exercise.exerciseCode.substring(1); // 去掉E前缀
-                        isMatched = exerciseNumber === formValue;
-                      }
-                      
-                      // 反向匹配：如果formValue是E开头，尝试匹配数字ID
-                      if (!isMatched && formValue.toString().startsWith('E')) {
-                        const formNumber = formValue.substring(1);
-                        isMatched = exerciseIdStr === formNumber;
-                      }
-                    }
-                    
-                    if (isMatched) {
-                      console.log('CourseForm - 找到匹配的习题:', {
-                        exerciseId: exercise.id,
-                        exerciseCode: exercise.exerciseCode,
-                        exerciseIdStr,
-                        formValue,
-                        displayNumber,
-                        label,
-                        exercise
-                      });
-                    }
+                    const label = `${displayNumber} - ${(exercise as any).title || '无标题'}`;
                     
                     return (
-                      <Option key={exercise.id} value={exercise.exerciseCode || exercise.id.toString()}>
+                      <Option key={exercise.id} value={exercise.id.toString()}>
                         {label}
                       </Option>
                     );

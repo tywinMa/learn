@@ -144,7 +144,7 @@ npm run manage
 - **AnswerRecord** - 答题记录
 - **KnowledgePoint** - 知识点
 - **UnitProgress** - 单元进度
-- **UserPoints** - 用户积分
+- **StudentPoints** - 学生积分
 
 ## 注意事项
 
@@ -163,7 +163,7 @@ npm run manage
 ```javascript
 proxy: {
   '/api': {
-    target: 'http://127.0.0.1:3000', // 从3001改为3000
+    target: 'http://127.0.0.1:3000',
     changeOrigin: true,
   }
 }

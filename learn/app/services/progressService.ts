@@ -1,7 +1,19 @@
 import { API_BASE_URL } from "@/constants/apiConfig";
+import { getCurrentStudentId } from "./authService";
 
-// 临时用户ID，实际应用中应该从认证系统获取
-export const USER_ID = "user1";
+// 临时学生ID，实际应用中应该从认证系统获取
+export const TEMP_STUDENT_ID = "student1";
+
+// 获取当前学生ID，优先使用认证系统的学生ID
+export const getCurrentStudentIdForProgress = async (): Promise<string> => {
+  try {
+    const authStudentId = await getCurrentStudentId();
+    return authStudentId || TEMP_STUDENT_ID;
+  } catch (error) {
+    console.warn('获取认证学生ID失败，使用默认学生ID:', error);
+    return TEMP_STUDENT_ID;
+  }
+};
 
 // Define and export UnitProgress type
 export interface UnitProgress {
@@ -67,8 +79,8 @@ export async function getSubjectUnits(subjectCode: string) {
   }
 }
 
-// 获取用户在特定单元的完成情况
-export async function getUserUnitProgress(unitId: string, timeoutMs: number = 5000): Promise<UnitProgress> {
+// 获取学生在特定单元的完成情况
+export async function getStudentUnitProgress(unitId: string, timeoutMs: number = 5000): Promise<UnitProgress> {
   try {
     // 添加重试逻辑
     const MAX_RETRIES = 2;
@@ -82,9 +94,10 @@ export async function getUserUnitProgress(unitId: string, timeoutMs: number = 50
           console.log(`检测到简短单元ID格式: ${unitId}，尝试匹配所有可能的单元格式`);
         }
 
-        console.log(`获取用户 ${USER_ID} 在单元 ${unitId} 的进度`);
+        const studentId = await getCurrentStudentIdForProgress();
+        console.log(`获取学生 ${studentId} 在单元 ${unitId} 的进度`);
         // 使用新的AnswerRecord API端点
-        const response = await fetch(`${API_BASE_URL}/api/answer-records/${USER_ID}/progress/${unitId}`);
+        const response = await fetch(`${API_BASE_URL}/api/answer-records/${studentId}/progress/${unitId}`);
 
         if (!response.ok) {
           // 记录HTTP错误状态
@@ -97,7 +110,7 @@ export async function getUserUnitProgress(unitId: string, timeoutMs: number = 50
         if (result.success && result.data) {
           return result.data;
         } else {
-          throw new Error(result.message || "获取用户进度失败：服务器未返回数据");
+          throw new Error(result.message || "获取学生进度失败：服务器未返回数据");
         }
       } catch (e) {
         error = e;
@@ -113,7 +126,7 @@ export async function getUserUnitProgress(unitId: string, timeoutMs: number = 50
     // 所有重试都失败了，抛出最后一个错误
     throw error;
   } catch (error) {
-    console.error(`获取用户单元进度出错 (${unitId}):`, error);
+    console.error(`获取学生单元进度出错 (${unitId}):`, error);
 
     // 返回默认值，确保UI不会崩溃
     return {
@@ -150,8 +163,9 @@ export async function getMultipleUnitProgress(
 
   try {
     console.log(`[getMultipleUnitProgress] Fetching progress for ${unitIds.length} units via batch API.`);
+    const studentId = await getCurrentStudentIdForProgress();
     // 使用新的AnswerRecord API端点
-    const fetchPromise = fetch(`${API_BASE_URL}/api/answer-records/${USER_ID}/progress/batch`, {
+    const fetchPromise = fetch(`${API_BASE_URL}/api/answer-records/${studentId}/progress/batch`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ unitIds }),
@@ -223,24 +237,52 @@ export async function getMultipleUnitProgress(
   }
 }
 
-// 根据学科获取用户的全部进度数据
-export async function getUserProgressBySubject(subjectCode: string, userId: string = USER_ID) {
+// 根据学科获取学生的全部进度数据
+export async function getStudentProgressBySubject(subjectCode: string, studentId?: string) {
   try {
-    // 先获取学科的所有单元
-    const units = await getSubjectUnits(subjectCode);
-
-    if (!units || units.length === 0) {
-      console.log(`学科 ${subjectCode} 没有单元数据`);
-      return {};
+    const currentStudentId = studentId || await getCurrentStudentIdForProgress();
+    console.log(`获取学生 ${currentStudentId} 在学科 ${subjectCode} 的进度`);
+    
+    const response = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}/units`);
+    
+    if (!response.ok) {
+      throw new Error(`获取学科单元列表失败 (HTTP ${response.status})`);
     }
 
-    // 收集所有单元ID
-    const unitIds = units.map((unit: any) => unit.code);
-
-    // 获取这些单元的进度
-    return await getMultipleUnitProgress(unitIds);
+    const result = await response.json();
+    
+    if (result.success && result.data) {
+      const units = result.data;
+      const unitIds = units.map((unit: any) => `${subjectCode}-${unit.code}`);
+      
+      // 批量获取这些单元的进度
+      const progressMap = await getMultipleUnitProgress(unitIds);
+      
+      return units.map((unit: any) => {
+        const unitId = `${subjectCode}-${unit.code}`;
+        const progress = progressMap[unitId] || {
+          unitId,
+          totalExercises: 0,
+          completedExercises: 0,
+          completionRate: 0,
+          stars: 0,
+          unlockNext: false,
+        };
+        
+        return {
+          ...unit,
+          progress,
+        };
+      });
+    } else {
+      throw new Error(result.message || "获取学科单元列表失败：服务器未返回数据");
+    }
   } catch (error) {
-    console.error(`获取学科 ${subjectCode} 的用户进度时发生错误:`, error);
-    return {};
+    console.error(`获取学科进度出错 (${subjectCode}):`, error);
+    throw error;
   }
 }
+
+// 向后兼容的别名
+export const getUserUnitProgress = getStudentUnitProgress;
+export const getUserProgressBySubject = getStudentProgressBySubject;

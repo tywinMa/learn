@@ -23,10 +23,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   getMultipleUnitProgress,
-  USER_ID as PROGRESS_USER_ID,
+  getCurrentStudentIdForProgress,
   type UnitProgress,
 } from "../services/progressService";
-import { getUserPoints } from "../services/pointsService";
+import { getStudentPoints } from "../services/pointsService";
 import SubjectModal from "@/components/SubjectModal";
 import { useSubject, Subject } from "@/hooks/useSubject";
 import { API_BASE_URL } from "@/constants/apiConfig";
@@ -604,7 +604,7 @@ export default function HomeScreen() {
 
     try {
       // 立即异步获取积分数据
-      getUserPoints(PROGRESS_USER_ID)
+              getStudentPoints()
         .then((points) => {
           console.log("积分获取成功:", points);
           setXp(points);

@@ -1,24 +1,37 @@
-import React, { useState } from 'react';
-import { Table, Button, Input, Space, Tag, Popconfirm, Card, Tabs } from 'antd';
-import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Table, Button, Input, Space, Tag, Popconfirm, Card, Tabs, message } from 'antd';
+import { SearchOutlined, PlusOutlined, EditOutlined, DeleteOutlined, BarChartOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import type { ColumnsType } from 'antd/es/table';
 import type { TabsProps } from 'antd';
-
-interface Student {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  enrolledCourses: string[];
-  status: 'active' | 'inactive';
-  createdAt: string;
-}
+import { getAllStudents, type Student } from '../../services/studentService';
 
 const StudentList: React.FC = () => {
+  const navigate = useNavigate();
   const [searchText, setSearchText] = useState('');
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // 获取学生列表
+  const fetchStudents = async () => {
+    try {
+      setLoading(true);
+      const data = await getAllStudents();
+      setStudents(data);
+    } catch (error) {
+      console.error('获取学生列表失败:', error);
+      message.error('获取学生列表失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudents();
+  }, []);
 
   // 模拟数据，实际中应该从API获取
-  const students: Student[] = [
+  const mockStudents: Student[] = [
     {
       id: '1',
       name: '王小明',
@@ -71,10 +84,13 @@ const StudentList: React.FC = () => {
     // 这里应该有实际的删除API调用
   };
 
-  const filteredStudents = students.filter((student) => 
+  // 如果没有真实数据，使用模拟数据
+  const displayStudents = students.length > 0 ? students : mockStudents;
+  
+  const filteredStudents = displayStudents.filter((student) => 
     student.name.toLowerCase().includes(searchText.toLowerCase()) ||
     student.email.toLowerCase().includes(searchText.toLowerCase()) ||
-    student.phone.includes(searchText)
+    (student.phone && student.phone.includes(searchText))
   );
 
   const columns: ColumnsType<Student> = [
@@ -97,8 +113,8 @@ const StudentList: React.FC = () => {
     {
       title: '课程数',
       key: 'courseCount',
-      render: (_, record) => record.enrolledCourses.length,
-      sorter: (a, b) => a.enrolledCourses.length - b.enrolledCourses.length,
+      render: (_, record) => record.enrolledCourses?.length || 0,
+      sorter: (a, b) => (a.enrolledCourses?.length || 0) - (b.enrolledCourses?.length || 0),
     },
     {
       title: '状态',
@@ -128,6 +144,13 @@ const StudentList: React.FC = () => {
       key: 'action',
       render: (_, record) => (
         <Space size="middle">
+          <Button 
+            icon={<BarChartOutlined />} 
+            type="link"
+            onClick={() => navigate(`/students/${record.id}/progress`)}
+          >
+            查看进度
+          </Button>
           <Button 
             icon={<EditOutlined />} 
             type="link" 

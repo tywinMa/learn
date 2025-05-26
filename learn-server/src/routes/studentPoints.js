@@ -1,15 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const { UserPoints } = require('../models');
+const { StudentPoints } = require('../models');
 
-// 获取用户积分
-router.get('/:userId/points', async (req, res) => {
+// 获取学生积分
+router.get('/:studentId/points', async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { studentId } = req.params;
 
-    // 查找或创建用户积分记录
-    const [userPoints, created] = await UserPoints.findOrCreate({
-      where: { userId },
+    // 查找或创建学生积分记录
+    const [studentPoints, created] = await StudentPoints.findOrCreate({
+      where: { studentId },
       defaults: {
         points: 0
       }
@@ -18,12 +18,12 @@ router.get('/:userId/points', async (req, res) => {
     res.json({
       success: true,
       data: {
-        userId: userPoints.userId,
-        points: userPoints.points
+        studentId: studentPoints.studentId,
+        points: studentPoints.points
       }
     });
   } catch (error) {
-    console.error('获取用户积分出错:', error);
+    console.error('获取学生积分出错:', error);
     res.status(500).json({
       success: false,
       message: '服务器错误'
@@ -31,10 +31,10 @@ router.get('/:userId/points', async (req, res) => {
   }
 });
 
-// 增加用户积分
-router.post('/:userId/points/add', async (req, res) => {
+// 增加学生积分
+router.post('/:studentId/points/add', async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { studentId } = req.params;
     const { points } = req.body;
 
     if (!points || isNaN(points) || points <= 0) {
@@ -44,28 +44,28 @@ router.post('/:userId/points/add', async (req, res) => {
       });
     }
 
-    // 查找或创建用户积分记录
-    const [userPoints, created] = await UserPoints.findOrCreate({
-      where: { userId },
+    // 查找或创建学生积分记录
+    const [studentPoints, created] = await StudentPoints.findOrCreate({
+      where: { studentId },
       defaults: {
         points: 0
       }
     });
 
     // 增加积分
-    userPoints.points += parseInt(points);
-    await userPoints.save();
+    studentPoints.points += parseInt(points);
+    await studentPoints.save();
 
     res.json({
       success: true,
       data: {
-        userId: userPoints.userId,
-        points: userPoints.points
+        studentId: studentPoints.studentId,
+        points: studentPoints.points
       },
       message: `成功增加 ${points} 积分`
     });
   } catch (error) {
-    console.error('增加用户积分出错:', error);
+    console.error('增加学生积分出错:', error);
     res.status(500).json({
       success: false,
       message: '服务器错误'
@@ -73,10 +73,10 @@ router.post('/:userId/points/add', async (req, res) => {
   }
 });
 
-// 减少用户积分（用于兑换礼品）
-router.post('/:userId/points/deduct', async (req, res) => {
+// 减少学生积分（用于兑换礼品）
+router.post('/:studentId/points/deduct', async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { studentId } = req.params;
     const { points } = req.body;
 
     if (!points || isNaN(points) || points <= 0) {
@@ -86,20 +86,20 @@ router.post('/:userId/points/deduct', async (req, res) => {
       });
     }
 
-    // 查找用户积分记录
-    const userPoints = await UserPoints.findOne({
-      where: { userId }
+    // 查找学生积分记录
+    const studentPoints = await StudentPoints.findOne({
+      where: { studentId }
     });
 
-    if (!userPoints) {
+    if (!studentPoints) {
       return res.status(404).json({
         success: false,
-        message: '未找到用户积分记录'
+        message: '未找到学生积分记录'
       });
     }
 
     // 检查积分是否足够
-    if (userPoints.points < points) {
+    if (studentPoints.points < points) {
       return res.status(400).json({
         success: false,
         message: '积分不足'
@@ -107,19 +107,19 @@ router.post('/:userId/points/deduct', async (req, res) => {
     }
 
     // 减少积分
-    userPoints.points -= parseInt(points);
-    await userPoints.save();
+    studentPoints.points -= parseInt(points);
+    await studentPoints.save();
 
     res.json({
       success: true,
       data: {
-        userId: userPoints.userId,
-        points: userPoints.points
+        studentId: studentPoints.studentId,
+        points: studentPoints.points
       },
       message: `成功扣除 ${points} 积分`
     });
   } catch (error) {
-    console.error('扣除用户积分出错:', error);
+    console.error('扣除学生积分出错:', error);
     res.status(500).json({
       success: false,
       message: '服务器错误'

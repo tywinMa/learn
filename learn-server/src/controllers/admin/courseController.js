@@ -195,7 +195,8 @@ const createCourse = async (req, res) => {
       isPublished = true,
       unitType = 'normal',
       position = 'default',
-      media = []
+      media = [],
+      relatedExerciseIds = []
     } = req.body;
     
     // 获取当前用户信息（通过auth中间件设置）
@@ -245,7 +246,8 @@ const createCourse = async (req, res) => {
       unitType,
       position,
       media,
-      teacherId
+      teacherId,
+      relatedExerciseIds
     };
     
     const course = await Course.create(courseData);
@@ -266,7 +268,7 @@ const createCourse = async (req, res) => {
     });
     
     const responseData = courseWithRelations.toJSON();
-    responseData.exerciseIds = []; // 新创建的课程没有练习题
+    responseData.exerciseIds = relatedExerciseIds; // 使用传入的关联习题ID
     
     res.status(201).json({
       err_no: 0,
@@ -297,7 +299,8 @@ const updateCourse = async (req, res) => {
       unitType,
       position,
       media,
-      teacherId
+      teacherId,
+      relatedExerciseIds
     } = req.body;
     
     const course = await Course.findByPk(id);
@@ -346,6 +349,7 @@ const updateCourse = async (req, res) => {
     if (position !== undefined) updateData.position = position;
     if (media !== undefined) updateData.media = media;
     if (teacherId !== undefined) updateData.teacherId = teacherId;
+    if (relatedExerciseIds !== undefined) updateData.relatedExerciseIds = relatedExerciseIds;
     
     // 更新课程
     await course.update(updateData);
@@ -370,7 +374,7 @@ const updateCourse = async (req, res) => {
     });
     
     const responseData = updatedCourse.toJSON();
-    responseData.exerciseIds = responseData.Exercises ? responseData.Exercises.map(e => e.id) : [];
+    responseData.exerciseIds = responseData.relatedExerciseIds || [];
     delete responseData.Exercises;
     
     res.json({

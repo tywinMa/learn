@@ -11,10 +11,10 @@ const UnitProgress = sequelize.define('UnitProgress', {
     autoIncrement: true,
     allowNull: false
   },
-  userId: {
-    type: DataTypes.STRING,
+  studentId: {
+    type: DataTypes.INTEGER,
     allowNull: false,
-    // references: { model: User, key: 'id' } // Uncomment if User model exists and is imported
+    comment: '学生ID，关联Student表'
   },
   unitId: {
     type: DataTypes.STRING,
@@ -101,7 +101,7 @@ const UnitProgress = sequelize.define('UnitProgress', {
   indexes: [
     {
       unique: true,
-      fields: ['userId', 'unitId']
+      fields: ['studentId', 'unitId']
     }
   ],
   comment: 'Tracks user progress for each unit, including unlock status and stars.'

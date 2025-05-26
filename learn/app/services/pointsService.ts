@@ -1,12 +1,14 @@
 import { API_BASE_URL } from "@/constants/apiConfig";
+import { getCurrentStudentIdForProgress } from "./progressService";
 
-// 获取用户积分
-export const getUserPoints = async (userId: string): Promise<number> => {
+// 获取学生积分
+export const getStudentPoints = async (studentId?: string): Promise<number> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/users/${userId}/points`);
+    const currentStudentId = studentId || await getCurrentStudentIdForProgress();
+    const response = await fetch(`${API_BASE_URL}/api/students/${currentStudentId}/points`);
 
     if (!response.ok) {
-      throw new Error("获取用户积分失败");
+      throw new Error("获取学生积分失败");
     }
 
     const result = await response.json();
@@ -14,18 +16,19 @@ export const getUserPoints = async (userId: string): Promise<number> => {
     if (result.success) {
       return result.data.points;
     } else {
-      throw new Error(result.message || "获取用户积分失败");
+      throw new Error(result.message || "获取学生积分失败");
     }
   } catch (error) {
-    console.error("获取用户积分出错:", error);
+    console.error("获取学生积分出错:", error);
     return 0; // 出错时返回0积分
   }
 };
 
 // 兑换商品（扣除积分）
-export const exchangeItem = async (userId: string, points: number): Promise<boolean> => {
+export const exchangeItem = async (points: number, studentId?: string): Promise<boolean> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/users/${userId}/points/deduct`, {
+    const currentStudentId = studentId || await getCurrentStudentIdForProgress();
+    const response = await fetch(`${API_BASE_URL}/api/students/${currentStudentId}/points/deduct`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -45,3 +48,6 @@ export const exchangeItem = async (userId: string, points: number): Promise<bool
     return false;
   }
 };
+
+// 向后兼容的函数
+export const getUserPoints = getStudentPoints;

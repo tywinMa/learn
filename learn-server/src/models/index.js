@@ -1,5 +1,5 @@
 const Exercise = require('./Exercise');
-const UserPoints = require('./UserPoints');
+const StudentPoints = require('./StudentPoints');
 const Subject = require('./Subject');
 const Unit = require('./Unit');
 const Course = require('./Course');
@@ -7,6 +7,7 @@ const UnitProgress = require('./UnitProgress');
 const AnswerRecord = require('./AnswerRecord');
 const KnowledgePoint = require('./KnowledgePoint');
 const User = require('./User');
+const Student = require('./Student');
 const { sequelize } = require('../config/database');
 
 // 定义模型之间的关系
@@ -57,6 +58,19 @@ AnswerRecord.belongsTo(Course, { foreignKey: 'unitId', targetKey: 'id' });
 User.hasMany(Course, { foreignKey: 'teacherId', as: 'courses' });
 Course.belongsTo(User, { foreignKey: 'teacherId', as: 'teacher' });
 
+// ===== Student相关的关系 =====
+// User和Student之间的关系（教师和学生）
+User.hasMany(Student, { foreignKey: 'teacherId', as: 'students' });
+Student.belongsTo(User, { foreignKey: 'teacherId', as: 'teacher' });
+
+// Student和UnitProgress之间的关系
+Student.hasMany(UnitProgress, { foreignKey: 'studentId', as: 'unitProgress' });
+UnitProgress.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
+
+// Student和AnswerRecord之间的关系
+Student.hasMany(AnswerRecord, { foreignKey: 'studentId', as: 'answerRecords' });
+AnswerRecord.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
+
 // 同步所有模型到数据库
 const syncDatabase = async () => {
   try {
@@ -76,6 +90,7 @@ const syncDatabase = async () => {
       await sequelize.query('SELECT 1 FROM UserRecords LIMIT 1');
       await sequelize.query('SELECT 1 FROM AnswerRecords LIMIT 1');
       await sequelize.query('SELECT 1 FROM Users LIMIT 1');
+      await sequelize.query('SELECT 1 FROM StudentPoints LIMIT 1');
       console.log('数据库表结构完整');
     } catch (checkError) {
       // 如果表不存在，将创建它们（已经通过上面的sync操作完成）
@@ -99,7 +114,7 @@ const syncDatabase = async () => {
 
 module.exports = {
   Exercise,
-  UserPoints,
+  StudentPoints,
   Subject,
   Unit,
   Course,
@@ -107,6 +122,7 @@ module.exports = {
   AnswerRecord,
   KnowledgePoint,
   User,
+  Student,
   sequelize,
   syncDatabase
 };

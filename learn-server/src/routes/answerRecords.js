@@ -6,13 +6,13 @@ const { AnswerRecord, Exercise, UnitProgress, sequelize } = require('../models')
 
 /**
  * 提交答题记录 - 新版本，使用AnswerRecord
- * POST /api/answer-records/:userId/submit
+ * POST /api/answer-records/:studentId/submit
  */
-router.post('/:userId/submit', async (req, res) => {
+router.post('/:studentId/submit', async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { studentId } = req.params;
     const answerData = {
-      userId,
+      userId: studentId, // AnswerRecordService中的参数仍然叫userId
       ...req.body
     };
 
@@ -31,12 +31,12 @@ router.post('/:userId/submit', async (req, res) => {
 });
 
 /**
- * 获取用户错题列表 - 新版本
- * GET /api/answer-records/:userId/wrong-exercises
+ * 获取学生错题列表 - 新版本
+ * GET /api/answer-records/:studentId/wrong-exercises
  */
-router.get('/:userId/wrong-exercises', async (req, res) => {
+router.get('/:studentId/wrong-exercises', async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { studentId } = req.params;
     const { subject, unitId, exerciseType } = req.query;
 
     const filters = {};
@@ -44,7 +44,7 @@ router.get('/:userId/wrong-exercises', async (req, res) => {
     if (unitId) filters.unitId = unitId;
     if (exerciseType) filters.exerciseType = exerciseType;
 
-    const wrongAnswers = await AnswerRecordService.getWrongAnswers(userId, filters);
+    const wrongAnswers = await AnswerRecordService.getWrongAnswers(studentId, filters);
 
     res.json({
       success: true,
@@ -61,13 +61,13 @@ router.get('/:userId/wrong-exercises', async (req, res) => {
 
 /**
  * 从错题本移除题目 - 新版本
- * DELETE /api/answer-records/:userId/wrong-exercises/:exerciseId
+ * DELETE /api/answer-records/:studentId/wrong-exercises/:exerciseId
  */
-router.delete('/:userId/wrong-exercises/:exerciseId', async (req, res) => {
+router.delete('/:studentId/wrong-exercises/:exerciseId', async (req, res) => {
   try {
-    const { userId, exerciseId } = req.params;
+    const { studentId, exerciseId } = req.params;
 
-    const result = await AnswerRecordService.removeFromWrongAnswers(userId, exerciseId);
+    const result = await AnswerRecordService.removeFromWrongAnswers(studentId, exerciseId);
 
     res.json({
       success: true,
@@ -84,15 +84,15 @@ router.delete('/:userId/wrong-exercises/:exerciseId', async (req, res) => {
 });
 
 /**
- * 获取用户学习统计
- * GET /api/answer-records/:userId/stats
+ * 获取学生学习统计
+ * GET /api/answer-records/:studentId/stats
  */
-router.get('/:userId/stats', async (req, res) => {
+router.get('/:studentId/stats', async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { studentId } = req.params;
     const { timeRange = 30 } = req.query;
 
-    const stats = await AnswerRecordService.getUserLearningStats(userId, parseInt(timeRange));
+    const stats = await AnswerRecordService.getStudentLearningStats(studentId, parseInt(timeRange));
 
     res.json({
       success: true,
@@ -109,13 +109,13 @@ router.get('/:userId/stats', async (req, res) => {
 
 /**
  * 获取学习模式分析
- * GET /api/answer-records/:userId/pattern-analysis
+ * GET /api/answer-records/:studentId/pattern-analysis
  */
-router.get('/:userId/pattern-analysis', async (req, res) => {
+router.get('/:studentId/pattern-analysis', async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { studentId } = req.params;
 
-    const analysis = await AnswerRecordService.getLearningPatternAnalysis(userId);
+    const analysis = await AnswerRecordService.getLearningPatternAnalysis(studentId);
 
     res.json({
       success: true,
@@ -131,12 +131,12 @@ router.get('/:userId/pattern-analysis', async (req, res) => {
 });
 
 /**
- * 获取用户答题历史
- * GET /api/answer-records/:userId/history
+ * 获取学生答题历史
+ * GET /api/answer-records/:studentId/history
  */
-router.get('/:userId/history', async (req, res) => {
+router.get('/:studentId/history', async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { studentId } = req.params;
     const { 
       subject, 
       unitId, 
@@ -147,7 +147,7 @@ router.get('/:userId/history', async (req, res) => {
       offset = 0 
     } = req.query;
 
-    const whereClause = { userId };
+    const whereClause = { studentId };
     
     if (subject) whereClause.subject = subject;
     if (unitId) whereClause.unitId = unitId;
@@ -191,18 +191,18 @@ router.get('/:userId/history', async (req, res) => {
 
 /**
  * 获取答题详细分析
- * GET /api/answer-records/:userId/detailed-analysis
+ * GET /api/answer-records/:studentId/detailed-analysis
  */
-router.get('/:userId/detailed-analysis', async (req, res) => {
+router.get('/:studentId/detailed-analysis', async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { studentId } = req.params;
     const { subject, timeRange = 30 } = req.query;
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - parseInt(timeRange));
 
     const whereClause = {
-      userId,
+      studentId,
       submitTime: {
         [Op.gte]: startDate
       }
@@ -285,16 +285,16 @@ router.get('/:userId/detailed-analysis', async (req, res) => {
 });
 
 /**
- * 获取用户单元进度
- * GET /api/answer-records/:userId/progress/:unitId
+ * 获取学生单元进度
+ * GET /api/answer-records/:studentId/progress/:unitId
  */
-router.get('/:userId/progress/:unitId', async (req, res) => {
+router.get('/:studentId/progress/:unitId', async (req, res) => {
   try {
-    const { userId, unitId } = req.params;
+    const { studentId, unitId } = req.params;
 
     // 1. 优先查询UnitProgress表
     const unitProgressEntry = await UnitProgress.findOne({ 
-      where: { userId, unitId } 
+      where: { studentId, unitId } 
     });
 
     if (unitProgressEntry && unitProgressEntry.completed) {
@@ -310,7 +310,7 @@ router.get('/:userId/progress/:unitId', async (req, res) => {
       const exerciseIds = exercises.map(ex => ex.id);
       const correctAnswerRecords = await AnswerRecord.findAll({
         where: {
-          userId,
+          studentId,
           exerciseId: { [Op.in]: exerciseIds },
           isCorrect: true
         },
@@ -385,7 +385,7 @@ router.get('/:userId/progress/:unitId', async (req, res) => {
     // 获取所有答题记录
     const allAnswerRecords = await AnswerRecord.findAll({
       where: {
-        userId,
+        studentId,
         exerciseId: { [Op.in]: exerciseIds }
       },
       order: [['submitTime', 'DESC']]
@@ -456,12 +456,12 @@ router.get('/:userId/progress/:unitId', async (req, res) => {
 });
 
 /**
- * 批量获取用户进度
- * POST /api/answer-records/:userId/progress/batch
+ * 批量获取学生进度
+ * POST /api/answer-records/:studentId/progress/batch
  */
-router.post('/:userId/progress/batch', async (req, res) => {
+router.post('/:studentId/progress/batch', async (req, res) => {
   try {
-    const { userId } = req.params;
+    const { studentId } = req.params;
     const { unitIds } = req.body;
 
     if (!unitIds || !Array.isArray(unitIds)) {
@@ -477,7 +477,7 @@ router.post('/:userId/progress/batch', async (req, res) => {
       try {
         // 重用单个进度计算逻辑
         const unitProgressEntry = await UnitProgress.findOne({ 
-          where: { userId, unitId } 
+          where: { studentId, unitId } 
         });
 
         if (unitProgressEntry && unitProgressEntry.completed) {
@@ -492,7 +492,7 @@ router.post('/:userId/progress/batch', async (req, res) => {
           const exerciseIds = exercises.map(ex => ex.id);
           const correctAnswerRecords = await AnswerRecord.findAll({
             where: {
-              userId,
+              studentId,
               exerciseId: { [Op.in]: exerciseIds },
               isCorrect: true
             },
@@ -554,7 +554,7 @@ router.post('/:userId/progress/batch', async (req, res) => {
           const exerciseIds = exercises.map(ex => ex.id);
           const allAnswerRecords = await AnswerRecord.findAll({
             where: {
-              userId,
+              studentId,
               exerciseId: { [Op.in]: exerciseIds }
             },
             order: [['submitTime', 'DESC']]
@@ -638,16 +638,16 @@ router.post('/:userId/progress/batch', async (req, res) => {
 
 /**
  * 增加学习次数统计
- * POST /api/answer-records/:userId/increment-study/:unitId
+ * POST /api/answer-records/:studentId/increment-study/:unitId
  */
-router.post('/:userId/increment-study/:unitId', async (req, res) => {
+router.post('/:studentId/increment-study/:unitId', async (req, res) => {
   try {
-    const { userId, unitId } = req.params;
+    const { studentId, unitId } = req.params;
     const { activityType = 'study', timeSpent = 0 } = req.body;
 
     // 查找或创建UnitProgress记录
     const [unitProgress, created] = await UnitProgress.findOrCreate({
-      where: { userId, unitId },
+      where: { studentId, unitId },
       defaults: {
         completed: false,
         stars: 0,
@@ -697,16 +697,16 @@ router.post('/:userId/increment-study/:unitId', async (req, res) => {
 
 /**
  * 增加练习次数统计
- * POST /api/answer-records/:userId/increment-practice/:unitId
+ * POST /api/answer-records/:studentId/increment-practice/:unitId
  */
-router.post('/:userId/increment-practice/:unitId', async (req, res) => {
+router.post('/:studentId/increment-practice/:unitId', async (req, res) => {
   try {
-    const { userId, unitId } = req.params;
+    const { studentId, unitId } = req.params;
     const { activityType = 'practice', timeSpent = 0 } = req.body;
 
     // 查找或创建UnitProgress记录
     const [unitProgress, created] = await UnitProgress.findOrCreate({
-      where: { userId, unitId },
+      where: { studentId, unitId },
       defaults: {
         completed: false,
         stars: 0,

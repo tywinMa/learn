@@ -1,17 +1,17 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-// 用户积分模型
-const UserPoints = sequelize.define('UserPoints', {
+// 学生积分模型
+const StudentPoints = sequelize.define('StudentPoints', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true
   },
-  userId: {
+  studentId: {
     type: DataTypes.STRING,
     allowNull: false,
-    unique: true // 每个用户只有一条积分记录
+    unique: true // 每个学生只有一条积分记录
   },
   points: {
     type: DataTypes.INTEGER,
@@ -22,4 +22,4 @@ const UserPoints = sequelize.define('UserPoints', {
   timestamps: true
 });
 
-module.exports = UserPoints;
+module.exports = StudentPoints;

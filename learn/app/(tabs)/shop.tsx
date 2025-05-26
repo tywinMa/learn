@@ -15,9 +15,7 @@ import { Ionicons, FontAwesome5, MaterialCommunityIcons } from "@expo/vector-ico
 import Colors from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-
-// 临时用户ID，实际应用中应该从认证系统获取
-const USER_ID = "user1";
+import { getCurrentStudentIdForProgress } from "../services/progressService";
 
 // 商品数据
 const SHOP_ITEMS = [
@@ -71,15 +69,15 @@ const ItemDetailModal = ({
   item,
   onClose,
   onExchange,
-  userPoints,
+  studentPoints,
 }: {
   visible: boolean;
   item: any;
   onClose: () => void;
   onExchange: () => void;
-  userPoints: number;
+  studentPoints: number;
 }) => {
-  const canExchange = userPoints >= item?.points;
+  const canExchange = studentPoints >= item?.points;
 
   return (
     <Modal animationType="slide" transparent={true} visible={visible} onRequestClose={onClose}>
@@ -109,7 +107,7 @@ const ItemDetailModal = ({
               </TouchableOpacity>
 
               {!canExchange && (
-                <Text style={styles.insufficientText}>还差 {item.points - userPoints} 积分才能兑换</Text>
+                <Text style={styles.insufficientText}>还差 {item.points - studentPoints} 积分才能兑换</Text>
               )}
             </>
           )}
@@ -142,25 +140,26 @@ const ExchangeSuccessModal = ({ visible, item, onClose }: { visible: boolean; it
 
 export default function ShopScreen() {
   const colorScheme = useColorScheme() ?? "light";
-  const [userPoints, setUserPoints] = useState(0);
+  const [studentPoints, setStudentPoints] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [exchanging, setExchanging] = useState(false);
   const [successModalVisible, setSuccessModalVisible] = useState(false);
 
-  // 获取用户积分
-  const fetchUserPoints = async () => {
+  // 获取学生积分
+  const fetchStudentPoints = async () => {
     try {
-      const response = await fetch(`http://101.126.135.102:3000/api/users/${USER_ID}/points`);
+      const studentId = await getCurrentStudentIdForProgress();
+      const response = await fetch(`http://101.126.135.102:3000/api/students/${studentId}/points`);
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setUserPoints(data.data.points);
+          setStudentPoints(data.data.points);
         }
       }
     } catch (error) {
-      console.error("获取用户积分出错:", error);
+      console.error("获取学生积分出错:", error);
     } finally {
       setLoading(false);
     }
@@ -168,7 +167,7 @@ export default function ShopScreen() {
 
   // 兑换商品
   const exchangeItem = async (item: any) => {
-    if (userPoints < item.points) {
+    if (studentPoints < item.points) {
       Alert.alert("积分不足", "您的积分不足以兑换该商品");
       return;
     }
@@ -176,7 +175,8 @@ export default function ShopScreen() {
     setExchanging(true);
 
     try {
-      const response = await fetch(`http://101.126.135.102:3000/api/users/${USER_ID}/points/deduct`, {
+      const studentId = await getCurrentStudentIdForProgress();
+      const response = await fetch(`http://101.126.135.102:3000/api/students/${studentId}/points/deduct`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -189,7 +189,7 @@ export default function ShopScreen() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setUserPoints(data.data.points);
+          setStudentPoints(data.data.points);
           setModalVisible(false);
           setSuccessModalVisible(true);
         } else {
@@ -214,7 +214,7 @@ export default function ShopScreen() {
 
   // 初始加载
   useEffect(() => {
-    fetchUserPoints();
+    fetchStudentPoints();
   }, []);
 
   return (
@@ -224,7 +224,7 @@ export default function ShopScreen() {
         <Text style={styles.headerTitle}>积分商城</Text>
         <RNView style={styles.pointsDisplay}>
           <FontAwesome5 name="gem" size={16} color="#1CB0F6" solid />
-          <Text style={styles.pointsValue}>{userPoints}</Text>
+          <Text style={styles.pointsValue}>{studentPoints}</Text>
         </RNView>
       </RNView>
 
@@ -263,7 +263,7 @@ export default function ShopScreen() {
         item={selectedItem}
         onClose={() => setModalVisible(false)}
         onExchange={() => exchangeItem(selectedItem)}
-        userPoints={userPoints}
+        studentPoints={studentPoints}
       />
 
       {/* 兑换成功弹窗 */}
