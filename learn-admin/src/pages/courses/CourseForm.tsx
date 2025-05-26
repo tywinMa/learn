@@ -294,6 +294,8 @@ const CourseForm: React.FC = () => {
         relatedExerciseId: values.relatedExerciseId || '',
         instructor: values.relatedExerciseId ? '关联习题教师' : '', // 保持向后兼容
         students: values.students || 0,
+        // 如果是新建课程，生成courseCode作为课程ID
+        courseCode: isEditing ? undefined : `C${Date.now().toString().substring(7, 12)}`,
         // 如果是新建课程，添加创建日期
         ...(isEditing ? {} : { createdAt: new Date().toISOString().split('T')[0] })
       };

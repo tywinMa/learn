@@ -1,6 +1,6 @@
 module.exports = {
   development: {
-    port: 3001,
+    port: 3000,
     database: {
       storage: './school_management.sqlite',
       dialect: 'sqlite'
@@ -11,7 +11,7 @@ module.exports = {
     }
   },
   production: {
-    port: process.env.PORT || 3001,
+    port: process.env.PORT || 3000,
     database: {
       storage: process.env.DB_STORAGE || './school_management.sqlite',
       dialect: 'sqlite'

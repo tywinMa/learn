@@ -1,7 +1,7 @@
 // 测试新的unit API
 import fetch from 'node-fetch';
 
-const BASE_URL = 'http://localhost:3001';
+const BASE_URL = 'http://localhost:3000';
 
 // 获取访问token
 async function getAuthToken() {

@@ -25,6 +25,7 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import './ExerciseForm.css';
 import { 
   getExerciseById, 
   createExercise, 
@@ -406,16 +407,59 @@ const ExerciseForm: React.FC = () => {
             </Select>
           </Form.Item>
           
-          <Form.Item
-            name="question"
-            label="题目内容"
-            rules={[{ required: true, message: '请输入题目内容' }]}
-          >
-            <ReactQuill 
-              theme="snow"
-              style={{ height: 150, marginBottom: 40 }}
-            />
-          </Form.Item>
+          <div className="relative mb-4">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-base font-medium text-gray-700">题目内容</span>
+              <Button
+                type="primary"
+                onClick={() => {
+                  message.info('AI生成功能正在开发中...');
+                }}
+                className="ai-generate-btn"
+                style={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  border: 'none',
+                  boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                  borderRadius: '8px',
+                  height: '36px',
+                  padding: '0 16px',
+                  fontWeight: 'bold',
+                  fontSize: '14px',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
+              >
+                <span style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span 
+                    className="ai-pulse-dot"
+                    style={{
+                      display: 'inline-block',
+                      width: '12px',
+                      height: '12px',
+                      background: 'linear-gradient(45deg, #00f0ff, #ff00ff)',
+                      borderRadius: '50%',
+                    }}
+                  ></span>
+                  AI生成
+                </span>
+              </Button>
+            </div>
+            <Form.Item
+              name="question"
+              rules={[{ required: true, message: '请输入题目内容' }]}
+              style={{ marginBottom: 0 }}
+            >
+              <ReactQuill 
+                theme="snow"
+                style={{ height: 150, marginBottom: 40 }}
+              />
+            </Form.Item>
+          </div>
           
           <Form.Item
             name="knowledgePointIds"

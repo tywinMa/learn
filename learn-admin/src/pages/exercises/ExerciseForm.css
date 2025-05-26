@@ -1,0 +1,19 @@
+@keyframes ai-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+.ai-pulse-dot {
+  animation: ai-pulse 2s infinite ease-in-out;
+}
+
+.ai-generate-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6) !important;
+} 

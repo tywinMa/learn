@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 const testExerciseAPI = async () => {
-  const baseURL = 'http://localhost:3001';
+  const baseURL = 'http://localhost:3000';
   
   try {
     // 1. 先测试登录获取token

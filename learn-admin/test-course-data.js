@@ -1,7 +1,7 @@
 // 测试课程数据加载
 import fetch from 'node-fetch';
 
-const BASE_URL = 'http://localhost:3001';
+const BASE_URL = 'http://localhost:3000';
 
 async function testCourseAPI() {
   console.log('开始测试课程API...\n');

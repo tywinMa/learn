@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 const testUpdateAPI = async () => {
-  const baseURL = 'http://localhost:3001';
+  const baseURL = 'http://localhost:3000';
   
   try {
     // 1. 先登录获取token

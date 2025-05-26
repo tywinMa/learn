@@ -899,24 +899,22 @@ export const createCourse = async (courseData: Omit<Course, 'id'>): Promise<Cour
     logApi('执行实际 createCourse API 调用');
     console.log('准备向后端发送POST请求:', API_ENDPOINTS.COURSES);
     
-    // 获取学科数据，将学科名称转换为ID
+    // 获取学科数据，将学科名称转换为学科代码
     const subjects = await getSubjects();
     const subject = subjects.find(s => s.name === courseData.category);
-    const subjectId = subject ? parseInt(subject.id) : null;
     
-    if (!subjectId) {
+    if (!subject) {
       throw new Error(`找不到学科: ${courseData.category}`);
     }
     
     // 转换字段名，将前端的字段映射到后端的字段
     const apiData = {
-      name: courseData.title,
+      id: courseData.courseCode || `C${Date.now().toString().substring(7, 12)}`, // 使用courseCode作为ID，或自动生成
+      title: courseData.title, // 后端期望title字段，不是name
       description: courseData.description,
       content: courseData.content, // 确保将content字段包含在API请求中
-      subjectId: subjectId,
-      sources: courseData.sources || [],
-      // 使用自动生成的课程编号格式
-      courseCode: courseData.courseCode || `C${Date.now().toString().substring(7, 12)}`, // 临时生成,会被后端替换
+      subject: subject.code, // 后端期望学科代码，不是学科ID
+      media: courseData.sources || [], // 后端期望media字段，不是sources
       relatedExerciseId: courseData.relatedExerciseId || '', // 修复：使用正确的relatedExerciseId字段
       teacherId: null, // 暂不设置教师
       coverImage: courseData.coverImage
@@ -927,12 +925,13 @@ export const createCourse = async (courseData: Omit<Course, 'id'>): Promise<Cour
       content: apiData.content ? `${apiData.content.substring(0, 100)}...` : '无内容'
     });
     
-    const response = await api.post(API_ENDPOINTS.COURSES, apiData);
+    const response = await api.post(API_ENDPOINTS.COURSES, apiData) as unknown as Course;
     
     logApi('实际 API 返回', { data: response });
     console.log('API响应:', JSON.stringify(response, null, 2));
     
-    return response.data || null;
+    // API拦截器已经提取了data字段，所以response直接是课程数据
+    return response || null;
   } catch (error) {
     logError('创建课程失败', error);
     console.error('创建课程API错误:', error);
@@ -985,10 +984,10 @@ export const updateCourse = async (id: string, courseData: Partial<Course>): Pro
     // 准备API数据
     const apiData: Record<string, unknown> = {
       // 直接从courseData中映射所有需要的字段
-      name: courseData.title,
+      title: courseData.title, // 后端期望title字段，不是name
       description: courseData.description,
       content: courseData.content,
-      sources: courseData.sources,
+      media: courseData.sources, // 后端期望media字段，不是sources
       relatedExerciseId: courseData.relatedExerciseId
     };
     
@@ -1017,17 +1016,16 @@ export const updateCourse = async (id: string, courseData: Partial<Course>): Pro
         }
         
         if (subject) {
-          const subjectId = parseInt(subject.id);
-          console.log(`找到匹配的学科: ${subject.name}, ID: ${subjectId}`);
-          apiData.subjectId = subjectId;
+          console.log(`找到匹配的学科: ${subject.name}, 代码: ${subject.code}`);
+          apiData.subject = subject.code; // 后端期望学科代码，不是学科ID
         } else {
           console.warn(`未找到匹配的学科: ${courseData.category}, 将使用第一个可用学科`);
           
           // 如果实在找不到匹配的学科，使用第一个可用学科
           if (subjects.length > 0) {
             const firstSubject = subjects[0];
-            apiData.subjectId = parseInt(firstSubject.id);
-            console.log(`使用默认学科: ${firstSubject.name}, ID: ${firstSubject.id}`);
+            apiData.subject = firstSubject.code; // 后端期望学科代码，不是学科ID
+            console.log(`使用默认学科: ${firstSubject.name}, 代码: ${firstSubject.code}`);
           } else {
             console.error('没有可用的学科数据');
           }
@@ -1047,26 +1045,11 @@ export const updateCourse = async (id: string, courseData: Partial<Course>): Pro
     
     // 发送API请求
     try {
-      const response = await api.put(`${API_ENDPOINTS.COURSES}/${id}`, apiData);
+      const response = await api.put(`${API_ENDPOINTS.COURSES}/${id}`, apiData) as unknown as Course;
       console.log('更新课程成功:', response);
       
       // API拦截器已经提取了data字段，所以response直接是课程数据
-      if (response && typeof response === 'object') {
-        // 如果response是课程对象，直接返回
-        if ('id' in response || 'name' in response) {
-          console.log('updateCourse - 直接返回课程数据:', response);
-          return response as unknown as Course;
-        }
-        
-        // 兼容旧的响应格式
-        if ('data' in response && response.data) {
-          console.log('updateCourse - 从data字段提取课程数据:', response.data);
-          return response.data;
-        }
-      }
-      
-      console.log('updateCourse - 响应格式不符合预期，返回null');
-      return null;
+      return response || null;
     } catch (apiError) {
       console.error('API错误:', apiError);
       throw apiError;
