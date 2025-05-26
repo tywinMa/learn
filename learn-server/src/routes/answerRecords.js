@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
 const AnswerRecordService = require('../services/answerRecordService');
-const { AnswerRecord, Exercise, UnitProgress, sequelize } = require('../models');
+const { AnswerRecord, Exercise, UnitProgress, Student, sequelize } = require('../models');
 
 /**
  * 提交答题记录 - 新版本，使用AnswerRecord
@@ -642,8 +642,22 @@ router.post('/:studentId/progress/batch', async (req, res) => {
  */
 router.post('/:studentId/increment-study/:unitId', async (req, res) => {
   try {
-    const { studentId, unitId } = req.params;
+    const { studentId: studentIdParam, unitId } = req.params;
     const { activityType = 'study', timeSpent = 0 } = req.body;
+
+    // 查找学生记录，获取数字ID
+    const student = await Student.findOne({
+      where: { studentId: studentIdParam }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: `未找到学生: ${studentIdParam}`
+      });
+    }
+
+    const studentId = student.id; // 使用数字ID
 
     // 查找或创建UnitProgress记录
     const [unitProgress, created] = await UnitProgress.findOrCreate({
@@ -701,8 +715,22 @@ router.post('/:studentId/increment-study/:unitId', async (req, res) => {
  */
 router.post('/:studentId/increment-practice/:unitId', async (req, res) => {
   try {
-    const { studentId, unitId } = req.params;
+    const { studentId: studentIdParam, unitId } = req.params;
     const { activityType = 'practice', timeSpent = 0 } = req.body;
+
+    // 查找学生记录，获取数字ID
+    const student = await Student.findOne({
+      where: { studentId: studentIdParam }
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: `未找到学生: ${studentIdParam}`
+      });
+    }
+
+    const studentId = student.id; // 使用数字ID
 
     // 查找或创建UnitProgress记录
     const [unitProgress, created] = await UnitProgress.findOrCreate({

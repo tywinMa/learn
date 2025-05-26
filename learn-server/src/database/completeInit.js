@@ -1,5 +1,5 @@
 const { sequelize } = require("../config/database");
-const { Subject, Unit, Course, Exercise, User, KnowledgePoint } = require("../models");
+const { Subject, Unit, Course, Exercise, User, KnowledgePoint, Student } = require("../models");
 
 /**
  * 完整的数据库初始化脚本
@@ -52,7 +52,12 @@ const completeInit = async (options = {}) => {
       console.log(`✅ 创建用户: ${users.length}个`);
     }
 
-    // 7. 初始化知识点数据
+    // 7. 初始化测试学生数据
+    console.log("\n👨‍🎓 初始化测试学生数据...");
+    const students = await initStudentData();
+    console.log(`✅ 创建学生: ${students.length}个`);
+
+    // 8. 初始化知识点数据
     if (includeKnowledgePoints) {
       console.log("\n🧠 初始化知识点数据...");
       const knowledgePoints = await initKnowledgePointsData(exercises);
@@ -381,8 +386,81 @@ const initExercises = async (courses) => {
 const initUnitContents = async (courses) => {
   const mathCourse = courses.find(c => c.id === 'math-1-1');
   if (mathCourse) {
-    // 这里可以添加单元内容初始化逻辑
     console.log(`为课程 ${mathCourse.title} 初始化内容`);
+    
+    // 准备内容
+    const content = `<h1>一元二次方程的基本概念</h1>
+<p>一元二次方程是指含有一个未知数，并且未知数的最高次数是2的方程。其一般形式为：</p>
+<p class="formula">ax² + bx + c = 0 (a ≠ 0)</p>
+<p>其中a、b、c是已知数，x是未知数，a ≠ 0。</p>
+<p>例如：</p>
+<ul>
+  <li>x² - 5x + 6 = 0</li>
+  <li>2x² + 3x - 1 = 0</li>
+  <li>3x² - 7 = 0</li>
+</ul>
+
+<h1>一元二次方程的解法 - 因式分解法</h1>
+<p>因式分解法是解一元二次方程的最基本方法，适用于容易分解因式的方程。</p>
+<p>步骤：</p>
+<ol>
+  <li>将方程左边因式分解为两个一次因式的乘积</li>
+  <li>令每个因式等于0，解出x的值</li>
+</ol>
+<p>例如，解方程：x² - 5x + 6 = 0</p>
+<p>解：</p>
+<p>x² - 5x + 6 = 0</p>
+<p>(x - 2)(x - 3) = 0</p>
+<p>所以x = 2或x = 3</p>
+<p>答案：x = 2或x = 3</p>
+
+<h1>一元二次方程的解法 - 公式法</h1>
+<p>公式法是解一元二次方程的通用方法，适用于所有一元二次方程。</p>
+<p>一元二次方程ax² + bx + c = 0 (a ≠ 0)的解为：</p>
+<p class="formula">x = (-b ± √(b² - 4ac)) / (2a)</p>
+<p>其中，b² - 4ac称为判别式，记作Δ（Delta）。</p>
+<ul>
+  <li>当Δ > 0时，方程有两个不相等的实数解</li>
+  <li>当Δ = 0时，方程有两个相等的实数解</li>
+  <li>当Δ < 0时，方程没有实数解</li>
+</ul>
+<p>例如，解方程：2x² - 5x + 2 = 0</p>
+<p>解：a = 2, b = -5, c = 2</p>
+<p>Δ = b² - 4ac = (-5)² - 4×2×2 = 25 - 16 = 9</p>
+<p>x = (-b ± √Δ) / (2a) = (5 ± 3) / 4</p>
+<p>x₁ = (5 + 3) / 4 = 2</p>
+<p>x₂ = (5 - 3) / 4 = 0.5</p>
+<p>答案：x = 2或x = 0.5</p>`;
+
+    // 准备媒体内容
+    const media = [
+      {
+        type: 'video',
+        title: '一元二次方程简介视频',
+        url: 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
+        metadata: { duration: '9:56', resolution: '720p' }
+      },
+      {
+        type: 'image',
+        title: '因式分解法图解',
+        url: 'https://examples.com/factorization-method.jpg',
+        metadata: { width: 800, height: 600, format: 'jpg' }
+      },
+      {
+        type: 'video',
+        title: '公式法视频讲解',
+        url: 'https://d23dyxeqlo5psv.cloudfront.net/equation_solving.mp4',
+        metadata: { duration: '7:23', resolution: '1080p' }
+      }
+    ];
+
+    // 更新小单元内容
+    await mathCourse.update({
+      content,
+      media
+    });
+
+    console.log(`成功初始化小单元 ${mathCourse.id} 的内容`);
   }
 };
 
@@ -423,6 +501,59 @@ const initAdminData = async (courses) => {
 
   console.log(`创建了${users.length}个用户账户`);
   return users;
+};
+
+/**
+ * 初始化测试学生数据
+ */
+const initStudentData = async () => {
+  const students = [];
+
+  // 创建测试学生
+  const student1 = await Student.create({
+    studentId: 'student1',
+    password: 'student123',
+    name: '张小明',
+    nickname: '小明',
+    email: 'student1@learn.com',
+    grade: '九年级',
+    school: '实验中学',
+    totalPoints: 100,
+    currentLevel: 1,
+    status: 'active'
+  });
+  students.push(student1);
+
+  const student2 = await Student.create({
+    studentId: 'student2', 
+    password: 'student123',
+    name: '李小红',
+    nickname: '小红',
+    email: 'student2@learn.com',
+    grade: '九年级',
+    school: '实验中学',
+    totalPoints: 200,
+    currentLevel: 1,
+    status: 'active'
+  });
+  students.push(student2);
+
+  const student3 = await Student.create({
+    studentId: 'student3',
+    password: 'student123', 
+    name: '王小华',
+    nickname: '小华',
+    email: 'student3@learn.com',
+    grade: '九年级',
+    school: '实验中学',
+    totalPoints: 150,
+    currentLevel: 1,
+    status: 'active'
+  });
+  students.push(student3);
+
+  console.log(`创建了${students.length}个测试学生`);
+  return students;
 };
 
 /**
