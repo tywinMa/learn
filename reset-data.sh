@@ -160,7 +160,7 @@ fi
 
 # 运行数据初始化
 echo -e "${YELLOW}🚀 运行数据初始化...${NC}"
-node src/database/init.js $INIT_ARGS
+node src/database/completeInit.js $INIT_ARGS
 
 if [ $? -eq 0 ]; then
   echo -e "${GREEN}✅ 数据重置完成！${NC}"

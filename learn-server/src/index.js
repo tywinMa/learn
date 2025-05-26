@@ -96,9 +96,14 @@ const startServer = async () => {
     await testConnection();
     console.log('数据库连接测试成功');
     
-    // 同步数据库模型
-    await syncDatabase();
-    console.log('数据库模型同步完成');
+    // 注释掉数据库同步，避免影响现有数据
+    // await syncDatabase();
+    console.log('跳过数据库模型同步，使用现有数据库结构');
+    
+    // 检查数据库状态
+    const { Subject } = require('./models');
+    const subjectCount = await Subject.count();
+    console.log(`数据库状态检查: 学科数量 = ${subjectCount}`);
 
     // 尝试启动服务器，如果端口被占用则尝试杀掉占用进程
     const server = app.listen(PORT, () => {
