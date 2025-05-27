@@ -31,7 +31,7 @@ interface FormValues {
   isPublished: boolean;
   color?: string;
   secondaryColor?: string;
-  courseIds?: number[];
+  courseIds?: string[];
 }
 
 const UnitForm: React.FC = () => {
@@ -83,11 +83,11 @@ const UnitForm: React.FC = () => {
             console.log('获取到课程数据:', subjectCourses);
             setCourses(subjectCourses);
             
-            // 确保courseIds是数字数组
+            // 确保courseIds是字符串数组
             let courseIds = unitData.courseIds || [];
             if (Array.isArray(courseIds)) {
-              // 如果是字符串数组，转换为数字数组
-              courseIds = courseIds.map(id => typeof id === 'string' ? parseInt(id) : id);
+              // 统一转换为字符串数组
+              courseIds = courseIds.map(id => String(id));
             }
             console.log('处理后的courseIds:', courseIds);
             
@@ -283,7 +283,7 @@ const UnitForm: React.FC = () => {
               {({ getFieldValue }) => {
                 const selectedCourseIds = getFieldValue('courseIds') || [];
                 const selectedCount = courses.filter(course => 
-                  selectedCourseIds.includes(parseInt(course.id))
+                  selectedCourseIds.includes(course.id)
                 ).length;
                 
                 return (
@@ -311,7 +311,7 @@ const UnitForm: React.FC = () => {
                       {courses.map(course => (
                         <Option 
                           key={course.id} 
-                          value={parseInt(course.id)}
+                          value={course.id}
                           label={`${course.title || course.name} (${course.courseCode || course.course_code || course.id})`}
                         >
                           <div>
@@ -344,7 +344,7 @@ const UnitForm: React.FC = () => {
                 console.log('可用课程列表:', courses.map(c => ({ id: c.id, title: c.title })));
                 
                 const selectedCourses = courses.filter(course => 
-                  selectedCourseIds.includes(parseInt(course.id))
+                  selectedCourseIds.includes(course.id)
                 );
                 console.log('匹配到的课程:', selectedCourses.map(c => ({ id: c.id, title: c.title })));
                 

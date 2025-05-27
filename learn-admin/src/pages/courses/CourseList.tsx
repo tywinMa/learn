@@ -71,8 +71,8 @@ const CourseList: React.FC = () => {
           title: course.name || course.title || '',
           // 使用teacher.name作为instructor
           instructor: course.teacher?.name || course.instructor || '未分配教师',
-          // 使用subject.name作为category
-          category: course.subject?.name || course.category || '未分类',
+          // 使用Subject.name作为category
+          category: course.Subject?.name || course.category || '未分类',
           // 保留其他字段
           students: course.students || 0,
           courseCode: course.courseCode || course.course_code || '',
@@ -162,7 +162,7 @@ const CourseList: React.FC = () => {
       (course && 
         (
           course.category === selectedSubject || 
-          course.subject?.name === selectedSubject ||
+          course.Subject?.name === selectedSubject ||
           (typeof course.category === 'string' && 
            typeof selectedSubject === 'string' && 
            course.category.toLowerCase() === selectedSubject.toLowerCase())
@@ -325,7 +325,7 @@ const CourseList: React.FC = () => {
                     className="h-full flex flex-col course-card"
                     style={{ 
                       border: '1px solid #e8e8e8', 
-                      borderTop: `3px solid ${getSubjectColor(course.category)}`,
+                      borderTop: `3px solid ${getSubjectColor(course.Subject?.name || course.category || '未分类')}`,
                       boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
                       transition: 'all 0.3s ease'
                     }}
@@ -340,7 +340,7 @@ const CourseList: React.FC = () => {
                     >
                       {/* 学科标签 - 左上角 */}
                       <Tag 
-                        color={getSubjectColor(course.category)} 
+                        color={getSubjectColor(course.Subject?.name || course.category || '未分类')} 
                         className="absolute top-2 left-2 z-10"
                         style={{ 
                           fontSize: '12px', 
@@ -348,10 +348,10 @@ const CourseList: React.FC = () => {
                           padding: '4px 8px',
                           borderRadius: '4px',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                          background: `${getSubjectColor(course.category)}dd`
+                          background: `${getSubjectColor(course.Subject?.name || course.category || '未分类')}dd`
                         }}
                       >
-                        {course.category || course.subject?.name || '未分类'}
+                        {course.Subject?.name || course.category || '未分类'}
                       </Tag>
                     </div>
 

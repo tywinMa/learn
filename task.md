@@ -1,3 +1,3 @@
-现在有Student模型，但没有相关路由和控制器
-- 请不要把User和Student混淆，User是后台管理界面的人员，Student是学生，是APP端的用户
-- 请检查相关代码，确保Student模型和路由、控制器都正确，包括learn app端，admin后台管理，server服务端的所有代码
+# 后台管理单元配置课程bug
+- POST接口/api/admin/units保存单元内配置的课程的时候，每个单元下的courseIds是null
+- 应该是把配置到该单元的课程id保存到courseIds字段，其他未选中的课程都在可选课程中去

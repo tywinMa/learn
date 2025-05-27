@@ -11,7 +11,7 @@ export interface Unit {
   isPublished: boolean;
   color?: string;
   secondaryColor?: string;
-  courseIds?: number[]; // 关联的课程ID列表
+  courseIds?: string[]; // 关联的课程ID列表（Course的id是字符串类型）
   createdAt?: string;
   updatedAt?: string;
 }
@@ -26,7 +26,7 @@ export interface CreateUnitParams {
   isPublished?: boolean;
   color?: string;
   secondaryColor?: string;
-  courseIds?: number[]; // 关联的课程ID列表
+  courseIds?: string[]; // 关联的课程ID列表（Course的id是字符串类型）
 }
 
 // 更新单元请求参数类型
@@ -38,7 +38,7 @@ export interface UpdateUnitParams {
   isPublished?: boolean;
   color?: string;
   secondaryColor?: string;
-  courseIds?: number[]; // 关联的课程ID列表
+  courseIds?: string[]; // 关联的课程ID列表（Course的id是字符串类型）
 }
 
 // API响应类型
@@ -161,15 +161,15 @@ export const updateUnit = async (id: string, unitData: UpdateUnitParams): Promis
       url: `/api/admin/units/${id}`,
       method: 'PUT',
       data: unitData
-    }) as ApiResponse<Unit>;
+    });
     
-    // 检查响应格式
-    if (response.err_no === 0 && response.data) {
+    // API拦截器已经处理了err_no检查，直接返回data
+    if (response) {
       message.success('单元更新成功');
-      return response.data;
+      return response as unknown as Unit;
     } else {
-      console.error('API响应格式错误:', response);
-      message.error(response.message || '更新单元失败');
+      console.error('API响应数据为空:', response);
+      message.error('更新单元失败');
       return null;
     }
   } catch (error) {

@@ -22,7 +22,7 @@ import {
 import { getSubjects } from '../../services/subjectService';
 import type { Subject } from '../../services/subjectService';
 import { getCoursesBySubject, type Course } from '../../services/courseService';
-import { createUnit, getAllUnits, deleteUnitsBySubject, type CreateUnitParams, type Unit } from '../../services/unitService';
+import { createUnit, getAllUnits, getUnitsBySubject, updateUnit, deleteUnit, deleteUnitsBySubject, type CreateUnitParams, type UpdateUnitParams, type Unit } from '../../services/unitService';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import './SubjectStageUnits.css';
@@ -56,7 +56,8 @@ const DraggableCourse: React.FC<{
   index: number;
   cellId: string;
   moveCard?: (dragIndex: number, hoverIndex: number, cellId: string) => void;
-}> = ({ course, isEditMode, index, cellId, moveCard }) => {
+  onRemove?: (courseId: string, cellId: string) => void; // 新增删除回调
+}> = ({ course, isEditMode, index, cellId, moveCard, onRemove }) => {
   const ref = useRef<HTMLDivElement>(null);
   
   const [{ isDragging }, drag] = useDrag({
@@ -127,22 +128,31 @@ const DraggableCourse: React.FC<{
       className={`draggable-course ${isDragging ? 'dragging' : ''} ${isEditMode ? '' : 'not-draggable'}`}
     >
       <div className="flex items-center justify-between">
-        <div className="flex items-center">
+        <div className="flex items-center flex-1">
           {isEditMode && <DragOutlined className="mr-2 text-gray-400" />}
-          <div className="ml-2">
-            <div className="font-medium">{course.title}</div>
-            <div className="text-xs text-gray-500 flex items-center">
-              <span className="mr-2">{course.courseCode || course.id}</span>
-              <span className="mx-1">|</span>
-              <span>{course.category}</span>
-              <span className="mx-1">|</span>
-              <span>{course.instructor}</span>
-            </div>
+          <div className="ml-2 flex-1">
+            <div className="font-medium text-sm">{course.title}</div>
           </div>
         </div>
-        <Tag color="blue" className="ml-2">
-          课程
-        </Tag>
+        <div className="flex items-center gap-2">
+          <Tag color="blue">
+            课程
+          </Tag>
+          {isEditMode && cellId !== "available" && onRemove && (
+            <Button
+              type="text"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove(course.id, cellId);
+              }}
+              className="opacity-70 hover:opacity-100"
+              title="移回可用课程"
+            />
+          )}
+        </div>
       </div>
     </div>
   );
@@ -157,7 +167,8 @@ const CourseGrid: React.FC<{
   onTitleChange: (cellId: string, title: string) => void;
   subject: Subject | undefined;
   moveCard: (dragIndex: number, hoverIndex: number, cellId: string) => void;
-}> = ({ cell, onDrop, onDelete, isEditMode, onTitleChange, subject, moveCard }) => {
+  onRemoveCourse: (courseId: string, cellId: string) => void; // 新增移除课程回调
+}> = ({ cell, onDrop, onDelete, isEditMode, onTitleChange, subject, moveCard, onRemoveCourse }) => {
   const dropRef = useRef<HTMLDivElement>(null);
   
   const [{ isOver }, drop] = useDrop({
@@ -258,7 +269,7 @@ const CourseGrid: React.FC<{
                   <DragOutlined style={{ fontSize: '20px', opacity: 0.5 }} />
                 </div>
                 <div>将课程拖拽到这里</div>
-                <div className="text-xs text-gray-400 mt-1">删除版块时课程会返回可用列表</div>
+                <div className="text-xs text-gray-400 mt-1">或点击课程的删除按钮移回此处</div>
               </>
             ) : '暂无课程'}
           </div>
@@ -271,6 +282,7 @@ const CourseGrid: React.FC<{
               index={index}
               cellId={cell.id}
               moveCard={moveCard}
+              onRemove={onRemoveCourse}
             />
           ))
         )}
@@ -307,6 +319,7 @@ const SubjectStageUnits: React.FC = () => {
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [gridCells, setGridCells] = useState<GridCell[]>([]);
   const [availableCourses, setAvailableCourses] = useState<Course[]>([]); // 改为可用课程
+  const [backupGridCells, setBackupGridCells] = useState<GridCell[]>([]); // 备份编辑前的状态
   
   // 获取所有数据
   const fetchData = useCallback(async () => {
@@ -384,6 +397,16 @@ const SubjectStageUnits: React.FC = () => {
         console.log(`=== 学科${subject.name}(${subject.code})的课程数据 ===`);
         console.log('获取到的课程数量:', subjectCourses.length);
         console.log('课程数据:', subjectCourses);
+        
+        // 检查课程数据是否有重复
+        const courseIds = subjectCourses.map(c => c.id);
+        const uniqueCourseIds = [...new Set(courseIds)];
+        if (courseIds.length !== uniqueCourseIds.length) {
+          console.warn('⚠️ 发现重复的课程数据！');
+          console.log('原始课程数量:', courseIds.length);
+          console.log('去重后数量:', uniqueCourseIds.length);
+          console.log('重复的课程ID:', courseIds.filter((id, index) => courseIds.indexOf(id) !== index));
+        }
         
         // 设置课程数据
         setCourses(subjectCourses);
@@ -608,8 +631,8 @@ const SubjectStageUnits: React.FC = () => {
       
       // 将单元中的课程ID转换为课程对象
       if (unit.courseIds && Array.isArray(unit.courseIds)) {
-        unit.courseIds.forEach(courseId => {
-          const courseIdStr = courseId.toString();
+        unit.courseIds.forEach((courseId: string | number) => {
+          const courseIdStr = String(courseId); // 确保转换为字符串
           const course = courseMap.get(courseIdStr);
           if (course) {
             unitCourses.push(course);
@@ -650,11 +673,22 @@ const SubjectStageUnits: React.FC = () => {
     });
     
     // 从所有课程中过滤出未使用的课程
-    const availableCourses = courses.filter(course => !usedCourseIds.has(course.id));
-    setAvailableCourses(availableCourses);
+    const filteredCourses = courses.filter(course => !usedCourseIds.has(course.id));
     
-    console.log('重新计算可用课程 - 已使用课程ID:', Array.from(usedCourseIds));
-    console.log('重新计算可用课程 - 可用课程数量:', availableCourses.length);
+    // 去重处理 - 确保同一个课程ID只出现一次
+    const uniqueCourses = filteredCourses.filter((course, index, arr) => 
+      arr.findIndex(c => c.id === course.id) === index
+    );
+    
+    console.log('=== recalculateAvailableCourses 执行 ===');
+    console.log('总课程数量:', courses.length);
+    console.log('已使用课程ID:', Array.from(usedCourseIds));
+    console.log('过滤后课程数量:', filteredCourses.length);
+    console.log('去重后课程数量:', uniqueCourses.length);
+    console.log('可用课程列表:', uniqueCourses.map(c => c.title));
+    console.log('=== recalculateAvailableCourses 完成 ===');
+    
+    setAvailableCourses(uniqueCourses);
   };
   
   // 处理同一格子内的卡片排序
@@ -677,17 +711,88 @@ const SubjectStageUnits: React.FC = () => {
     );
   };
   
+  // 处理从单元中移除课程（点击删除按钮）
+  const handleRemoveCourse = (courseId: string, cellId: string) => {
+    const course = courses.find(c => c.id === courseId);
+    if (!course) {
+      console.error('找不到课程:', courseId);
+      return;
+    }
+    
+    console.log('移除课程:', {
+      courseId,
+      courseTitle: course.title,
+      from: cellId
+    });
+    
+    // 从指定格子中移除课程，并立即计算新的可用课程列表
+    setGridCells(prev => {
+      const newGridCells = prev.map(cell => {
+        if (cell.id === cellId) {
+          return {
+            ...cell,
+            courses: cell.courses.filter(c => c.id !== courseId)
+          };
+        }
+        return cell;
+      });
+      
+      // 立即计算新的可用课程（基于更新后的格子状态）
+      const usedCourseIds = new Set<string>();
+      newGridCells.forEach(cell => {
+        cell.courses.forEach(course => {
+          usedCourseIds.add(course.id);
+        });
+      });
+      
+      const filteredCourses = courses.filter(course => !usedCourseIds.has(course.id));
+      
+      // 去重处理 - 确保同一个课程ID只出现一次
+      const newAvailableCourses = filteredCourses.filter((course, index, arr) => 
+        arr.findIndex(c => c.id === course.id) === index
+      );
+      
+      console.log(`课程"${course.title}"已从单元${cellId}移除`);
+      console.log('移除后 - 已使用课程ID:', Array.from(usedCourseIds));
+      console.log('移除后 - 过滤课程数量:', filteredCourses.length);
+      console.log('移除后 - 去重课程数量:', newAvailableCourses.length);
+      console.log('移除后 - 可用课程列表:', newAvailableCourses.map(c => c.title));
+      
+      // 同步更新可用课程列表
+      setAvailableCourses(newAvailableCourses);
+      
+      return newGridCells;
+    });
+  };
+
   // 处理课程拖拽到格子
   const handleUnitDrop = (courseId: string, cellId: string, sourceCellId?: string) => {
     // 查找课程
     const course = courses.find(c => c.id === courseId);
-    if (!course) return;
+    if (!course) {
+      console.error('找不到课程:', courseId);
+      return;
+    }
+    
+    console.log('拖拽操作:', {
+      courseId,
+      courseTitle: course.title,
+      from: sourceCellId,
+      to: cellId
+    });
     
     // 如果源和目标是同一个格子，不做任何操作（仅在同一格子内重新排序）
     if (sourceCellId === cellId) return;
     
     // 如果课程来自可用课程区域
     if (sourceCellId === "available") {
+      // 检查目标格子是否已包含该课程
+      const targetCell = gridCells.find(cell => cell.id === cellId);
+      if (targetCell && targetCell.courses.some(c => c.id === courseId)) {
+        message.warning('该课程已在目标单元中');
+        return;
+      }
+      
       // 添加到目标格子
       setGridCells(prev => 
         prev.map(cell => {
@@ -700,9 +805,18 @@ const SubjectStageUnits: React.FC = () => {
           return cell;
         })
       );
+      
+      console.log(`课程"${course.title}"从可用课程添加到格子${cellId}`);
     } 
     // 如果课程来自其他格子
     else if (sourceCellId) {
+      // 检查目标格子是否已包含该课程
+      const targetCell = gridCells.find(cell => cell.id === cellId);
+      if (targetCell && targetCell.courses.some(c => c.id === courseId)) {
+        message.warning('该课程已在目标单元中');
+        return;
+      }
+      
       // 从源格子中移除，添加到目标格子
       setGridCells(prev => 
         prev.map(cell => {
@@ -720,6 +834,8 @@ const SubjectStageUnits: React.FC = () => {
           return cell;
         })
       );
+      
+      console.log(`课程"${course.title}"从格子${sourceCellId}移动到格子${cellId}`);
     }
     // 如果课程被移回可用区域
     else if (cellId === "available") {
@@ -730,7 +846,12 @@ const SubjectStageUnits: React.FC = () => {
           courses: cell.courses.filter(c => c.id !== courseId)
         }))
       );
+      
+      console.log(`课程"${course.title}"移回可用课程区域`);
     }
+    
+    // 拖拽操作完成后，立即重新计算可用课程
+    // 由于useEffect会自动处理gridCells变化，这里不需要手动调用
   };
   
   // 添加新格子
@@ -779,36 +900,59 @@ const SubjectStageUnits: React.FC = () => {
   // 切换编辑模式
   const toggleEditMode = async () => {
     if (isEditMode) {
-      // 检查是否有配置需要保存
-      const hasData = gridCells.some(cell => cell.courses.length > 0);
+      // 检查是否有修改
+      const hasChanges = JSON.stringify(gridCells) !== JSON.stringify(backupGridCells);
       
-      if (hasData) {
+      if (hasChanges) {
+        const cellsWithCourses = gridCells.filter(cell => cell.courses.length > 0).length;
+        const emptyCells = gridCells.filter(cell => cell.courses.length === 0).length;
+        
         // 显示确认对话框
         Modal.confirm({
-          title: '保存配置',
-          content: `是否将当前配置保存为${currentSubject?.name || ''}学科的学习单元？`,
-          okText: '确认保存',
-          cancelText: '取消',
+          title: '更新课程关联',
+          content: (
+            <div>
+              <p>检测到您修改了课程分配，是否更新<strong>{currentSubject?.name || ''}</strong>学科单元的课程关联？</p>
+              <div style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
+                <p>当前配置：</p>
+                <ul style={{ margin: '5px 0', paddingLeft: '20px' }}>
+                  <li>总共 {gridCells.length} 个单元</li>
+                  <li>其中 {cellsWithCourses} 个包含课程</li>
+                  <li>{emptyCells} 个暂无课程</li>
+                </ul>
+                <p style={{ color: '#1890ff', fontSize: '13px', marginTop: '10px' }}>
+                  ℹ️ 此操作只会更新单元与课程的关联关系，不会删除现有单元
+                </p>
+              </div>
+            </div>
+          ),
+          okText: '确认更新',
+          cancelText: '不保存',
           onOk: async () => {
             await saveConfiguration();
             setIsEditMode(false);
           },
           onCancel: () => {
+            // 恢复到编辑前的状态
+            setGridCells([...backupGridCells]);
             setIsEditMode(false);
+            message.info('已恢复到编辑前的状态');
           }
         });
       } else {
-        // 没有数据直接退出编辑模式
+        // 没有修改直接退出编辑模式
         setIsEditMode(false);
-        message.info('未检测到需要保存的配置');
+        message.info('未检测到配置修改');
       }
     } else {
+      // 进入编辑模式前备份当前状态
+      setBackupGridCells(JSON.parse(JSON.stringify(gridCells)));
       setIsEditMode(true);
-      // useEffect会自动重新计算可用课程
+      console.log('进入编辑模式，已备份当前状态');
     }
   };
   
-  // 保存配置到数据库
+  // 保存配置到数据库 - 更新现有单元的课程关联
   const saveConfiguration = async () => {
     if (!currentSubject) {
       message.error('请先选择学科');
@@ -818,53 +962,110 @@ const SubjectStageUnits: React.FC = () => {
     try {
       setLoading(true);
       
-      // 先删除该学科的所有现有单元
-      console.log(`准备删除学科${currentSubject.name}(${currentSubject.code})的所有现有单元`);
-      const deleteSuccess = await deleteUnitsBySubject(currentSubject.code);
+      console.log(`开始更新学科${currentSubject.name}(${currentSubject.code})的单元课程关联`);
       
-      if (!deleteSuccess) {
-        throw new Error('删除现有单元失败');
-      }
+      // 获取该学科的现有单元
+      const existingUnits = await getUnitsBySubject(currentSubject.code);
+      console.log('现有单元数据:', existingUnits);
       
-      console.log('现有单元删除成功，开始保存新配置');
+      // 按order排序现有单元
+      const sortedExistingUnits = [...existingUnits].sort((a, b) => a.order - b.order);
       
-      // 遍历每个格子，为每个包含课程的格子创建或更新一个单元
-      const savePromises = gridCells
-        .filter(cell => cell.courses.length > 0) // 只保存有课程的格子
-        .map(async (cell, index) => {
-          const courseIds = cell.courses.map(course => parseInt(course.id));
+      // 更新现有单元的课程关联
+      const updatePromises = gridCells.map(async (cell, index) => {
+        const courseIds = cell.courses.map(course => course.id);
+        
+        // 找到对应的现有单元（按顺序匹配）
+        const existingUnit = sortedExistingUnits[index];
+        
+        if (existingUnit) {
+          // 更新现有单元
+          console.log(`更新单元${existingUnit.id}:`, {
+            title: cell.title,
+            courseIds: courseIds,
+            courseCount: courseIds.length
+          });
           
-          // 生成单元ID
-          const unitId = `${currentSubject.code.toLowerCase()}-${cell.id}-${Date.now()}`;
+          const updateData: UpdateUnitParams = {
+            title: cell.title,
+            description: cell.courses.length > 0 
+              ? `包含${cell.courses.length}门课程的学习单元`
+              : '暂无课程的学习单元',
+            courseIds: courseIds
+          };
           
-          const unitData: CreateUnitParams = {
+          const result = await updateUnit(existingUnit.id, updateData);
+          if (result) {
+            console.log(`单元${existingUnit.id}更新成功`);
+            return result;
+          } else {
+            throw new Error(`更新单元"${cell.title}"失败`);
+          }
+        } else {
+          // 如果现有单元不足，创建新单元
+          console.log(`创建新单元:`, {
+            title: cell.title,
+            courseIds: courseIds,
+            courseCount: courseIds.length
+          });
+          
+          const unitId = `${currentSubject.code.toLowerCase()}-unit-${index + 1}`;
+          const createData: CreateUnitParams = {
             id: unitId,
             subject: currentSubject.code,
             title: cell.title,
-            description: `包含${cell.courses.length}门课程的学习单元`,
+            description: cell.courses.length > 0 
+              ? `包含${cell.courses.length}门课程的学习单元`
+              : '暂无课程的学习单元',
             order: index + 1,
             isPublished: true,
             color: currentSubject.color || '#1677ff',
-            secondaryColor: `${currentSubject.color || '#1677ff'}20`, // 20% 透明度
+            secondaryColor: `${currentSubject.color || '#1677ff'}20`,
             courseIds: courseIds
           };
-
-          console.log('保存单元数据:', unitData);
           
-          const result = await createUnit(unitData);
+          const result = await createUnit(createData);
           if (result) {
-            console.log('单元保存成功:', result);
+            console.log(`新单元${unitId}创建成功`);
             return result;
           } else {
-            throw new Error(`保存单元"${cell.title}"失败`);
+            throw new Error(`创建单元"${cell.title}"失败`);
           }
-        });
+        }
+      });
 
-      // 等待所有单元保存完成
-      const savedUnits = await Promise.all(savePromises);
+      // 等待所有单元更新完成
+      const updatedUnits = await Promise.all(updatePromises);
       
-      console.log('所有单元保存完成:', savedUnits);
-      message.success(`配置已保存，共创建了${savedUnits.length}个学习单元`);
+      // 如果现有单元比当前格子多，删除多余的单元
+      if (sortedExistingUnits.length > gridCells.length) {
+        const extraUnits = sortedExistingUnits.slice(gridCells.length);
+        console.log('删除多余单元:', extraUnits.map(u => u.id));
+        
+        const deletePromises = extraUnits.map(async (unit: Unit) => {
+          const success = await deleteUnit(unit.id);
+          if (success) {
+            console.log(`多余单元${unit.id}已删除`);
+          }
+          return success;
+        });
+        
+        await Promise.all(deletePromises);
+      }
+      
+      const unitsWithCourses = updatedUnits.filter(unit => unit.courseIds && unit.courseIds.length > 0);
+      const emptyUnits = updatedUnits.filter(unit => !unit.courseIds || unit.courseIds.length === 0);
+      
+      console.log('课程关联更新完成:', {
+        total: updatedUnits.length,
+        withCourses: unitsWithCourses.length,
+        empty: emptyUnits.length
+      });
+      
+      message.success(
+        `课程关联已更新，共处理了${updatedUnits.length}个学习单元` +
+        `（其中${unitsWithCourses.length}个包含课程，${emptyUnits.length}个暂无课程）`
+      );
       
       // 保存成功后重新获取单元数据
       if (currentSubject) {
@@ -898,13 +1099,34 @@ const SubjectStageUnits: React.FC = () => {
             <AppstoreOutlined className="mr-2" />
             单元与课程管理
           </Title>
-          <Button 
-            type={isEditMode ? "primary" : "default"}
-            icon={isEditMode ? <SaveOutlined /> : <EditOutlined />}
-            onClick={toggleEditMode}
-          >
-            {isEditMode ? '保存配置' : '编辑模式'}
-          </Button>
+          <div className="flex gap-2">
+            {isEditMode && (
+              <Button 
+                icon={<i className="anticon">↺</i>}
+                onClick={() => {
+                  Modal.confirm({
+                    title: '重置配置',
+                    content: '确定要将配置重置到编辑开始时的状态吗？当前的修改将丢失。',
+                    okText: '确认重置',
+                    cancelText: '取消',
+                    onOk: () => {
+                      setGridCells(JSON.parse(JSON.stringify(backupGridCells)));
+                      message.success('配置已重置到编辑开始时的状态');
+                    }
+                  });
+                }}
+              >
+                重置
+              </Button>
+            )}
+            <Button 
+              type={isEditMode ? "primary" : "default"}
+              icon={isEditMode ? <SaveOutlined /> : <EditOutlined />}
+              onClick={toggleEditMode}
+            >
+              {isEditMode ? '更新课程关联' : '编辑课程分配'}
+            </Button>
+          </div>
         </div>
         
         <Card className="mb-6 shadow-sm">
@@ -949,7 +1171,7 @@ const SubjectStageUnits: React.FC = () => {
                 <Title level={4}>
                   课程组织器
                   <Text className="ml-2 text-gray-500 font-normal text-sm">
-                    {isEditMode ? '编辑模式：拖拽课程组织成学习单元' : '查看模式'}
+                    {isEditMode ? '编辑模式：拖拽课程分配到单元，或点击删除按钮移回可用列表' : '查看模式'}
                   </Text>
                 </Title>
               </div>
@@ -974,6 +1196,7 @@ const SubjectStageUnits: React.FC = () => {
                               onTitleChange={handleGridCellTitleChange}
                               subject={currentSubject}
                               moveCard={moveCard}
+                              onRemoveCourse={handleRemoveCourse}
                             />
                           </Col>
                         ))
@@ -1063,6 +1286,7 @@ const AvailableUnitsCard: React.FC<{
               index={index}
               cellId="available"
               moveCard={undefined}
+              onRemove={undefined}
             />
           ))
         )}

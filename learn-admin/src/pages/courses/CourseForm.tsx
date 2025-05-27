@@ -592,7 +592,7 @@ const CourseForm: React.FC = () => {
                 >
                   <Select placeholder="请选择学科分类" loading={loadingSubjects} size="large">
                     {subjects.map(subject => (
-                      <Option key={subject.id} value={subject.name}>{subject.name}</Option>
+                      <Option key={subject.id} value={subject.code}>{subject.name}</Option>
                     ))}
                   </Select>
                 </Form.Item>

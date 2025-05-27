@@ -1,6 +1,8 @@
 const { Course, Subject, User, Exercise } = require('../../models');
 const { Op } = require('sequelize');
 
+
+
 // 获取课程列表（支持分页、按课程号/课程名称/学科分类查询）
 const getCourses = async (req, res) => {
   try {
@@ -55,6 +57,9 @@ const getCourses = async (req, res) => {
     // 转换数据格式，添加exerciseIds字段
     const coursesWithExerciseIds = rows.map(course => {
       const courseData = course.toJSON();
+      
+
+      
       // 提取练习题ID列表
       courseData.exerciseIds = courseData.Exercises ? courseData.Exercises.map(e => e.id) : [];
       // 删除Exercises数组，避免数据冗余
