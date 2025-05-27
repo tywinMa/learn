@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getCourseById, createCourse, updateCourse } from '../../services/courseService';
 import { getAllExercises } from '../../services/exerciseService';
 import { uploadCourseCover, uploadCourseVideo } from '../../services/uploadService';
-import { formatExerciseTitle } from '../../utils/formatters';
+
 import type { Course } from '../../services/courseService';
 import type { Exercise } from '../../services/exerciseService';
 import type { UploadFile, UploadChangeParam } from 'antd/es/upload/interface';
@@ -182,22 +182,21 @@ const CourseForm: React.FC = () => {
 
       console.log(`CourseForm - 课程(ID:${id})数据加载成功:`, {
         title: course.name || course.title,
-        category: course.subject?.name || course.category,
+        category: course.Subject?.name || course.category,
         hasContent: !!course.content,
         relatedExerciseId: course.relatedExercise?.id || course.relatedExerciseId,
         relatedExercise: course.relatedExercise
       });
 
       // 设置表单值
-      const relatedExerciseIds = course.relatedExercises?.map(ex => ex.id?.toString()) || 
-                                course.relatedExerciseIds || 
+      const relatedExerciseIds = course.relatedExercise?.id ? [course.relatedExercise.id.toString()] : 
                                 (course.relatedExerciseId ? [course.relatedExerciseId] : []);
       console.log('CourseForm - 设置relatedExerciseIds值:', relatedExerciseIds);
       
       form.setFieldsValue({
         title: course.name || course.title,
         description: course.description,
-        category: course.subject?.name || course.category,
+        category: course.Subject?.name || course.category,
         relatedExerciseIds: relatedExerciseIds
       });
       

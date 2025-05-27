@@ -1,14 +1,13 @@
 import api from './api';
 
 // 用户角色常量
-export enum UserRole {
-  ADMIN = 'admin',
-  TEACHER = 'teacher',
-  STUDENT = 'student'
-}
+export const UserRole = {
+  ADMIN: 'admin',
+  TEACHER: 'teacher',
+  STUDENT: 'student'
+} as const;
 
-// 强制使用模拟数据（本地开发时非常有用）
-const USE_MOCK_DATA = false;
+export type UserRole = typeof UserRole[keyof typeof UserRole];
 
 // API接口路径
 const API_ENDPOINTS = {
@@ -113,11 +112,6 @@ export interface RegisterRequest {
 // 登录
 export const login = async (username: string, password: string, setUser?: (user: UserInfo) => void) => {
   try {
-    // 如果使用模拟数据
-    if (USE_MOCK_DATA) {
-      return mockLogin(username, password, setUser);
-    }
-    
     // 实际API调用 - axios拦截器已经将response.data作为返回值
     const response = await api.post(API_ENDPOINTS.LOGIN, { 
       username, 
@@ -190,189 +184,64 @@ export const login = async (username: string, password: string, setUser?: (user:
   } catch (error) {
     console.error('登录错误:', error);
     
-    // 如果是开发环境，返回模拟数据
-    if (USE_MOCK_DATA) {
-      return mockLogin(username, password, setUser);
-    }
-    
     // 这里直接返回错误信息，无需重新抛出异常
     return {
       success: false,
-      message: error instanceof Error ? error.message : '登录失败，请稍后再试'
+      message: '网络错误，请检查网络连接后重试'
     };
   }
 };
 
-// 模拟登录（开发环境使用）
-const mockLogin = (username: string, password: string, setUser?: (user: UserInfo) => void) => {
-  const mockUsers = [
-    { 
-      id: '1', 
-      username: 'admin', 
-      name: '管理员', 
-      email: 'admin@example.com',
-      mobile: '13800000000',
-      avatar: 'https://example.com/avatar/admin.png',
-      status: 1,
-      lastLoginTime: new Date().toISOString(),
-      roles: [
-        {
-          id: 1,
-          name: '超级管理员',
-          code: 'admin'
-        }
-      ],
-      role: UserRole.ADMIN,
-      permissions: ['dashboard', 'courses', 'students', 'settings'],
-    },
-    { 
-      id: '2', 
-      username: 'teacher', 
-      name: '教师用户', 
-      email: 'teacher@example.com',
-      mobile: '13800000001',
-      avatar: 'https://example.com/avatar/teacher.png',
-      status: 1,
-      lastLoginTime: new Date().toISOString(),
-      roles: [
-        {
-          id: 2,
-          name: '教师',
-          code: 'teacher'
-        }
-      ],
-      role: UserRole.TEACHER,
-      subject: '数学',
-      permissions: ['dashboard', 'courses'],
-    },
-    { 
-      id: '3', 
-      username: 'student', 
-      name: '学生用户', 
-      email: 'student@example.com',
-      mobile: '13800000002',
-      avatar: 'https://example.com/avatar/student.png',
-      status: 1,
-      lastLoginTime: new Date().toISOString(),
-      roles: [
-        {
-          id: 3,
-          name: '学生',
-          code: 'student'
-        }
-      ],
-      role: UserRole.STUDENT,
-      grade: '高一',
-      permissions: ['dashboard'],
-    }
-  ];
-  
-  // 简单的用户验证
-  const user = mockUsers.find(u => u.username === username);
-  
-  if (user && (password === '123456' || password === 'admin123')) { // 简化的密码验证
-    // 假设返回了token和用户信息
-    const mockResponse = {
-      token: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${btoa(JSON.stringify({userId: user.id.toString(), time: Date.now()}))}`,
-      user
-    };
-    
-    // 保存token和用户信息到localStorage
-    localStorage.setItem(TOKEN_KEY, mockResponse.token);
-    localStorage.setItem(USER_INFO, JSON.stringify(mockResponse.user));
-    
-    // 使用setUser函数更新全局状态(如果提供)
-    if (setUser && user) {
-      setUser(user);
-    }
-    
-    return {
-      success: true,
-      data: mockResponse
-    };
-  } else {
-    return {
-      success: false,
-      message: '用户名或密码错误'
-    };
-  }
-};
-
-// 注册新用户
+// 注册用户
 export const register = async (userData: RegisterRequest) => {
   try {
-    // 准备发送到API的数据
+    console.log('注册用户API调用 - 参数检查:', userData);
+    
+    // 准备API请求数据 (转换前端字段到后端字段)
     const apiData: RegisterApiRequest = {
       username: userData.username,
       password: userData.password,
-      name: userData.fullName || userData.name || '', // 使用fullName或name
+      name: userData.fullName || userData.name, // 使用fullName作为用户姓名
       email: userData.email,
-      mobile: userData.phone || userData.mobile, // 使用phone或mobile
-      status: userData.status || 1, // 默认为启用状态
-      avatar: userData.avatar
+      mobile: userData.phone || userData.mobile, // 使用phone作为手机号
+      avatar: userData.avatar,
+      status: userData.status ?? 1, // 默认状态为启用(1)
+      roleIds: userData.roleIds || [] // 默认无角色分配
     };
     
-    // 根据角色添加角色ID
-    if (userData.role) {
-      // 映射角色到roleIds
-      // 这个映射关系应该根据实际的API来确定
-      const roleMap: Record<UserRole, number> = {
-        [UserRole.ADMIN]: 1,
-        [UserRole.TEACHER]: 2,
-        [UserRole.STUDENT]: 3
-      };
-      
-      apiData.roleIds = [roleMap[userData.role]];
-    }
-    
-    // 如果使用模拟数据
-    if (USE_MOCK_DATA) {
-      // 模拟注册成功
-      return { 
-        success: true, 
-        message: '注册成功（模拟）', 
-        data: { 
-          id: Math.floor(Math.random() * 1000) + 10,
-          username: userData.username,
-          name: userData.fullName || userData.name || ''
-        } 
-      };
-    }
+    console.log('注册API请求数据:', apiData);
     
     // 实际API调用
-    const response = await api.post<ApiResponse>(API_ENDPOINTS.REGISTER, apiData);
+    const response = await api.post(API_ENDPOINTS.REGISTER, apiData) as ApiResponse<UserInfo>;
     
-    if (response.data && response.data.status === 'success') {
+    console.log('注册API响应:', response);
+    
+    // 检查响应格式
+    if (response && response.data) {
+      // 注册成功的响应通常包含用户信息
       return {
         success: true,
-        message: response.data.message || '注册成功',
-        data: response.data.data
+        data: response.data,
+        message: '注册成功'
+      };
+    } else if (response) {
+      // 直接返回用户数据的情况
+      return {
+        success: true,
+        data: response,
+        message: '注册成功'
       };
     } else {
       return {
         success: false,
-        message: response.data?.message || '注册失败'
+        message: '注册失败：服务器响应异常'
       };
     }
   } catch (error) {
-    console.error('注册错误:', error);
-    
-    // 在开发环境也返回成功
-    if (USE_MOCK_DATA) {
-      return { 
-        success: true, 
-        message: '注册成功（模拟）', 
-        data: { 
-          id: Math.floor(Math.random() * 1000) + 10,
-          username: userData.username,
-          name: userData.fullName || userData.name || ''
-        } 
-      };
-    }
-    
+    console.error('注册用户失败:', error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : '注册失败，请稍后再试'
+      message: '注册失败：网络错误或服务器异常'
     };
   }
 };
@@ -380,50 +249,32 @@ export const register = async (userData: RegisterRequest) => {
 // 获取当前用户信息
 export const fetchCurrentUser = async () => {
   try {
-    if (USE_MOCK_DATA) {
-      // 从localStorage获取用户信息
-      const user = getCurrentUser();
-      return user ? { success: true, data: user } : { success: false, message: '未登录' };
-    }
-    
     // 实际API调用
-    const response = await api.get<ApiResponse<UserInfo>>(API_ENDPOINTS.ADMIN_PROFILE);
+    const response = await api.get(API_ENDPOINTS.ADMIN_PROFILE) as UserInfo;
     
-    if (response.data && response.data.status === 'success' && response.data.data) {
+    console.log('获取用户信息API响应:', response);
+    
+    // 检查响应数据
+    if (response && (response.id || response.username)) {
       // 更新localStorage中的用户信息
-      localStorage.setItem(USER_INFO, JSON.stringify(response.data.data));
+      localStorage.setItem(USER_INFO, JSON.stringify(response));
       
-      // 将API返回的用户信息转换为应用所需的格式
-      const userData = response.data.data;
-      
-      // 确定用户角色 (前端使用)
-      if (userData.roles && userData.roles.length > 0) {
-        const roleCode = userData.roles[0].code;
-        if (roleCode === 'admin') {
-          userData.role = UserRole.ADMIN;
-        } else if (roleCode === 'teacher') {
-          userData.role = UserRole.TEACHER;
-        } else if (roleCode === 'student') {
-          userData.role = UserRole.STUDENT;
-        }
-      }
-      
-      return { success: true, data: userData };
+      return {
+        success: true,
+        data: response
+      };
     } else {
-      return { success: false, message: response.data?.message || '获取用户信息失败' };
+      console.warn('获取用户信息失败: 响应数据格式不正确', response);
+      return {
+        success: false,
+        message: '获取用户信息失败'
+      };
     }
   } catch (error) {
-    console.error('获取用户信息错误:', error);
-    
-    if (USE_MOCK_DATA) {
-      // 从localStorage获取用户信息
-      const user = getCurrentUser();
-      return user ? { success: true, data: user } : { success: false, message: '未登录' };
-    }
-    
+    console.error('获取当前用户信息失败:', error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : '获取用户信息失败，请稍后再试'
+      message: '获取用户信息失败：网络错误'
     };
   }
 };
@@ -431,161 +282,136 @@ export const fetchCurrentUser = async () => {
 // 退出登录
 export const logout = async (clearUser?: () => void) => {
   try {
-    // 实际环境中调用登出API
-    if (!USE_MOCK_DATA) {
-      await api.post(API_ENDPOINTS.LOGOUT);
-    }
+    // 实际API调用
+    await api.post(API_ENDPOINTS.LOGOUT);
     
-    // 清除本地存储的认证信息
+    // 清除本地存储
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_INFO);
     
-    // 清除全局用户状态
+    // 清除全局用户状态(如果提供了回调函数)
     if (clearUser) {
       clearUser();
     }
     
-    // 重定向到登录页
-    window.location.href = '/login';
-    
+    console.log('退出登录成功');
     return { success: true };
   } catch (error) {
-    console.error('退出登录错误:', error);
-    
-    // 即使API调用失败，也清除本地存储并重定向
+    // 即使API调用失败，也要清除本地存储
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_INFO);
     
-    // 清除全局用户状态
     if (clearUser) {
       clearUser();
     }
     
-    window.location.href = '/login';
-    
-    return { success: true };
+    console.error('退出登录API调用失败，但已清除本地数据:', error);
+    return { success: true }; // 仍然返回成功，因为本地已清除
   }
 };
 
-// 获取token
+// 获取Token
 export const getToken = () => {
   return localStorage.getItem(TOKEN_KEY);
 };
 
-// 获取当前用户信息
+// 获取当前用户
 export const getCurrentUser = (): UserInfo | null => {
-  const userInfoStr = localStorage.getItem(USER_INFO);
-  if (!userInfoStr) return null;
-  
   try {
-    return JSON.parse(userInfoStr);
-  } catch {
+    const userStr = localStorage.getItem(USER_INFO);
+    if (userStr) {
+      return JSON.parse(userStr);
+    }
+    return null;
+  } catch (error) {
+    console.error('解析用户信息失败:', error);
     return null;
   }
 };
 
 // 检查是否已登录
 export const isAuthenticated = () => {
-  return !!getToken() && !!getCurrentUser();
+  return !!getToken();
 };
 
-// 检查是否有权限
-export const hasPermission = (/* permissionKey: string */): boolean => {
-  // 临时取消权限检查，始终返回true
-  return true;
+// 检查权限（基础实现，可根据实际需求扩展）
+export const hasPermission = (permissionKey?: string): boolean => {
+  // 如果没有登录，返回false
+  if (!isAuthenticated()) {
+    return false;
+  }
   
-  // 原代码逻辑（已注释）
-  /*
   const user = getCurrentUser();
-  if (!user) return false;
+  if (!user) {
+    return false;
+  }
   
-  // 优先检查permissions数组
-  if (user.permissions && user.permissions.includes(permissionKey)) {
+  // 简单的权限检查逻辑
+  // 管理员拥有所有权限
+  if (user.role === UserRole.ADMIN || 
+      (user.roles && user.roles.some(role => role.code === 'admin'))) {
     return true;
   }
   
-  // 如果没有permissions数组，则根据角色判断
-  if (user.role === UserRole.ADMIN) {
-    // 管理员拥有所有权限
-    return true;
-  } else if (user.role === UserRole.TEACHER) {
-    // 教师拥有课程和仪表盘权限
-    return ['dashboard', 'courses'].includes(permissionKey);
-  } else if (user.role === UserRole.STUDENT) {
-    // 学生仅拥有仪表盘权限
-    return permissionKey === 'dashboard';
-  }
-  
-  return false;
-  */
+  // 教师和学生的具体权限需要根据业务逻辑实现
+  // 这里暂时返回true（允许访问）
+  return true;
 };
 
 // 获取用户角色
 export const getUserRole = (): UserRole | null => {
   const user = getCurrentUser();
-  return user ? user.role || null : null;
+  if (user?.role) {
+    return user.role;
+  }
+  
+  // 尝试从roles数组中推断角色
+  if (user?.roles && user.roles.length > 0) {
+    const roleCode = user.roles[0].code;
+    return roleCode as UserRole;
+  }
+  
+  return null;
 };
 
-// 更新用户个人信息
+// 更新用户信息
 export const updateUserProfile = async (userData: Partial<UserInfo>) => {
   try {
-    // 准备发送到API的数据
-    const apiData = {
-      name: userData.name,
-      email: userData.email,
-      mobile: userData.mobile,
-      avatar: userData.avatar
-    };
+    console.log('更新用户信息 - 请求参数:', userData);
     
-    // 如果使用模拟数据
-    if (USE_MOCK_DATA) {
-      // 更新本地存储的用户信息
-      const currentUser = getCurrentUser();
-      if (currentUser) {
-        const updatedUser = { ...currentUser, ...userData };
-        localStorage.setItem(USER_INFO, JSON.stringify(updatedUser));
-      }
-      
-      return { success: true, message: '用户信息更新成功（模拟）' };
+    // 获取当前用户ID
+    const currentUser = getCurrentUser();
+    if (!currentUser || !currentUser.id) {
+      throw new Error('无法获取当前用户信息');
     }
     
     // 实际API调用
-    const userId = String(userData.id); // 确保ID为字符串
-    const response = await api.put<ApiResponse>(`${API_ENDPOINTS.UPDATE_PROFILE}/${userId}`, apiData);
+    const response = await api.put(`${API_ENDPOINTS.UPDATE_PROFILE}/${currentUser.id}`, userData) as UserInfo;
     
-    if (response.data && response.data.status === 'success') {
-      // 更新成功后，重新获取用户信息
-      await fetchCurrentUser();
+    console.log('更新用户信息API响应:', response);
+    
+    // 检查响应数据
+    if (response && (response.id || response.username)) {
+      // 更新localStorage中的用户信息
+      const updatedUser = { ...currentUser, ...response };
+      localStorage.setItem(USER_INFO, JSON.stringify(updatedUser));
       
       return {
         success: true,
-        message: response.data.message || '更新成功',
-        data: response.data.data
+        data: updatedUser,
+        message: '更新成功'
       };
     } else {
       return {
         success: false,
-        message: response.data?.message || '更新失败'
+        message: '更新失败：服务器响应异常'
       };
     }
   } catch (error) {
-    console.error('更新用户信息错误:', error);
-    
-    // 在开发环境中模拟成功
-    if (USE_MOCK_DATA) {
-      // 更新本地存储的用户信息
-      const currentUser = getCurrentUser();
-      if (currentUser) {
-        const updatedUser = { ...currentUser, ...userData };
-        localStorage.setItem(USER_INFO, JSON.stringify(updatedUser));
-      }
-      
-      return { success: true, message: '用户信息更新成功（模拟）' };
-    }
-    
+    console.error('更新用户信息失败:', error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : '更新失败，请稍后再试'
+      message: '更新失败：网络错误或服务器异常'
     };
   }
 }; 

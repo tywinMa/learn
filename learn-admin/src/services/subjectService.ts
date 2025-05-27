@@ -1,22 +1,5 @@
 import api from './api';
 
-// 是否使用模拟数据
-const USE_MOCK_DATA = false;
-
-// 模拟学科数据
-const mockSubjects: Subject[] = [
-  { id: '1', name: '语文', code: 'chinese', color: '#1677ff' },
-  { id: '2', name: '数学', code: 'math', color: '#52c41a' },
-  { id: '3', name: '英语', code: 'english', color: '#722ed1' },
-  { id: '4', name: '物理', code: 'physics', color: '#eb2f96' },
-  { id: '5', name: '化学', code: 'chemistry', color: '#fa8c16' },
-  { id: '6', name: '生物', code: 'biology', color: '#13c2c2' },
-  { id: '7', name: '历史', code: 'history', color: '#faad14' },
-  { id: '8', name: '地理', code: 'geography', color: '#cf1322' },
-  { id: '9', name: '政治', code: 'politics', color: '#2f54eb' },
-  { id: '10', name: '信息技术', code: 'computer', color: '#08979c' }
-];
-
 // 学科接口
 export interface Subject {
   id: string;
@@ -38,12 +21,6 @@ interface SubjectApiResponse {
  */
 export const getSubjects = async (): Promise<Subject[]> => {
   try {
-    // 如果使用模拟数据
-    if (USE_MOCK_DATA) {
-      console.log('使用模拟学科数据');
-      return mockSubjects;
-    }
-
     console.log('获取学科列表 - 调用后端API');
     const response = await api({
       url: '/api/admin/subjects',
@@ -65,11 +42,6 @@ export const getSubjects = async (): Promise<Subject[]> => {
     }
   } catch (error) {
     console.error('获取学科列表失败:', error);
-    // 在出错时也返回模拟数据
-    if (USE_MOCK_DATA) {
-      console.log('API调用失败，返回模拟学科数据');
-      return mockSubjects;
-    }
     return [];
   }
 };

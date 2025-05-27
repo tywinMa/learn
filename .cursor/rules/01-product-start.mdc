@@ -13,12 +13,23 @@ alwaysApply: true
 - 保持简洁，尽量减少其他描述
 - 若认为可能无正确答案，需明确说明；若不确定，应说明而非猜测
 - 只编写实现功能必需的最小代码量
-- 使用React Native和Expo等跨平台包，支持iOS和Android平台
 - 输出代码后需要验证代码是否正确，包括自我检测以及用户配合检测
 - 这是一个新项目，无需存在兼容数据，在测试完成后，对于旧代码或文件可以直接进行删除
 - 最终完成代码编写后，将测试代码及测试文件删除，保持代码简洁易读
 
-# 项目目录
-- learn目录下是这是一个基于React Native和Expo的跨平台移动应用，支持iOS和Android平台
-- learn-admin目录下是一个后台管理系统，管理应用的数据内容
-- learn-server目录下是上面两个项目的后端，采用expressjs, sqlite, sequelize技术栈。 app端的接口以/api开头,后台的接口以/api/admin开头
+
+## learn
+- learn目录下是这是一个基于React Native和Expo的跨平台移动应用，支持iOS和Android平台,
+- 需要使用React Native和Expo等跨平台包，支持iOS和Android平台
+- 使用`npm run web`启动项目
+## learn-admin后台管理系统
+- learn-admin目录下是一个后台管理系统，配合learn-server项目，管理learn应用的数据内容
+- 使用`npm run dev`启动项目
+## learn-server所有项目的后端
+- learn-server目录下是上面两个项目的后端，采用expressjs, sqlite, sequelize技术栈
+- app端的接口以/api开头,后台的接口以/api/admin开头
+- 使用`npm run dev`启动项目
+
+
+
+
