@@ -16,7 +16,7 @@ HELP_MODE=false
 RUN_SERVER=false
 NO_ADMIN=false
 NO_KNOWLEDGE=false
-FORCE_RESET=false
+FORCE_RESET=true
 START_ALL=false
 
 while [[ $# -gt 0 ]]; do
@@ -135,8 +135,8 @@ cd "$SCRIPT_DIR/learn-server"
 # 清理数据库文件（如果指定了force参数）
 if [ "$FORCE_RESET" = true ]; then
   echo -e "${YELLOW}清理数据库文件...${NC}"
-  if [ -f "src/database/learn.sqlite" ]; then
-    rm -f src/database/learn.sqlite
+  if [ -f "/Users/maxin/maxin/learn/learn-server/src/database/learn.sqlite" ]; then
+    rm -f /Users/maxin/maxin/learn/learn-server/src/database/learn.sqlite
     echo -e "${GREEN}数据库文件已删除${NC}"
   else
     echo -e "${BLUE}数据库文件不存在，无需删除${NC}"
