@@ -324,8 +324,6 @@ export default function PracticeScreen() {
   const color = typeof params.color === "string" ? params.color : "#5EC0DE";
   const secondaryColor = typeof params.secondaryColor === "string" ? params.secondaryColor : color;
 
-
-
   // 获取练习题
   const fetchExercises = async () => {
     try {
@@ -361,44 +359,50 @@ export default function PracticeScreen() {
         } else {
           setExercises(result.data);
           setError(null);
-        }
 
-        // 记录用户访问练习页面的次数
-        try {
-          // 记录练习开始时间
-          setPracticeStartTime(Date.now());
+          // 记录用户访问练习页面的次数
+          try {
+            // 记录练习开始时间
+            setPracticeStartTime(Date.now());
 
-          // 调用API增加练习次数
-          const activityApiUrl = `${API_BASE_URL}/api/answer-records/${studentId}/increment-practice/${lessonId}`;
+            // 重要修改：直接使用课程ID(lessonId)作为进度记录的单元ID
+            // 不再使用习题的unitId，因为习题可能被多个课程共享
+            // 这样确保进度记录到正确的课程而不是习题的原始单元
+            const actualUnitId = lessonId; // 直接使用课程ID
+            setActualUnitId(actualUnitId); // 保存实际的unitId
 
-          const activityResponse = await fetch(activityApiUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              activityType: "practice_start", // 明确标识活动类型
-              timeSpent: 0, // 开始时没有花费时间
-            }),
-          });
+            // 调用API增加练习次数
+            const activityApiUrl = `${API_BASE_URL}/api/answer-records/${studentId}/increment-practice/${actualUnitId}`;
 
-          if (activityResponse.ok) {
-            console.log(`成功记录用户练习活动: ${lessonId}`);
+            const activityResponse = await fetch(activityApiUrl, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                activityType: "practice_start", // 明确标识活动类型
+                timeSpent: 0, // 开始时没有花费时间
+              }),
+            });
 
-            // 获取并保存当前单元的进度数据
-            try {
-              const progress = await getStudentUnitProgress(lessonId);
-              setUnitProgress(progress);
-              console.log("获取到单元进度:", progress);
-            } catch (progressErr) {
-              console.error("获取单元进度失败:", progressErr);
+            if (activityResponse.ok) {
+              console.log(`成功记录用户练习活动: ${actualUnitId}（课程ID: ${lessonId}）`);
+
+              // 获取并保存当前单元的进度数据
+              try {
+                const progress = await getStudentUnitProgress(actualUnitId);
+                setUnitProgress(progress);
+                console.log("获取到单元进度:", progress);
+              } catch (progressErr) {
+                console.error("获取单元进度失败:", progressErr);
+              }
+            } else {
+              console.warn(`记录练习活动失败: HTTP ${activityResponse.status}`);
             }
-          } else {
-            console.warn(`记录练习活动失败: HTTP ${activityResponse.status}`);
+          } catch (activityError) {
+            console.error("记录练习活动出错:", activityError);
+            // 这里不需要向用户显示错误，因为这只是一个后台统计功能
           }
-        } catch (activityError) {
-          console.error("记录练习活动出错:", activityError);
-          // 这里不需要向用户显示错误，因为这只是一个后台统计功能
         }
       } else {
         throw new Error(result.message || "获取练习题失败: 服务器未返回数据");
@@ -413,6 +417,8 @@ export default function PracticeScreen() {
 
   // 存储学生ID用于清理函数
   const [currentStudentId, setCurrentStudentId] = useState<string>("");
+  // 存储实际的unitId，用于统一进度记录
+  const [actualUnitId, setActualUnitId] = useState<string>("");
 
   // 初始加载
   useEffect(() => {
@@ -431,11 +437,14 @@ export default function PracticeScreen() {
     return () => {
       const totalPracticeTime = Math.floor((Date.now() - practiceStartTime) / 1000);
       // 仅当练习时间超过5秒时才记录
-      if (totalPracticeTime > 5 && lessonId && currentStudentId) {
+      if (totalPracticeTime > 5 && currentStudentId) {
         console.log(`用户练习了 ${totalPracticeTime} 秒`);
 
+        // 使用保存的actualUnitId，如果没有则回退到lessonId
+        const unitIdForRecord = actualUnitId || lessonId;
+
         // 发送最终练习时间统计
-        fetch(`${API_BASE_URL}/api/answer-records/${currentStudentId}/increment-practice/${lessonId}`, {
+        fetch(`${API_BASE_URL}/api/answer-records/${currentStudentId}/increment-practice/${unitIdForRecord}`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -449,7 +458,7 @@ export default function PracticeScreen() {
         });
       }
     };
-  }, [lessonId, currentStudentId]);
+  }, [lessonId, currentStudentId, actualUnitId]);
 
   // 计算正确答题数
   const getCorrectCount = () => {
@@ -546,6 +555,7 @@ export default function PracticeScreen() {
     });
 
     // 使用统一处理函数判断答案正确性
+    // 重要修改：使用课程ID(lessonId)而不是习题的unitId，确保进度记录到正确的课程
     const isCorrect = await processAnswer(currentExerciseId, lessonId, exercise, userAnswer);
 
     // 更新已答题记录
@@ -597,15 +607,18 @@ export default function PracticeScreen() {
         sessionStorage?.setItem('currentSessionId', sessionId);
       }
       
+      // 重要修改：使用课程ID(lessonId)而不是习题的unitId，确保进度记录到正确的课程
+      const actualUnitId = lessonId;
+      
       // 记录提交的答题结果
       console.log(
-        `提交答题结果: 练习ID=${exerciseId}, 单元ID=${lessonId}, 是否正确=${isCorrect}, 响应时间=${responseTime}ms`
+        `提交答题结果: 练习ID=${exerciseId}, 课程ID=${actualUnitId}, 习题原unitId=${currentExercise?.unitId}, 是否正确=${isCorrect}, 响应时间=${responseTime}ms`
       );
 
       // 创建请求体，包含丰富的答题数据
       const requestBody = {
         exerciseId,
-        unitId: lessonId,
+        unitId: actualUnitId, // 使用课程ID，确保进度记录到正确的课程
         isCorrect,
         userAnswer,
         responseTime: Math.floor(responseTime / 1000), // 转换为秒
@@ -644,7 +657,7 @@ export default function PracticeScreen() {
               if (!prev)
                 return {
                   ...data.data,
-                  unitId: lessonId,
+                  unitId: actualUnitId, // 使用课程ID
                   totalExercises: exercises.length,
                   completedExercises: getCorrectCount() + (isCorrect ? 1 : 0),
                   completionRate:

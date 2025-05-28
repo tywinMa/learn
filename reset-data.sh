@@ -18,6 +18,8 @@ NO_ADMIN=false
 NO_KNOWLEDGE=false
 FORCE_RESET=true
 START_ALL=false
+START_APP=false
+START_ADMIN=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -27,6 +29,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     -s|--start-all)
       START_ALL=true
+      shift
+      ;;
+    -a|--start-app)
+      START_APP=true
+      shift
+      ;;
+    -b|--start-admin)
+      START_ADMIN=true
       shift
       ;;
     --no-admin)
@@ -60,8 +70,12 @@ if [ "$HELP_MODE" = true ]; then
   echo -e "  ./reset-data.sh                 # 完整重置数据 (不启动服务)"
   echo -e "  ./reset-data.sh -r              # 完整重置数据并启动后端服务"
   echo -e "  ./reset-data.sh -s              # 完整重置数据并启动所有服务"
+  echo -e "  ./reset-data.sh -a              # 完整重置数据并启动服务端+App端"
+  echo -e "  ./reset-data.sh -b              # 完整重置数据并启动服务端+后台管理"
   echo -e "  ./reset-data.sh --run           # 完整重置数据并启动后端服务 (完整写法)"
   echo -e "  ./reset-data.sh --start-all     # 完整重置数据并启动所有服务 (完整写法)"
+  echo -e "  ./reset-data.sh --start-app     # 完整重置数据并启动服务端+App端 (完整写法)"
+  echo -e "  ./reset-data.sh --start-admin   # 完整重置数据并启动服务端+后台管理 (完整写法)"
   echo -e "  ./reset-data.sh --no-admin      # 重置数据但不包含管理员数据"
   echo -e "  ./reset-data.sh --no-knowledge  # 重置数据但不包含知识点数据"
   echo -e "  ./reset-data.sh --force         # 强制重建数据库表结构"
@@ -70,6 +84,8 @@ if [ "$HELP_MODE" = true ]; then
   echo -e "${YELLOW}参数说明:${NC}"
   echo -e "  ${GREEN}-r, --run${NC}:          重置完成后自动启动后端服务"
   echo -e "  ${GREEN}-s, --start-all${NC}:    重置完成后自动启动所有服务"
+  echo -e "  ${GREEN}-a, --start-app${NC}:    重置完成后自动启动服务端+App端"
+  echo -e "  ${GREEN}-b, --start-admin${NC}:  重置完成后自动启动服务端+后台管理"
   echo -e "  ${GREEN}--no-admin${NC}:         不初始化管理员和教师账户"
   echo -e "  ${GREEN}--no-knowledge${NC}:     不初始化知识点数据"
   echo -e "  ${GREEN}--force${NC}:            强制重建数据库表（删除所有数据）"
@@ -83,7 +99,8 @@ if [ "$HELP_MODE" = true ]; then
   echo ""
   echo -e "${YELLOW}示例:${NC}"
   echo -e "  ./reset-data.sh -s --no-admin   # 重置App端数据和知识点，不包含管理员，并启动所有服务"
-  echo -e "  ./reset-data.sh -r --force      # 强制重建数据库并启动后端服务"
+  echo -e "  ./reset-data.sh -a --force      # 强制重建数据库并启动服务端+App端"
+  echo -e "  ./reset-data.sh -b --no-knowledge # 重置基础数据，不包含知识点，并启动服务端+后台管理"
   echo ""
   exit 0
 fi
@@ -94,7 +111,7 @@ echo -e "${YELLOW}配置:${NC}"
 echo -e "  - 包含管理员数据: $([ "$NO_ADMIN" = false ] && echo "是" || echo "否")"
 echo -e "  - 包含知识点数据: $([ "$NO_KNOWLEDGE" = false ] && echo "是" || echo "否")"
 echo -e "  - 强制重建数据库: $([ "$FORCE_RESET" = true ] && echo "是" || echo "否")"
-echo -e "  - 启动模式: $([ "$START_ALL" = true ] && echo "启动所有服务" || ([ "$RUN_SERVER" = true ] && echo "仅启动后端" || echo "不启动服务"))"
+echo -e "  - 启动模式: $([ "$START_ALL" = true ] && echo "启动所有服务" || ([ "$START_APP" = true ] && echo "服务端+App端" || ([ "$START_ADMIN" = true ] && echo "服务端+后台管理" || ([ "$RUN_SERVER" = true ] && echo "仅启动后端" || echo "不启动服务"))))"
 echo ""
 
 # 检查learn-server目录是否存在
@@ -186,6 +203,166 @@ if [ $? -eq 0 ]; then
     # 启动后端服务器
     npm run dev
     
+  elif [ "$START_APP" = true ]; then
+    echo -e "${GREEN}==============================================${NC}"
+    echo -e "${BLUE}自动启动服务端+App端...${NC}"
+    echo -e "${YELLOW}提示: 按 Ctrl+C 可以停止服务端+App端${NC}"
+    echo -e "${GREEN}==============================================${NC}"
+    
+    # 定义清理函数
+    cleanup_app() {
+        echo -e "\n${YELLOW}🛑 正在停止服务端+App端...${NC}"
+        
+        # 终止所有后台任务
+        jobs -p | xargs -r kill 2>/dev/null
+        
+        # 终止指定端口的进程
+        PORTS=(3000 8082)
+        for PORT in "${PORTS[@]}"; do
+            PORT_PIDS=$(lsof -t -i:$PORT 2>/dev/null)
+            if [ -n "$PORT_PIDS" ]; then
+                echo -e "${YELLOW}终止占用${PORT}端口的进程${NC}"
+                kill -9 $PORT_PIDS 2>/dev/null
+            fi
+        done
+        
+        echo -e "${GREEN}✅ 服务端+App端已停止${NC}"
+        exit 0
+    }
+    
+    # 设置信号处理
+    trap cleanup_app SIGINT SIGTERM
+    
+    # 验证目录结构
+    cd "$SCRIPT_DIR"
+    if [ ! -d "learn" ]; then
+        echo -e "${RED}❌ 错误: learn (App) 目录不存在${NC}"
+        exit 1
+    fi
+    
+    # 检查App依赖
+    if [ ! -d "learn/node_modules" ]; then
+        echo -e "${YELLOW}⏳ 安装App依赖...${NC}"
+        cd learn
+        npm install
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}❌ App依赖安装失败${NC}"
+            exit 1
+        fi
+        cd "$SCRIPT_DIR"
+    fi
+    
+    # 启动后端服务
+    echo -e "${BLUE}🔧 启动后端服务...${NC}"
+    cd learn-server
+    npm run dev &
+    SERVER_PID=$!
+    
+    # 等待后端服务启动
+    echo -e "${YELLOW}⏳ 等待后端服务启动...${NC}"
+    sleep 5
+    
+    # 启动App端
+    echo -e "${BLUE}📱 启动App端...${NC}"
+    cd "$SCRIPT_DIR/learn"
+    npm run web &
+    APP_PID=$!
+    
+    echo ""
+    echo -e "${GREEN}🎉 服务端+App端启动完成！${NC}"
+    echo -e "${CYAN}服务地址:${NC}"
+    echo -e "  📱 Learn App: ${YELLOW}http://localhost:8082${NC}"
+    echo -e "  🔧 后端API: ${YELLOW}http://localhost:3000${NC}"
+    echo ""
+    echo -e "${YELLOW}💡 使用说明:${NC}"
+    echo -e "  - App端会自动连接到后端API"
+    echo -e "  - 可以在App端进行学习和练习"
+    echo -e "  - 按 ${RED}Ctrl+C${NC} 停止所有服务"
+    echo ""
+    
+    # 等待所有后台进程
+    wait
+    
+  elif [ "$START_ADMIN" = true ]; then
+    echo -e "${GREEN}==============================================${NC}"
+    echo -e "${BLUE}自动启动服务端+后台管理...${NC}"
+    echo -e "${YELLOW}提示: 按 Ctrl+C 可以停止服务端+后台管理${NC}"
+    echo -e "${GREEN}==============================================${NC}"
+    
+    # 定义清理函数
+    cleanup_admin() {
+        echo -e "\n${YELLOW}🛑 正在停止服务端+后台管理...${NC}"
+        
+        # 终止所有后台任务
+        jobs -p | xargs -r kill 2>/dev/null
+        
+        # 终止指定端口的进程
+        PORTS=(3000 5173)
+        for PORT in "${PORTS[@]}"; do
+            PORT_PIDS=$(lsof -t -i:$PORT 2>/dev/null)
+            if [ -n "$PORT_PIDS" ]; then
+                echo -e "${YELLOW}终止占用${PORT}端口的进程${NC}"
+                kill -9 $PORT_PIDS 2>/dev/null
+            fi
+        done
+        
+        echo -e "${GREEN}✅ 服务端+后台管理已停止${NC}"
+        exit 0
+    }
+    
+    # 设置信号处理
+    trap cleanup_admin SIGINT SIGTERM
+    
+    # 验证目录结构
+    cd "$SCRIPT_DIR"
+    if [ ! -d "learn-admin" ]; then
+        echo -e "${RED}❌ 错误: learn-admin 目录不存在${NC}"
+        exit 1
+    fi
+    
+    # 检查后台管理依赖
+    if [ ! -d "learn-admin/node_modules" ]; then
+        echo -e "${YELLOW}⏳ 安装后台管理依赖...${NC}"
+        cd learn-admin
+        npm install
+        if [ $? -ne 0 ]; then
+            echo -e "${RED}❌ 后台管理依赖安装失败${NC}"
+            exit 1
+        fi
+        cd "$SCRIPT_DIR"
+    fi
+    
+    # 启动后端服务
+    echo -e "${BLUE}🔧 启动后端服务...${NC}"
+    cd learn-server
+    npm run dev &
+    SERVER_PID=$!
+    
+    # 等待后端服务启动
+    echo -e "${YELLOW}⏳ 等待后端服务启动...${NC}"
+    sleep 5
+    
+    # 启动后台管理系统
+    echo -e "${BLUE}👨‍💼 启动后台管理系统...${NC}"
+    cd "$SCRIPT_DIR/learn-admin"
+    npm run dev &
+    ADMIN_PID=$!
+    
+    echo ""
+    echo -e "${GREEN}🎉 服务端+后台管理启动完成！${NC}"
+    echo -e "${CYAN}服务地址:${NC}"
+    echo -e "  👨‍💼 后台管理: ${YELLOW}http://localhost:5173${NC}"
+    echo -e "  🔧 后端API: ${YELLOW}http://localhost:3000${NC}"
+    echo ""
+    echo -e "${YELLOW}💡 使用说明:${NC}"
+    echo -e "  - 可以在后台管理系统中管理课程、习题、学生等数据"
+    echo -e "  - 默认管理员账号: admin / admin123"
+    echo -e "  - 按 ${RED}Ctrl+C${NC} 停止所有服务"
+    echo ""
+    
+    # 等待所有后台进程
+    wait
+    
   else
     echo -e "${GREEN}==============================================${NC}"
     echo -e "${GREEN}🎉 数据重置成功！${NC}"
@@ -194,6 +371,8 @@ if [ $? -eq 0 ]; then
     echo -e "  - 使用 ${CYAN}'./start-all.sh'${NC} 启动所有服务"
     echo -e "  - 使用 ${CYAN}'./reset-data.sh -s'${NC} 重置并启动所有服务"
     echo -e "  - 使用 ${CYAN}'./reset-data.sh -r'${NC} 重置并启动后端服务"
+    echo -e "  - 使用 ${CYAN}'./reset-data.sh -a'${NC} 重置并启动服务端+App端"
+    echo -e "  - 使用 ${CYAN}'./reset-data.sh -b'${NC} 重置并启动服务端+后台管理"
     echo -e "${GREEN}==============================================${NC}"
   fi
 else

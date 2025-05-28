@@ -14,7 +14,7 @@ class AnswerRecordService {
     const {
       userId, // 注意：这里仍然使用userId作为参数名，但实际代表studentId
       exerciseId,
-      unitId,
+      unitId, // 现在这个unitId应该是课程ID，不是习题的unitId
       isCorrect,
       userAnswer,
       responseTime,
@@ -53,7 +53,7 @@ class AnswerRecordService {
       const answerRecord = await AnswerRecord.create({
         studentId: userId, // 实际是studentId
         exerciseId,
-        unitId,
+        unitId, // 使用传入的课程ID，而不是习题的unitId
         isCorrect,
         userAnswer: JSON.stringify(userAnswer),
         responseTime,

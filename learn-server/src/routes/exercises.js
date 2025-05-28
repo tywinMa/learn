@@ -31,17 +31,25 @@ const getStudentId = async (userId) => {
   }
 };
 
-// 通过课程获取习题的辅助函数
-const getExercisesByCourseThroughGroups = async (courseId) => {
+// 通过课程获取习题的函数
+const getExercisesByCourse = async (courseId) => {
   try {
+    console.log(`[DEBUG] getExercisesByCourse called with courseId: ${courseId}`);
+    
     // 获取课程信息
     const course = await Course.findByPk(courseId);
     if (!course) {
+      console.log(`[DEBUG] Course not found: ${courseId}`);
       return [];
     }
     
+    console.log(`[DEBUG] Course found:`, course.toJSON());
+    
     const exerciseGroupIds = course.exerciseGroupIds || [];
+    console.log(`[DEBUG] Exercise group IDs:`, exerciseGroupIds);
+    
     if (exerciseGroupIds.length === 0) {
+      console.log(`[DEBUG] No exercise groups found for course: ${courseId}`);
       return [];
     }
     
@@ -53,11 +61,16 @@ const getExercisesByCourseThroughGroups = async (courseId) => {
       }
     });
     
+    console.log(`[DEBUG] Exercise groups found:`, exerciseGroups.length);
+    
     // 合并所有习题组的习题ID并去重
     const exerciseIdsFromGroups = exerciseGroups.flatMap(group => group.exerciseIds || []);
     const allExerciseIds = [...new Set(exerciseIdsFromGroups)];
     
+    console.log(`[DEBUG] Exercise IDs from groups:`, allExerciseIds);
+    
     if (allExerciseIds.length === 0) {
+      console.log(`[DEBUG] No exercise IDs found in groups`);
       return [];
     }
     
@@ -67,33 +80,64 @@ const getExercisesByCourseThroughGroups = async (courseId) => {
       order: [['id', 'ASC']]
     });
     
+    console.log(`[DEBUG] Exercises found:`, exercises.length);
+    
     return exercises;
   } catch (error) {
-    console.error('通过课程获取习题出错:', error);
+    console.error('[DEBUG] 通过课程获取习题出错:', error);
     return [];
   }
 };
 
-// 获取所有练习题单元
+// 通过习题组ID获取习题的函数
+const getExercisesByExerciseGroup = async (exerciseGroupId) => {
+  try {
+    // 获取习题组信息
+    const exerciseGroup = await ExerciseGroup.findByPk(exerciseGroupId);
+    if (!exerciseGroup || !exerciseGroup.isActive) {
+      return [];
+    }
+    
+    const exerciseIds = exerciseGroup.exerciseIds || [];
+    if (exerciseIds.length === 0) {
+      return [];
+    }
+    
+    // 获取习题详情
+    const exercises = await Exercise.findAll({
+      where: { id: { [Op.in]: exerciseIds } },
+      order: [['id', 'ASC']]
+    });
+    
+    return exercises;
+  } catch (error) {
+    console.error('通过习题组获取习题出错:', error);
+    return [];
+  }
+};
+
+// 获取学科下的所有练习题
 router.get("/", async (req, res) => {
   try {
-    // 从数据库中获取所有不同的unitId
-    const units = await Exercise.findAll({
-      attributes: [
-        [sequelize.fn("DISTINCT", sequelize.col("unitId")), "unitId"],
-      ],
-      raw: true,
+    const { subject } = req.query;
+    
+    let whereClause = {};
+    if (subject) {
+      whereClause.subject = subject;
+    }
+    
+    const exercises = await Exercise.findAll({
+      where: whereClause,
+      attributes: ['id', 'subject', 'title', 'type', 'difficulty'],
+      order: [['subject', 'ASC'], ['id', 'ASC']]
     });
-
-    // 提取unitId数组
-    const unitIds = units.map((unit) => unit.unitId);
 
     res.json({
       success: true,
-      data: unitIds,
+      data: exercises,
     });
   } catch (error) {
-    console.error("获取练习题单元出错:", error);
+    console.error("获取练习题出错:", error);
     res.status(500).json({
       success: false,
       message: "服务器错误",
@@ -101,54 +145,32 @@ router.get("/", async (req, res) => {
   }
 });
 
-// 新增：根据学科和ID获取练习题（推荐使用此API）
-router.get("/:subject/:unitId", async (req, res) => {
+// 根据课程ID获取练习题（主要API）
+router.get("/:courseId", async (req, res) => {
   try {
-    const { subject, unitId } = req.params;
+    const { courseId } = req.params;
     const { userId, filterCompleted, types } = req.query;
 
-    // 验证参数
-    if (!subject || !unitId) {
-      return res.status(400).json({
-        success: false,
-        message: "缺少必要参数",
-      });
+    console.log(`获取课程 ${courseId} 的练习题`);
+
+    // 检测是否为习题组ID（格式如 group-1748434356548）
+    const isExerciseGroupId = courseId.startsWith('group-');
+    let exercises = [];
+
+    if (isExerciseGroupId) {
+      // 如果是习题组ID，直接通过习题组获取习题
+      console.log(`检测到习题组ID: ${courseId}`);
+      exercises = await getExercisesByExerciseGroup(courseId);
+    } else {
+      // 如果是课程ID，通过课程的习题组获取习题
+      exercises = await getExercisesByCourse(courseId);
     }
-
-    console.log(`获取学科 ${subject} 中单元 ${unitId} 的练习题`);
-
-    // 构建单元ID格式（确保包含学科前缀）
-    const formattedUnitId = `${subject}-${unitId}`;
-
-    // 首先尝试通过课程的习题组获取习题
-    let exercises = await getExercisesByCourseThroughGroups(formattedUnitId);
-    
-    // 如果通过习题组没有找到习题，则回退到原有逻辑（兼容性）
-    if (exercises.length === 0) {
-    // 构建查询条件
-    let whereClause = { unitId: formattedUnitId };
 
     // 根据题型筛选
     if (types) {
       const typesList = types.split(",");
       if (typesList.length > 0) {
-        whereClause.type = {
-          [Op.in]: typesList,
-        };
-        }
-      }
-
-      exercises = await Exercise.findAll({
-        where: whereClause,
-        order: [["id", "ASC"]],
-      });
-    } else {
-      // 如果通过习题组获取到了习题，也要应用题型筛选
-      if (types) {
-        const typesList = types.split(",");
-        if (typesList.length > 0) {
-          exercises = exercises.filter(exercise => typesList.includes(exercise.type));
-        }
+        exercises = exercises.filter(exercise => typesList.includes(exercise.type));
       }
     }
 
@@ -158,26 +180,26 @@ router.get("/:subject/:unitId", async (req, res) => {
       // 获取学生的数字ID
       const studentId = await getStudentId(userId);
       if (studentId) {
-        // 使用AnswerRecord查询已完成的题目
-        const completedExercises = await AnswerRecord.findAll({
-          where: {
-            studentId,
-            exerciseId: { [Op.like]: `${formattedUnitId}-%` },
-            isCorrect: true
-          },
-          attributes: ['exerciseId'],
-          raw: true
-        });
-
-        // 提取已完成的练习题ID数组
-        completedExerciseIds = completedExercises.map(
-          (record) => record.exerciseId
-        );
-        console.log(
-          `用户 ${userId} (studentId: ${studentId}) 已完成的练习题: ${
-            completedExerciseIds.join(", ") || "无"
-          }`
-        );
+        // 查询具体的练习题ID
+        const exerciseIds = exercises.map(ex => ex.id);
+        if (exerciseIds.length > 0) {
+          const completedExercises = await AnswerRecord.findAll({
+            where: {
+              studentId,
+              exerciseId: { [Op.in]: exerciseIds },
+              isCorrect: true,
+            },
+            attributes: ["exerciseId"],
+            raw: true,
+          });
+          
+          completedExerciseIds = completedExercises.map(record => record.exerciseId);
+          console.log(
+            `用户 ${userId} (studentId: ${studentId}) 已完成的练习题: ${
+              completedExerciseIds.join(", ") || "无"
+            }`
+          );
+        }
       } else {
         console.warn(`未找到用户: ${userId}`);
       }
@@ -186,9 +208,10 @@ router.get("/:subject/:unitId", async (req, res) => {
     console.log(`找到 ${exercises.length} 道练习题`);
 
     if (exercises.length === 0) {
+      console.log(`未找到课程/习题组 ${courseId} 的练习题`);
       return res.status(404).json({
         success: false,
-        message: `未找到学科 ${subject} 中单元 ${unitId} 的练习题`,
+        message: `未找到课程/习题组 ${courseId} 的练习题`,
       });
     }
 
@@ -255,9 +278,7 @@ router.get("/:subject/:unitId", async (req, res) => {
 
     // 如果所有题目都已完成且需要过滤已完成的题目
     if (allCompleted && filterCompleted === "true") {
-      console.log(
-        `用户 ${userId} 已完成学科 ${subject} 中单元 ${unitId} 的所有练习题`
-      );
+      console.log(`用户 ${userId} 已完成课程/习题组 ${courseId} 的所有练习题`);
       return res.status(200).json({
         success: true,
         data: [],
@@ -289,7 +310,7 @@ router.get("/:subject/:unitId", async (req, res) => {
       typeStats: typeStats,
     });
   } catch (error) {
-    console.error("获取单元练习题出错:", error);
+    console.error("获取课程练习题出错:", error);
     res.status(500).json({
       success: false,
       message: "获取练习题时发生服务器错误",
@@ -298,45 +319,37 @@ router.get("/:subject/:unitId", async (req, res) => {
   }
 });
 
-// 获取特定单元的练习题
-router.get("/:unitId", async (req, res) => {
+// 根据学科和ID获取练习题（保持兼容性）
+router.get("/:subject/:unitId", async (req, res) => {
   try {
-    const { unitId } = req.params;
+    const { subject, unitId } = req.params;
+    
+    // 构建课程ID格式
+    const courseId = `${subject}-${unitId}`;
+    
+    // 直接调用主要的课程API逻辑
     const { userId, filterCompleted, types } = req.query;
 
-    console.log(
-      `获取单元 ${unitId} 的练习题，筛选参数: 用户=${userId}, 过滤已完成=${filterCompleted}, 题型=${types}`
-    );
+    console.log(`获取课程 ${courseId} 的练习题`);
 
-    // 首先尝试通过课程的习题组获取习题
-    let exercises = await getExercisesByCourseThroughGroups(unitId);
-    
-    // 如果通过习题组没有找到习题，则回退到原有逻辑（兼容性）
-    if (exercises.length === 0) {
-    // 查询条件 - 直接使用unitId，假定所有ID都已包含学科前缀
-    let whereClause = { unitId };
+    // 检测是否为习题组ID（格式如 group-1748434356548）
+    const isExerciseGroupId = courseId.startsWith('group-');
+    let exercises = [];
+
+    if (isExerciseGroupId) {
+      // 如果是习题组ID，直接通过习题组获取习题
+      console.log(`检测到习题组ID: ${courseId}`);
+      exercises = await getExercisesByExerciseGroup(courseId);
+    } else {
+      // 如果是课程ID，通过课程的习题组获取习题
+      exercises = await getExercisesByCourse(courseId);
+    }
 
     // 根据题型筛选
     if (types) {
       const typesList = types.split(",");
       if (typesList.length > 0) {
-        whereClause.type = {
-          [Op.in]: typesList,
-        };
-        }
-      }
-
-      exercises = await Exercise.findAll({
-        where: whereClause,
-        order: [["id", "ASC"]],
-      });
-    } else {
-      // 如果通过习题组获取到了习题，也要应用题型筛选
-      if (types) {
-        const typesList = types.split(",");
-        if (typesList.length > 0) {
-          exercises = exercises.filter(exercise => typesList.includes(exercise.type));
-        }
+        exercises = exercises.filter(exercise => typesList.includes(exercise.type));
       }
     }
 
@@ -346,26 +359,26 @@ router.get("/:unitId", async (req, res) => {
       // 获取学生的数字ID
       const studentId = await getStudentId(userId);
       if (studentId) {
-        // 查找用户已正确完成的练习题ID
-        const completedExercises = await AnswerRecord.findAll({
-          where: {
-            studentId,
-            exerciseId: { [Op.like]: `${unitId}-%` }, // 直接使用unitId，假定已包含学科前缀
-            isCorrect: true,
-          },
-          attributes: ["exerciseId"],
-          raw: true,
-        });
-
-        // 提取已完成的练习题ID数组
-        completedExerciseIds = completedExercises.map(
-          (record) => record.exerciseId
-        );
-        console.log(
-          `用户 ${userId} (studentId: ${studentId}) 已完成的练习题: ${
-            completedExerciseIds.join(", ") || "无"
-          }`
-        );
+        // 查询具体的练习题ID
+        const exerciseIds = exercises.map(ex => ex.id);
+        if (exerciseIds.length > 0) {
+          const completedExercises = await AnswerRecord.findAll({
+            where: {
+              studentId,
+              exerciseId: { [Op.in]: exerciseIds },
+              isCorrect: true,
+            },
+            attributes: ["exerciseId"],
+            raw: true,
+          });
+          
+          completedExerciseIds = completedExercises.map(record => record.exerciseId);
+          console.log(
+            `用户 ${userId} (studentId: ${studentId}) 已完成的练习题: ${
+              completedExerciseIds.join(", ") || "无"
+            }`
+          );
+        }
       } else {
         console.warn(`未找到用户: ${userId}`);
       }
@@ -374,10 +387,10 @@ router.get("/:unitId", async (req, res) => {
     console.log(`找到 ${exercises.length} 道练习题`);
 
     if (exercises.length === 0) {
-      console.log(`未找到单元 ${unitId} 的练习题`);
+      console.log(`未找到课程/习题组 ${courseId} 的练习题`);
       return res.status(404).json({
         success: false,
-        message: `未找到单元 ${unitId} 的练习题`,
+        message: `未找到课程/习题组 ${courseId} 的练习题`,
       });
     }
 
@@ -444,7 +457,7 @@ router.get("/:unitId", async (req, res) => {
 
     // 如果所有题目都已完成且需要过滤已完成的题目
     if (allCompleted && filterCompleted === "true") {
-      console.log(`用户 ${userId} 已完成单元 ${unitId} 的所有练习题`);
+      console.log(`用户 ${userId} 已完成课程/习题组 ${courseId} 的所有练习题`);
       return res.status(200).json({
         success: true,
         data: [],
@@ -476,7 +489,7 @@ router.get("/:unitId", async (req, res) => {
       typeStats: typeStats,
     });
   } catch (error) {
-    console.error("获取单元练习题出错:", error);
+    console.error("获取学科练习题出错:", error);
     res.status(500).json({
       success: false,
       message: "获取练习题时发生服务器错误",
@@ -486,14 +499,13 @@ router.get("/:unitId", async (req, res) => {
 });
 
 // 获取特定练习题
-router.get("/:unitId/:exerciseId", async (req, res) => {
+router.get("/:courseId/:exerciseId", async (req, res) => {
   try {
-    const { unitId, exerciseId } = req.params;
+    const { exerciseId } = req.params;
 
     const exercise = await Exercise.findOne({
       where: {
         id: exerciseId,
-        unitId,
       },
     });
 

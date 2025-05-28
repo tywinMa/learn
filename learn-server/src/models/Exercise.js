@@ -9,18 +9,12 @@ const Exercise = sequelize.define(
       type: DataTypes.STRING,
       primaryKey: true,
       allowNull: false,
-      comment: "练习题ID，如math-1-1表示数学学科第1单元第1关卡第1题",
+      comment: "练习题ID，如math-001表示数学学科练习题",
     },
     subject: {
       type: DataTypes.STRING,
       allowNull: false,
       comment: "学科代码，如math、physics等，用于标识所属学科",
-    },
-
-    unitId: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      comment: "所属单元ID，如1-1",
     },
     title: {
       type: DataTypes.STRING,

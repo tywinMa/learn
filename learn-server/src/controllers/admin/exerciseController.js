@@ -1,4 +1,4 @@
-const { Exercise, Course, Subject } = require('../../models');
+const { Exercise, Course, Subject, ExerciseGroup } = require('../../models');
 
 // 获取所有练习题
 exports.getAllExercises = async (req, res) => {
@@ -31,10 +31,6 @@ exports.getAllExercises = async (req, res) => {
     const exercises = await Exercise.findAll({
       where: whereClause,
       include: [
-        { 
-          model: Course, 
-          attributes: ['id', 'title', 'subject', 'unitId']
-        },
         {
           model: Subject,
           attributes: ['id', 'name', 'code']
@@ -43,12 +39,35 @@ exports.getAllExercises = async (req, res) => {
       order: [['id', 'ASC']]
     });
     
-    // 转换为前端期望的格式
-    const formattedExercises = exercises.map(exercise => {
+    // 为每个习题查找相关的习题组和课程信息
+    const formattedExercises = await Promise.all(exercises.map(async (exercise) => {
+      // 查找包含此习题的习题组
+      const exerciseGroups = await ExerciseGroup.findAll({
+        where: {
+          subject: exercise.subject,
+          exerciseIds: {
+            [require('sequelize').Op.like]: `%"${exercise.id}"%`
+          }
+        }
+      });
+      
+      // 查找使用这些习题组的课程
+      const relatedCourses = [];
+      for (const group of exerciseGroups) {
+        const courses = await Course.findAll({
+          where: {
+            exerciseGroupIds: {
+              [require('sequelize').Op.like]: `%"${group.id}"%`
+            }
+          },
+          attributes: ['id', 'title', 'subject', 'unitId']
+        });
+        relatedCourses.push(...courses);
+      }
+      
       return {
         id: exercise.id,
         subject: exercise.subject,
-        unitId: exercise.unitId,
         title: exercise.title,
         question: exercise.question,
         options: exercise.options,
@@ -62,20 +81,25 @@ exports.getAllExercises = async (req, res) => {
         isAI: exercise.isAI,
         createdAt: exercise.createdAt,
         updatedAt: exercise.updatedAt,
-        // 额外的关联信息
-        course: exercise.Course ? {
-          id: exercise.Course.id,
-          title: exercise.Course.title,
-          subject: exercise.Course.subject,
-          unitId: exercise.Course.unitId
-        } : undefined,
+        // 新架构下的关联信息
+        exerciseGroups: exerciseGroups.map(group => ({
+          id: group.id,
+          name: group.name,
+          description: group.description
+        })),
+        relatedCourses: relatedCourses.map(course => ({
+          id: course.id,
+          title: course.title,
+          subject: course.subject,
+          unitId: course.unitId
+        })),
         subjectInfo: exercise.Subject ? {
           id: exercise.Subject.id,
           name: exercise.Subject.name,
           code: exercise.Subject.code
         } : undefined
       };
-    });
+    }));
     
     return res.status(200).json({
       err_no: 0,
@@ -95,8 +119,38 @@ exports.getAllExercises = async (req, res) => {
 exports.getExercisesByCourse = async (req, res) => {
   try {
     const { courseId } = req.params;
+    
+    // 查找课程及其关联的习题组
+    const course = await Course.findByPk(courseId);
+    if (!course) {
+      return res.status(404).json({
+        err_no: 404,
+        message: '课程不存在'
+      });
+    }
+    
+    const exerciseGroupIds = course.exerciseGroupIds || [];
+    if (exerciseGroupIds.length === 0) {
+      return res.status(200).json({
+        err_no: 0,
+        data: []
+      });
+    }
+    
+    // 获取习题组中的所有习题
+    const exerciseGroups = await ExerciseGroup.findAll({
+      where: {
+        id: exerciseGroupIds,
+        isActive: true
+      }
+    });
+    
+    const allExerciseIds = exerciseGroups.flatMap(group => group.exerciseIds || []);
+    
     const exercises = await Exercise.findAll({
-      where: { unitId: courseId }, // 注意：在app模型中，练习题通过unitId关联到Course
+      where: {
+        id: allExerciseIds
+      },
       include: [
         {
           model: Subject,
@@ -109,7 +163,6 @@ exports.getExercisesByCourse = async (req, res) => {
     const formattedExercises = exercises.map(exercise => ({
       id: exercise.id,
       subject: exercise.subject,
-      unitId: exercise.unitId,
       title: exercise.title,
       question: exercise.question,
       options: exercise.options,
@@ -157,7 +210,6 @@ exports.getExercisesBySubject = async (req, res) => {
     const formattedExercises = exercises.map(exercise => ({
       id: exercise.id,
       subject: exercise.subject,
-      unitId: exercise.unitId,
       title: exercise.title,
       question: exercise.question,
       options: exercise.options,
@@ -191,11 +243,43 @@ exports.getExercisesBySubject = async (req, res) => {
 exports.getExercisesByUnit = async (req, res) => {
   try {
     const { unitId } = req.params;
+    
+    // 使用getExercisesByCourse的逻辑，因为unitId实际上是courseId
+    const course = await Course.findByPk(unitId);
+    if (!course) {
+      return res.status(404).json({
+        err_no: 404,
+        message: '课程不存在'
+      });
+    }
+    
+    const exerciseGroupIds = course.exerciseGroupIds || [];
+    if (exerciseGroupIds.length === 0) {
+      return res.status(200).json({
+        err_no: 0,
+        data: []
+      });
+    }
+    
+    // 获取习题组中的所有习题
+    const exerciseGroups = await ExerciseGroup.findAll({
+      where: {
+        id: exerciseGroupIds,
+        isActive: true
+      }
+    });
+    
+    const allExerciseIds = exerciseGroups.flatMap(group => group.exerciseIds || []);
+    
     const exercises = await Exercise.findAll({
-      where: { unitId }, // 这里的unitId实际上是courseId
+      where: {
+        id: allExerciseIds
+      },
       include: [
-        { model: Course },
-        { model: Subject }
+        {
+          model: Subject,
+          attributes: ['id', 'name', 'code']
+        }
       ],
       order: [['id', 'ASC']]
     });
@@ -203,7 +287,6 @@ exports.getExercisesByUnit = async (req, res) => {
     const formattedExercises = exercises.map(exercise => ({
       id: exercise.id,
       subject: exercise.subject,
-      unitId: exercise.unitId,
       title: exercise.title,
       question: exercise.question,
       options: exercise.options,
@@ -217,7 +300,6 @@ exports.getExercisesByUnit = async (req, res) => {
       isAI: exercise.isAI,
       createdAt: exercise.createdAt,
       updatedAt: exercise.updatedAt,
-      course: exercise.Course,
       subjectInfo: exercise.Subject
     }));
     
@@ -241,8 +323,10 @@ exports.getExerciseById = async (req, res) => {
     
     const exercise = await Exercise.findByPk(id, {
       include: [
-        { model: Course },
-        { model: Subject }
+        {
+          model: Subject,
+          attributes: ['id', 'name', 'code']
+        }
       ]
     });
     
@@ -254,11 +338,33 @@ exports.getExerciseById = async (req, res) => {
       });
     }
     
+    // 查找包含此习题的习题组和相关课程
+    const exerciseGroups = await ExerciseGroup.findAll({
+      where: {
+        subject: exercise.subject,
+        exerciseIds: {
+          [require('sequelize').Op.like]: `%"${exercise.id}"%`
+        }
+      }
+    });
+    
+    const relatedCourses = [];
+    for (const group of exerciseGroups) {
+      const courses = await Course.findAll({
+        where: {
+          exerciseGroupIds: {
+            [require('sequelize').Op.like]: `%"${group.id}"%`
+          }
+        },
+        attributes: ['id', 'title', 'subject', 'unitId']
+      });
+      relatedCourses.push(...courses);
+    }
+    
     // 返回单个练习题的数据
     const responseData = {
       id: exercise.id,
       subject: exercise.subject,
-      unitId: exercise.unitId,
       title: exercise.title,
       question: exercise.question,
       options: exercise.options,
@@ -272,7 +378,17 @@ exports.getExerciseById = async (req, res) => {
       isAI: exercise.isAI,
       createdAt: exercise.createdAt,
       updatedAt: exercise.updatedAt,
-      course: exercise.Course,
+      exerciseGroups: exerciseGroups.map(group => ({
+        id: group.id,
+        name: group.name,
+        description: group.description
+      })),
+      relatedCourses: relatedCourses.map(course => ({
+        id: course.id,
+        title: course.title,
+        subject: course.subject,
+        unitId: course.unitId
+      })),
       subjectInfo: exercise.Subject
     };
     
@@ -295,7 +411,6 @@ exports.createExercise = async (req, res) => {
     const { 
       id,
       subject,
-      unitId,
       title,
       question,
       options,
@@ -310,20 +425,20 @@ exports.createExercise = async (req, res) => {
     } = req.body;
     
     // 验证必填字段
-    if (!subject || !unitId || !title || !question || !type) {
+    if (!subject || !title || !question || !type) {
       return res.status(400).json({ 
         err_no: 400,
-        message: '缺少必填字段：subject, unitId, title, question, type',
+        message: '缺少必填字段：subject, title, question, type',
         data: null
       });
     }
     
-    // 如果提供了unitId，验证课程是否存在
-    const course = await Course.findByPk(unitId);
-    if (!course) {
+    // 验证学科是否存在
+    const subjectRecord = await Subject.findOne({ where: { code: subject } });
+    if (!subjectRecord) {
       return res.status(404).json({ 
         err_no: 404,
-        message: '课程不存在',
+        message: '学科不存在',
         data: null
       });
     }
@@ -331,9 +446,9 @@ exports.createExercise = async (req, res) => {
     // 生成ID（如果没有提供）
     let exerciseId = id;
     if (!exerciseId) {
-      // 查找该课程下最大的练习题序号
+      // 查找该学科下最大的练习题序号
       const lastExercise = await Exercise.findOne({
-        where: { unitId },
+        where: { subject },
         order: [['id', 'DESC']]
       });
       
@@ -347,7 +462,7 @@ exports.createExercise = async (req, res) => {
         }
       }
       
-      exerciseId = `${unitId}-${nextNumber}`;
+      exerciseId = `${subject}-exercise-${nextNumber}`;
     }
     
     // 处理选择题的选项格式
@@ -371,7 +486,6 @@ exports.createExercise = async (req, res) => {
     const exerciseData = {
       id: exerciseId,
       subject,
-      unitId,
       title,
       question,
       options: processedOptions || null,
@@ -390,8 +504,10 @@ exports.createExercise = async (req, res) => {
     // 重新获取创建的练习题，包含关联数据
     const createdExercise = await Exercise.findByPk(exercise.id, {
       include: [
-        { model: Course },
-        { model: Subject }
+        {
+          model: Subject,
+          attributes: ['id', 'name', 'code']
+        }
       ]
     });
     
@@ -400,7 +516,6 @@ exports.createExercise = async (req, res) => {
       data: {
         id: createdExercise.id,
         subject: createdExercise.subject,
-        unitId: createdExercise.unitId,
         title: createdExercise.title,
         question: createdExercise.question,
         options: createdExercise.options,
@@ -414,7 +529,6 @@ exports.createExercise = async (req, res) => {
         isAI: createdExercise.isAI,
         createdAt: createdExercise.createdAt,
         updatedAt: createdExercise.updatedAt,
-        course: createdExercise.Course,
         subjectInfo: createdExercise.Subject
       }
     });
@@ -446,7 +560,7 @@ exports.updateExercise = async (req, res) => {
     
     const updateData = {};
     const fields = [
-      'subject', 'unitId', 'title', 'question', 'options', 'correctAnswer',
+      'subject', 'title', 'question', 'options', 'correctAnswer',
       'explanation', 'type', 'difficulty', 'media', 'hints',
       'knowledgePointIds', 'isAI'
     ];
@@ -478,13 +592,13 @@ exports.updateExercise = async (req, res) => {
       }
     });
     
-    // 如果更新了unitId，验证新课程是否存在
-    if (updateData.unitId && updateData.unitId !== exercise.unitId) {
-      const course = await Course.findByPk(updateData.unitId);
-      if (!course) {
+    // 如果更新了学科，验证新学科是否存在
+    if (updateData.subject && updateData.subject !== exercise.subject) {
+      const subjectRecord = await Subject.findOne({ where: { code: updateData.subject } });
+      if (!subjectRecord) {
         return res.status(404).json({ 
           err_no: 404,
-          message: '课程不存在',
+          message: '学科不存在',
           data: null
         });
       }
@@ -495,8 +609,10 @@ exports.updateExercise = async (req, res) => {
     // 重新获取更新后的数据
     await exercise.reload({
       include: [
-        { model: Course },
-        { model: Subject }
+        {
+          model: Subject,
+          attributes: ['id', 'name', 'code']
+        }
       ]
     });
     
@@ -505,7 +621,7 @@ exports.updateExercise = async (req, res) => {
       data: {
         id: exercise.id,
         subject: exercise.subject,
-        unitId: exercise.unitId,
+        title: exercise.title,
         question: exercise.question,
         options: exercise.options,
         correctAnswer: exercise.correctAnswer,
@@ -518,7 +634,6 @@ exports.updateExercise = async (req, res) => {
         isAI: exercise.isAI,
         createdAt: exercise.createdAt,
         updatedAt: exercise.updatedAt,
-        course: exercise.Course,
         subjectInfo: exercise.Subject
       }
     });

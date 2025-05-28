@@ -37,10 +37,6 @@ Subject.hasMany(ExerciseGroup, { foreignKey: 'subject', sourceKey: 'code' });
 KnowledgePoint.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 Subject.hasMany(KnowledgePoint, { foreignKey: 'subject', sourceKey: 'code' });
 
-// 小单元与练习题之间的关系 (原来是Unit，现在改为Course)
-Course.hasMany(Exercise, { foreignKey: 'unitId', sourceKey: 'id' });
-Exercise.belongsTo(Course, { foreignKey: 'unitId', targetKey: 'id' });
-
 // Course and UnitProgress relationship (原来是Unit，现在改为Course)
 Course.hasMany(UnitProgress, { foreignKey: 'unitId', sourceKey: 'id' });
 UnitProgress.belongsTo(Course, { foreignKey: 'unitId', targetKey: 'id' });

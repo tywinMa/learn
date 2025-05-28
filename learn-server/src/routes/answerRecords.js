@@ -11,6 +11,7 @@ const { AnswerRecord, Exercise, UnitProgress, Student, sequelize } = require('..
 router.post('/:studentId/submit', async (req, res) => {
   try {
     const { studentId: studentIdParam } = req.params;
+    const { exerciseId, answer, unitId, responseTime, sessionId, practiceMode, hintsUsed, helpRequested, confidence, knowledgePointsViewed, deviceInfo } = req.body;
     
     // 查找学生记录，获取数字ID
     const student = await Student.findOne({
@@ -24,9 +25,51 @@ router.post('/:studentId/submit', async (req, res) => {
       });
     }
 
+    // 获取习题信息以验证答案
+    const exercise = await Exercise.findByPk(exerciseId);
+    if (!exercise) {
+      return res.status(404).json({
+        success: false,
+        message: `未找到习题: ${exerciseId}`
+      });
+    }
+
+    // 验证答案并计算isCorrect
+    let isCorrect = false;
+    const correctAnswer = exercise.correctAnswer;
+    
+    if (exercise.type === 'choice') {
+      // 选择题：比较选项索引
+      isCorrect = answer === correctAnswer;
+    } else if (exercise.type === 'fill_blank') {
+      // 填空题：比较答案数组
+      if (Array.isArray(correctAnswer) && Array.isArray(answer)) {
+        isCorrect = JSON.stringify(answer.sort()) === JSON.stringify(correctAnswer.sort());
+      } else {
+        isCorrect = String(answer).trim().toLowerCase() === String(correctAnswer).trim().toLowerCase();
+      }
+    } else if (exercise.type === 'matching') {
+      // 匹配题：比较匹配结果
+      isCorrect = JSON.stringify(answer) === JSON.stringify(correctAnswer);
+    } else {
+      // 其他题型：字符串比较
+      isCorrect = String(answer).trim() === String(correctAnswer).trim();
+    }
+
     const answerData = {
       userId: student.id, // 传递数字ID给service
-      ...req.body
+      exerciseId,
+      unitId,
+      isCorrect,
+      userAnswer: answer,
+      responseTime,
+      sessionId,
+      practiceMode,
+      hintsUsed,
+      helpRequested,
+      confidence,
+      knowledgePointsViewed,
+      deviceInfo
     };
 
     console.log('提交答题记录:', answerData);
