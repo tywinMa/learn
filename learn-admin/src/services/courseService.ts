@@ -298,9 +298,13 @@ export const createCourse = async (courseData: Omit<Course, "id">): Promise<Cour
     logApi("执行实际 createCourse API 调用");
     console.log("准备向后端发送POST请求:", API_ENDPOINTS.COURSES);
 
-    // 获取学科数据，将学科名称转换为学科代码
+    // 获取学科数据，将学科名称或代码转换为学科代码
     const subjects = await getSubjects();
-    const subject = subjects.find((s) => s.name === courseData.category);
+    // 优先按学科代码匹配，再按名称匹配
+    let subject = subjects.find((s) => s.code === courseData.category);
+    if (!subject) {
+      subject = subjects.find((s) => s.name === courseData.category);
+    }
 
     if (!subject) {
       throw new Error(`找不到学科: ${courseData.category}`);
@@ -372,26 +376,23 @@ export const updateCourse = async (id: string, courseData: Partial<Course>): Pro
         const subjects = await getSubjects();
         console.log(
           "获取到学科列表:",
-          subjects.map((s) => s.name)
+          subjects.map((s) => `${s.name}(${s.code})`)
         );
 
-        // 尝试精确匹配
-        let subject = subjects.find((s) => s.name === courseData.category);
+        // 优先按学科代码匹配（因为前端Select的value是code）
+        let subject = subjects.find((s) => s.code === courseData.category);
 
-        // 如果精确匹配失败，尝试模糊匹配（不区分大小写）
+        // 如果代码匹配失败，尝试按名称匹配（兼容旧数据）
         if (!subject) {
-          console.log(`精确匹配未找到学科: ${courseData.category}，尝试模糊匹配`);
-          const categoryLower = courseData.category.toLowerCase();
-          subject = subjects.find((s) => s.name.toLowerCase() === categoryLower);
+          console.log(`学科代码匹配未找到: ${courseData.category}，尝试按名称匹配`);
+          subject = subjects.find((s) => s.name === courseData.category);
         }
 
-        // 如果模糊匹配也失败，尝试部分匹配
-        if (!subject && subjects.length > 0) {
-          console.log(`模糊匹配未找到学科: ${courseData.category}，尝试部分匹配`);
+        // 如果名称匹配失败，尝试模糊匹配（不区分大小写）
+        if (!subject) {
+          console.log(`学科名称匹配未找到: ${courseData.category}，尝试模糊匹配`);
           const categoryLower = courseData.category.toLowerCase();
-          subject = subjects.find(
-            (s) => s.name.toLowerCase().includes(categoryLower) || categoryLower.includes(s.name.toLowerCase())
-          );
+          subject = subjects.find((s) => s.name.toLowerCase() === categoryLower || s.code.toLowerCase() === categoryLower);
         }
 
         if (subject) {

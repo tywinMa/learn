@@ -196,7 +196,7 @@ const CourseForm: React.FC = () => {
       form.setFieldsValue({
         title: course.name || course.title,
         description: course.description,
-        category: course.Subject?.name || course.category,
+        category: course.Subject?.code || course.subject || course.category,
         relatedExerciseIds: relatedExerciseIds
       });
       
