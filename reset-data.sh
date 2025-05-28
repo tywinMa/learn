@@ -136,7 +136,8 @@ cd "$SCRIPT_DIR/learn-server"
 if [ "$FORCE_RESET" = true ]; then
   echo -e "${YELLOW}清理数据库文件...${NC}"
   if [ -f "/Users/maxin/maxin/learn/learn-server/src/database/learn.sqlite" ]; then
-    rm -f /Users/maxin/maxin/learn/learn-server/src/database/learn.sqlite
+    rm -rf /Users/maxin/maxin/learn/logs
+    rm -rf /Users/maxin/maxin/learn/learn-server/src/database/learn.sqlite
     echo -e "${GREEN}数据库文件已删除${NC}"
   else
     echo -e "${BLUE}数据库文件不存在，无需删除${NC}"

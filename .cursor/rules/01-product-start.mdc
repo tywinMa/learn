@@ -29,6 +29,8 @@ alwaysApply: true
 - learn-server目录下是上面两个项目的后端，采用expressjs, sqlite, sequelize技术栈
 - app端的接口以/api开头,后台的接口以/api/admin开头
 - 使用`npm run dev`启动项目
+## 数据初始化重置脚本
+`reset-data.sh`是一个删除数据库并重置数据的脚本，用于开发测试使用
 
 
 
