@@ -7,7 +7,7 @@ const Course = sequelize.define('Course', {
     type: DataTypes.STRING,
     primaryKey: true,
     allowNull: false,
-    comment: '小单元ID，如"math-1-1"'
+    comment: '课程ID'
   },
   subject: {
     type: DataTypes.STRING,
@@ -17,7 +17,7 @@ const Course = sequelize.define('Course', {
   unitId: {
     type: DataTypes.STRING,
     allowNull: false,
-    comment: '所属大单元ID'
+    comment: '所属单元ID'
   },
   title: {
     type: DataTypes.STRING,

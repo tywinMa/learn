@@ -43,7 +43,7 @@ interface CourseFormData {
   title: string;
   description: string;
   content: string;
-  category: string;
+  subject: string;
   sources?: Array<{type: 'image' | 'video', url: string}>;
   relatedExerciseIds?: string[];
   students?: number;
@@ -71,7 +71,7 @@ const CourseForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [form] = Form.useForm();
-  const selectedCategory = Form.useWatch('category', form);
+  const selectedSubject = Form.useWatch('subject', form);
   const [loading, setLoading] = useState(false);
   // 使用zustand的学科状态
   const { subjects, fetchSubjects, isLoading: loadingSubjects } = useSubjectStore();
@@ -182,7 +182,7 @@ const CourseForm: React.FC = () => {
 
       console.log(`CourseForm - 课程(ID:${id})数据加载成功:`, {
         title: course.name || course.title,
-        category: course.Subject?.name || course.category,
+        subject: course.Subject?.name || course.subjectName,
         hasContent: !!course.content,
         relatedExerciseId: course.relatedExercise?.id || course.relatedExerciseId,
         relatedExercise: course.relatedExercise
@@ -196,7 +196,7 @@ const CourseForm: React.FC = () => {
       form.setFieldsValue({
         title: course.name || course.title,
         description: course.description,
-        category: course.Subject?.code || course.subject || course.category,
+        subject: course.Subject?.code || course.subject || course.subjectName,
         relatedExerciseIds: relatedExerciseIds
       });
       
@@ -289,8 +289,8 @@ const CourseForm: React.FC = () => {
         content: html, // 确保编辑器的HTML内容保存到content字段
         // 使用收集的sources数组
         sources,
-        // 使用category字段作为学科分类，将由服务层转换为subjectId
-        category: values.category,
+        // 使用subjectName字段作为学科分类，将由服务层转换为subjectId
+        subjectName: values.subject,
         // 直接使用relatedExerciseIds字段
         relatedExerciseIds: values.relatedExerciseIds || [],
         instructor: values.relatedExerciseIds && values.relatedExerciseIds.length > 0 ? '关联习题教师' : '', // 保持向后兼容
@@ -313,7 +313,7 @@ const CourseForm: React.FC = () => {
       console.log('完整的formattedValues:', JSON.stringify({
         title: formattedValues.title,
         description: formattedValues.description,
-        category: formattedValues.category,
+        subjectName: formattedValues.subjectName,
         contentLength: formattedValues.content?.length || 0,
         relatedExerciseIds: formattedValues.relatedExerciseIds,
         sourcesCount: formattedValues.sources?.length || 0
@@ -585,7 +585,7 @@ const CourseForm: React.FC = () => {
                 </Form.Item>
                 
                 <Form.Item
-                  name="category"
+                  name="subject"
                   label="学科分类"
                   rules={[{ required: true, message: '请选择学科分类' }]}
                 >
@@ -734,7 +734,7 @@ const CourseForm: React.FC = () => {
               </Form.Item>
             </div>
 
-            {selectedCategory === '数学' && (
+            {selectedSubject === '数学' && (
               <div className="mb-6">
                 <Collapse items={latexCollapseItems} />
               </div>

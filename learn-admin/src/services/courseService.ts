@@ -26,8 +26,8 @@ export interface Course {
   created_at?: string; // 下划线格式的创建时间
   relatedExercise?: { id: string | number; question: string; title?: string; exerciseCode?: string }; // 关联习题 - 支持数字和字符串ID，添加exerciseCode和title字段
 
-  // 兼容旧版本的category字段
-  category?: string;
+  // 兼容旧版本的subject字段
+  subjectName?: string;
 }
 
 // 后端课程数据接口
@@ -103,7 +103,7 @@ const transformBackendCourse = (course: BackendCourse): Course => {
     relatedExercise: course.relatedExercise,
     students: 0, // 暂无学生数量字段
     // 兼容旧版本 - 学科名称
-    category: subjectDetailData?.name || "未分类",
+    subjectName: subjectDetailData?.name || "未分类",
   };
 
   return result;
@@ -177,7 +177,7 @@ export const getCourses = async (): Promise<Course[]> => {
           relatedExercise: course.relatedExercise,
           students: 0, // 暂无学生数量字段
           // 兼容旧版本 - 学科名称
-          category: subjectDetailData?.name || "未分类",
+          subjectName: subjectDetailData?.name || "未分类",
         };
       });
 
@@ -301,13 +301,13 @@ export const createCourse = async (courseData: Omit<Course, "id">): Promise<Cour
     // 获取学科数据，将学科名称或代码转换为学科代码
     const subjects = await getSubjects();
     // 优先按学科代码匹配，再按名称匹配
-    let subject = subjects.find((s) => s.code === courseData.category);
+    let subject = subjects.find((s) => s.code === courseData.subjectName);
     if (!subject) {
-      subject = subjects.find((s) => s.name === courseData.category);
+      subject = subjects.find((s) => s.name === courseData.subjectName);
     }
 
     if (!subject) {
-      throw new Error(`找不到学科: ${courseData.category}`);
+      throw new Error(`找不到学科: ${courseData.subjectName}`);
     }
 
     // 转换字段名，将前端的字段映射到后端的字段
@@ -371,7 +371,7 @@ export const updateCourse = async (id: string, courseData: Partial<Course>): Pro
     };
 
     // 如果有学科分类，获取对应的学科ID
-    if (courseData.category) {
+    if (courseData.subjectName) {
       try {
         const subjects = await getSubjects();
         console.log(
@@ -380,26 +380,26 @@ export const updateCourse = async (id: string, courseData: Partial<Course>): Pro
         );
 
         // 优先按学科代码匹配（因为前端Select的value是code）
-        let subject = subjects.find((s) => s.code === courseData.category);
+        let subject = subjects.find((s) => s.code === courseData.subjectName);
 
         // 如果代码匹配失败，尝试按名称匹配（兼容旧数据）
         if (!subject) {
-          console.log(`学科代码匹配未找到: ${courseData.category}，尝试按名称匹配`);
-          subject = subjects.find((s) => s.name === courseData.category);
+          console.log(`学科代码匹配未找到: ${courseData.subjectName}，尝试按名称匹配`);
+          subject = subjects.find((s) => s.name === courseData.subjectName);
         }
 
         // 如果名称匹配失败，尝试模糊匹配（不区分大小写）
         if (!subject) {
-          console.log(`学科名称匹配未找到: ${courseData.category}，尝试模糊匹配`);
-          const categoryLower = courseData.category.toLowerCase();
-          subject = subjects.find((s) => s.name.toLowerCase() === categoryLower || s.code.toLowerCase() === categoryLower);
+          console.log(`学科名称匹配未找到: ${courseData.subjectName}，尝试模糊匹配`);
+          const subjectNameLower = courseData.subjectName.toLowerCase();
+          subject = subjects.find((s) => s.name.toLowerCase() === subjectNameLower || s.code.toLowerCase() === subjectNameLower);
         }
 
         if (subject) {
           console.log(`找到匹配的学科: ${subject.name}, 代码: ${subject.code}`);
           apiData.subject = subject.code; // 后端期望学科代码，不是学科ID
         } else {
-          console.warn(`未找到匹配的学科: ${courseData.category}, 将使用第一个可用学科`);
+          console.warn(`未找到匹配的学科: ${courseData.subjectName}, 将使用第一个可用学科`);
 
           // 如果实在找不到匹配的学科，使用第一个可用学科
           if (subjects.length > 0) {

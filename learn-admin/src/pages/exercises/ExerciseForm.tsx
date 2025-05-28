@@ -155,7 +155,7 @@ const ExerciseForm: React.FC = () => {
   
   // 获取当前学科的课程
   const filteredCourses = selectedSubject 
-    ? courses.filter(course => course.category === selectedSubject)
+    ? courses.filter(course => course.subjectName === selectedSubject)
     : courses;
   
   // 处理题型变更
