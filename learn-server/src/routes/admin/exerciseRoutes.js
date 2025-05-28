@@ -25,6 +25,9 @@ router.get('/', authenticate, exerciseController.getAllExercises);
 // 获取指定课程的所有练习题
 router.get('/course/:courseId', authenticate, exerciseController.getExercisesByCourse);
 
+// 获取指定学科的所有练习题
+router.get('/subject/:subjectCode', authenticate, exerciseController.getExercisesBySubject);
+
 // 获取指定单元的所有练习题
 router.get('/unit/:unitId', authenticate, exerciseController.getExercisesByUnit);
 

@@ -5,9 +5,11 @@ const {
   AnswerRecord,
   KnowledgePoint,
   Student,
-  sequelize,
+  Course,
+  ExerciseGroup,
 } = require("../models");
 const { Op } = require("sequelize");
+const { sequelize } = require("../config/database");
 
 /**
  * 获取学生的数字ID
@@ -26,6 +28,49 @@ const getStudentId = async (userId) => {
   } catch (error) {
     console.error('查找学生ID失败:', error);
     return null;
+  }
+};
+
+// 通过课程获取习题的辅助函数
+const getExercisesByCourseThroughGroups = async (courseId) => {
+  try {
+    // 获取课程信息
+    const course = await Course.findByPk(courseId);
+    if (!course) {
+      return [];
+    }
+    
+    const exerciseGroupIds = course.exerciseGroupIds || [];
+    if (exerciseGroupIds.length === 0) {
+      return [];
+    }
+    
+    // 获取习题组
+    const exerciseGroups = await ExerciseGroup.findAll({
+      where: { 
+        id: { [Op.in]: exerciseGroupIds },
+        isActive: true
+      }
+    });
+    
+    // 合并所有习题组的习题ID并去重
+    const exerciseIdsFromGroups = exerciseGroups.flatMap(group => group.exerciseIds || []);
+    const allExerciseIds = [...new Set(exerciseIdsFromGroups)];
+    
+    if (allExerciseIds.length === 0) {
+      return [];
+    }
+    
+    // 获取习题详情
+    const exercises = await Exercise.findAll({
+      where: { id: { [Op.in]: allExerciseIds } },
+      order: [['id', 'ASC']]
+    });
+    
+    return exercises;
+  } catch (error) {
+    console.error('通过课程获取习题出错:', error);
+    return [];
   }
 };
 
@@ -75,6 +120,11 @@ router.get("/:subject/:unitId", async (req, res) => {
     // 构建单元ID格式（确保包含学科前缀）
     const formattedUnitId = `${subject}-${unitId}`;
 
+    // 首先尝试通过课程的习题组获取习题
+    let exercises = await getExercisesByCourseThroughGroups(formattedUnitId);
+    
+    // 如果通过习题组没有找到习题，则回退到原有逻辑（兼容性）
+    if (exercises.length === 0) {
     // 构建查询条件
     let whereClause = { unitId: formattedUnitId };
 
@@ -85,6 +135,20 @@ router.get("/:subject/:unitId", async (req, res) => {
         whereClause.type = {
           [Op.in]: typesList,
         };
+        }
+      }
+
+      exercises = await Exercise.findAll({
+        where: whereClause,
+        order: [["id", "ASC"]],
+      });
+    } else {
+      // 如果通过习题组获取到了习题，也要应用题型筛选
+      if (types) {
+        const typesList = types.split(",");
+        if (typesList.length > 0) {
+          exercises = exercises.filter(exercise => typesList.includes(exercise.type));
+        }
       }
     }
 
@@ -118,12 +182,6 @@ router.get("/:subject/:unitId", async (req, res) => {
         console.warn(`未找到用户: ${userId}`);
       }
     }
-
-    // 查询练习题
-    const exercises = await Exercise.findAll({
-      where: whereClause,
-      order: [["id", "ASC"]],
-    });
 
     console.log(`找到 ${exercises.length} 道练习题`);
 
@@ -250,6 +308,11 @@ router.get("/:unitId", async (req, res) => {
       `获取单元 ${unitId} 的练习题，筛选参数: 用户=${userId}, 过滤已完成=${filterCompleted}, 题型=${types}`
     );
 
+    // 首先尝试通过课程的习题组获取习题
+    let exercises = await getExercisesByCourseThroughGroups(unitId);
+    
+    // 如果通过习题组没有找到习题，则回退到原有逻辑（兼容性）
+    if (exercises.length === 0) {
     // 查询条件 - 直接使用unitId，假定所有ID都已包含学科前缀
     let whereClause = { unitId };
 
@@ -260,6 +323,20 @@ router.get("/:unitId", async (req, res) => {
         whereClause.type = {
           [Op.in]: typesList,
         };
+        }
+      }
+
+      exercises = await Exercise.findAll({
+        where: whereClause,
+        order: [["id", "ASC"]],
+      });
+    } else {
+      // 如果通过习题组获取到了习题，也要应用题型筛选
+      if (types) {
+        const typesList = types.split(",");
+        if (typesList.length > 0) {
+          exercises = exercises.filter(exercise => typesList.includes(exercise.type));
+        }
       }
     }
 
@@ -293,12 +370,6 @@ router.get("/:unitId", async (req, res) => {
         console.warn(`未找到用户: ${userId}`);
       }
     }
-
-    // 查询练习题
-    const exercises = await Exercise.findAll({
-      where: whereClause,
-      order: [["id", "ASC"]],
-    });
 
     console.log(`找到 ${exercises.length} 道练习题`);
 

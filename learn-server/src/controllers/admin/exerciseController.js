@@ -139,6 +139,54 @@ exports.getExercisesByCourse = async (req, res) => {
   }
 };
 
+// 按学科获取练习题
+exports.getExercisesBySubject = async (req, res) => {
+  try {
+    const { subjectCode } = req.params;
+    const exercises = await Exercise.findAll({
+      where: { subject: subjectCode },
+      include: [
+        {
+          model: Subject,
+          attributes: ['id', 'name', 'code']
+        }
+      ],
+      order: [['id', 'ASC']]
+    });
+    
+    const formattedExercises = exercises.map(exercise => ({
+      id: exercise.id,
+      subject: exercise.subject,
+      unitId: exercise.unitId,
+      title: exercise.title,
+      question: exercise.question,
+      options: exercise.options,
+      correctAnswer: exercise.correctAnswer,
+      explanation: exercise.explanation,
+      type: exercise.type,
+      difficulty: exercise.difficulty,
+      media: exercise.media,
+      hints: exercise.hints,
+      knowledgePointIds: exercise.knowledgePointIds || [],
+      isAI: exercise.isAI,
+      createdAt: exercise.createdAt,
+      updatedAt: exercise.updatedAt,
+      subjectInfo: exercise.Subject
+    }));
+    
+    return res.status(200).json({
+      err_no: 0,
+      data: formattedExercises
+    });
+  } catch (error) {
+    console.error('获取学科练习题失败:', error);
+    return res.status(500).json({ 
+      err_no: 500,
+      message: '服务器错误' 
+    });
+  }
+};
+
 // 按单元ID获取练习题（实际上是按courseId）
 exports.getExercisesByUnit = async (req, res) => {
   try {
@@ -518,6 +566,7 @@ exports.deleteExercise = async (req, res) => {
 module.exports = {
   getAllExercises: exports.getAllExercises,
   getExercisesByCourse: exports.getExercisesByCourse,
+  getExercisesBySubject: exports.getExercisesBySubject,
   getExercisesByUnit: exports.getExercisesByUnit,
   getExerciseById: exports.getExerciseById,
   createExercise: exports.createExercise,

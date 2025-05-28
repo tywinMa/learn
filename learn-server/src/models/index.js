@@ -8,6 +8,7 @@ const AnswerRecord = require('./AnswerRecord');
 const KnowledgePoint = require('./KnowledgePoint');
 const User = require('./User');
 const Student = require('./Student');
+const ExerciseGroup = require('./ExerciseGroup');
 const { sequelize } = require('../config/database');
 
 // 定义模型之间的关系
@@ -16,21 +17,25 @@ const { sequelize } = require('../config/database');
 Subject.hasMany(Unit, { foreignKey: 'subject', sourceKey: 'code' });
 Unit.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 
-// 学科与小单元之间的关系
-Subject.hasMany(Course, { foreignKey: 'subject', sourceKey: 'code' });
+// 学科与课程之间的关系
 Course.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
+Subject.hasMany(Course, { foreignKey: 'subject', sourceKey: 'code' });
 
-// 大单元与小单元之间的关系 (一对多)
-Unit.hasMany(Course, { foreignKey: 'unitId', sourceKey: 'id' });
+// 单元与课程之间的关系
 Course.belongsTo(Unit, { foreignKey: 'unitId', targetKey: 'id' });
+Unit.hasMany(Course, { foreignKey: 'unitId', sourceKey: 'id' });
 
 // 学科与练习题之间的关系
-Subject.hasMany(Exercise, { foreignKey: 'subject', sourceKey: 'code' });
 Exercise.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
+Subject.hasMany(Exercise, { foreignKey: 'subject', sourceKey: 'code' });
+
+// 学科与习题组之间的关系
+ExerciseGroup.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
+Subject.hasMany(ExerciseGroup, { foreignKey: 'subject', sourceKey: 'code' });
 
 // 学科与知识点之间的关系
-Subject.hasMany(KnowledgePoint, { foreignKey: 'subject', sourceKey: 'code' });
 KnowledgePoint.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
+Subject.hasMany(KnowledgePoint, { foreignKey: 'subject', sourceKey: 'code' });
 
 // 小单元与练习题之间的关系 (原来是Unit，现在改为Course)
 Course.hasMany(Exercise, { foreignKey: 'unitId', sourceKey: 'id' });
@@ -123,6 +128,7 @@ module.exports = {
   KnowledgePoint,
   User,
   Student,
+  ExerciseGroup,
   sequelize,
   syncDatabase
 };

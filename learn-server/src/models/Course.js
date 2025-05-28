@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
-// 小单元模型（Course）
+// 课程模型
 const Course = sequelize.define('Course', {
   id: {
     type: DataTypes.STRING,
@@ -62,11 +62,11 @@ const Course = sequelize.define('Course', {
     allowNull: true,
     comment: '教师ID，用于管理端'
   },
-  relatedExerciseIds: {
+  exerciseGroupIds: {
     type: DataTypes.JSON,
     allowNull: true,
     defaultValue: [],
-    comment: '关联的习题ID数组'
+    comment: '关联的习题组ID数组'
   }
 }, {
   timestamps: true,

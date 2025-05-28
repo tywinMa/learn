@@ -3,11 +3,11 @@ import { Form, Input, Button, Card, Select, message, Collapse, Typography, Space
 import { ArrowLeftOutlined, InfoCircleOutlined, InboxOutlined, LoadingOutlined, BookOutlined, QuestionCircleOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getCourseById, createCourse, updateCourse } from '../../services/courseService';
-import { getAllExercises } from '../../services/exerciseService';
+import { getExerciseGroupsBySubject } from '../../services/exerciseGroupService';
 import { uploadCourseCover, uploadCourseVideo } from '../../services/uploadService';
 
 import type { Course } from '../../services/courseService';
-import type { Exercise } from '../../services/exerciseService';
+import type { ExerciseGroup } from '../../services/exerciseGroupService';
 import type { UploadFile, UploadChangeParam } from 'antd/es/upload/interface';
 import { useSubjectStore } from '../../store/subjectStore';
 
@@ -45,7 +45,7 @@ interface CourseFormData {
   content: string;
   subject: string;
   sources?: Array<{type: 'image' | 'video', url: string}>;
-  relatedExerciseIds?: string[];
+  exerciseGroupIds?: string[];
   students?: number;
   media?: UploadFile[];
 }
@@ -75,7 +75,7 @@ const CourseForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   // 使用zustand的学科状态
   const { subjects, fetchSubjects, isLoading: loadingSubjects } = useSubjectStore();
-  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [exercises, setExercises] = useState<ExerciseGroup[]>([]);
   const [loadingExercises, setLoadingExercises] = useState(false);
   const [editor, setEditor] = useState<IDomEditor | null>(null);
   const [html, setHtml] = useState('');
@@ -149,7 +149,7 @@ const CourseForm: React.FC = () => {
     console.log('CourseForm - fetchExercises 被调用');
     setLoadingExercises(true);
     try {
-      const data = await getAllExercises();
+      const data = await getExerciseGroupsBySubject(selectedSubject);
       console.log('CourseForm - 习题数据加载完成, 数量:', data.length);
       console.log('CourseForm - 习题数据示例:', data.length > 0 ? data[0] : '无数据');
       setExercises(data);
@@ -161,7 +161,7 @@ const CourseForm: React.FC = () => {
     } finally {
       setLoadingExercises(false);
     }
-  }, [loadingExercises]);
+  }, [loadingExercises, selectedSubject]);
 
   // 提取获取课程数据的逻辑为独立函数
   const fetchCourseData = useCallback(async () => {
@@ -184,20 +184,19 @@ const CourseForm: React.FC = () => {
         title: course.name || course.title,
         subject: course.Subject?.name || course.subjectName,
         hasContent: !!course.content,
-        relatedExerciseId: course.relatedExercise?.id || course.relatedExerciseId,
-        relatedExercise: course.relatedExercise
+        exerciseGroupIds: course.exerciseGroupIds
       });
 
       // 设置表单值
-      const relatedExerciseIds = course.relatedExercise?.id ? [course.relatedExercise.id.toString()] : 
-                                (course.relatedExerciseId ? [course.relatedExerciseId] : []);
-      console.log('CourseForm - 设置relatedExerciseIds值:', relatedExerciseIds);
+      const exerciseGroupIds = course.exerciseGroups?.map(group => group.id.toString()) || 
+                              course.exerciseGroupIds || [];
+      console.log('CourseForm - 设置exerciseGroupIds值:', exerciseGroupIds);
       
       form.setFieldsValue({
         title: course.name || course.title,
         description: course.description,
         subject: course.Subject?.code || course.subject || course.subjectName,
-        relatedExerciseIds: relatedExerciseIds
+        exerciseGroupIds: exerciseGroupIds
       });
       
       // 设置富文本内容
@@ -291,9 +290,9 @@ const CourseForm: React.FC = () => {
         sources,
         // 使用subjectName字段作为学科分类，将由服务层转换为subjectId
         subjectName: values.subject,
-        // 直接使用relatedExerciseIds字段
-        relatedExerciseIds: values.relatedExerciseIds || [],
-        instructor: values.relatedExerciseIds && values.relatedExerciseIds.length > 0 ? '关联习题教师' : '', // 保持向后兼容
+        // 使用exerciseGroupIds字段
+        exerciseGroupIds: values.exerciseGroupIds || [],
+        instructor: values.exerciseGroupIds && values.exerciseGroupIds.length > 0 ? '关联习题教师' : '', // 保持向后兼容
         students: values.students || 0,
         // 如果是新建课程，生成courseCode作为课程ID
         courseCode: isEditing ? undefined : `C${Date.now().toString().substring(7, 12)}`,
@@ -315,7 +314,7 @@ const CourseForm: React.FC = () => {
         description: formattedValues.description,
         subjectName: formattedValues.subjectName,
         contentLength: formattedValues.content?.length || 0,
-        relatedExerciseIds: formattedValues.relatedExerciseIds,
+        exerciseGroupIds: formattedValues.exerciseGroupIds,
         sourcesCount: formattedValues.sources?.length || 0
       }));
       
@@ -617,14 +616,14 @@ const CourseForm: React.FC = () => {
                 关联习题
               </h3>
               <Form.Item
-                name="relatedExerciseIds"
-                label="选择习题"
-                help="选择多个习题与本课程关联，学生可以通过课程直接访问相关练习（可选）"
+                name="exerciseGroupIds"
+                label="选择习题组"
+                help="选择多个习题组与本课程关联，学生可以通过课程直接访问相关练习（可选）"
                 className="mb-0"
               >
                 <Select 
                   mode="multiple"
-                  placeholder="请选择关联习题" 
+                  placeholder="请选择关联习题组" 
                   loading={loadingExercises}
                   allowClear
                   showSearch
@@ -649,14 +648,14 @@ const CourseForm: React.FC = () => {
                       const exerciseId = exercise.id.toString();
                       if (exerciseId.includes('-')) {
                         // 如果是类似 "exercise-123" 的格式，提取最后一部分
-                        displayNumber = `E${exerciseId.split('-').pop() || ''}`;
+                        displayNumber = `G${exerciseId.split('-').pop() || ''}`;
                       } else {
                         // 直接使用ID
-                        displayNumber = `E${exerciseId}`;
+                        displayNumber = `G${exerciseId}`;
                       }
                     }
                     
-                    const label = `${displayNumber} - ${(exercise as any).title || '无标题'}`;
+                    const label = `${displayNumber} - ${exercise.name || '无标题'}`;
                     
                     return (
                       <Option key={exercise.id} value={exercise.id.toString()}>

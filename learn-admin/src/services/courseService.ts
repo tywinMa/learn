@@ -6,16 +6,15 @@ import { getSubjects } from "./subjectService";
 export interface Course {
   id: string;
   title: string;
-  instructor: string; // 暂时用instructor字段存储关联习题ID
-  subject?: string; // 学科代码，如'math', 'physics'等（可选，兼容旧数据）
+  instructor: string;
+  subject?: string; // 学科代码，如'math', 'physics'等
   students: number;
   createdAt: string;
   description?: string;
   content?: string;
   sources?: Array<{ type: "image" | "video"; url: string }>;
-  courseCode?: string; // 改为courseCode以匹配后端
-  coverImage?: string; // 兼容旧数据格式
-  relatedExerciseId?: string; // 添加关联习题ID字段
+  courseCode?: string;
+  exerciseGroupIds?: string[]; // 关联习题组ID列表
 
   // 以下是后端API可能返回的字段名，用于类型兼容
   name?: string; // 对应title
@@ -24,17 +23,15 @@ export interface Course {
   Subject?: { id: string; name: string; code: string }; // 学科详细信息对象
   course_code?: string; // 下划线格式的课程编号
   created_at?: string; // 下划线格式的创建时间
-  relatedExercise?: { id: string | number; question: string; title?: string; exerciseCode?: string }; // 关联习题 - 支持数字和字符串ID，添加exerciseCode和title字段
-
-  // 兼容旧版本的subject字段
+  exerciseGroups?: Array<{ id: string | number; name: string; description?: string }>; // 关联习题组
   subjectName?: string;
 }
 
 // 后端课程数据接口
 interface BackendCourse {
-  id: number | string; // 后端Course模型的id可能是字符串
-  name?: string; // 兼容旧API
-  title?: string; // 后端Course模型使用title字段
+  id: number | string;
+  name?: string;
+  title?: string;
   description?: string;
   content?: string;
   courseCode?: string;
@@ -42,14 +39,14 @@ interface BackendCourse {
   createdAt?: string;
   created_at?: string;
   updatedAt?: string;
-  sources?: Array<{ type: "image" | "video"; url: string }>; // 兼容旧字段
-  media?: Array<{ type: "image" | "video"; url: string }>; // 后端Course模型使用media字段
+  sources?: Array<{ type: "image" | "video"; url: string }>;
+  media?: Array<{ type: "image" | "video"; url: string }>;
   subject?: string; // 学科代码，如'math'
   Subject?: { id: string; name: string; code: string }; // 学科详细信息对象
   teacher?: { id: string; name: string };
-  relatedExercise?: { id: string | number; question: string; exerciseCode?: string; title?: string };
-  relatedExerciseId?: string | null; // 添加直接的relatedExerciseId字段
-  related_exercise_id?: string | null; // 添加下划线格式的字段
+  exerciseGroups?: Array<{ id: string | number; name: string; description?: string }>; // 关联习题组
+  exerciseGroupIds?: string[]; // 习题组ID列表
+  exercise_group_ids?: string[]; // 下划线格式的字段
 }
 
 // API端点
@@ -77,7 +74,7 @@ const transformBackendCourse = (course: BackendCourse): Course => {
 
   const result = {
     id: course.id.toString(),
-    title: course.title || course.name || "", // 修复：后端Course模型使用title字段，不是name字段
+    title: course.title || course.name || "",
     description: course.description || "",
     content: course.content || "",
     // 学科代码 - 直接使用后端的subject字段
@@ -89,18 +86,13 @@ const transformBackendCourse = (course: BackendCourse): Course => {
     // 创建日期
     createdAt: course.createdAt || course.created_at || course.updatedAt || new Date().toISOString(),
     // 媒体资源
-    sources: course.media || course.sources || [], // 修复：后端Course模型使用media字段，不是sources字段
-    // 关联习题ID - 尝试多种可能的字段，确保转换为字符串
-    relatedExerciseId: (
-      course.relatedExercise?.id ||
-      course.relatedExerciseId ||
-      course.related_exercise_id ||
-      ""
-    ).toString(),
+    sources: course.media || course.sources || [],
+    // 关联习题组ID列表
+    exerciseGroupIds: course.exerciseGroupIds || course.exercise_group_ids || [],
     // 保留原始字段用于类型兼容
     Subject: subjectDetailData,
     teacher: teacherData,
-    relatedExercise: course.relatedExercise,
+    exerciseGroups: course.exerciseGroups,
     students: 0, // 暂无学生数量字段
     // 兼容旧版本 - 学科名称
     subjectName: subjectDetailData?.name || "未分类",
@@ -151,7 +143,7 @@ export const getCourses = async (): Promise<Course[]> => {
 
         return {
           id: course.id.toString(),
-          title: course.title || course.name || "", // 修复：后端Course模型使用title字段
+          title: course.title || course.name || "",
           description: course.description || "",
           content: course.content || "",
           // 学科代码 - 直接使用后端的subject字段
@@ -163,18 +155,13 @@ export const getCourses = async (): Promise<Course[]> => {
           // 创建日期
           createdAt: course.createdAt || course.created_at || course.updatedAt || new Date().toISOString(),
           // 媒体资源
-          sources: course.media || course.sources || [], // 修复：后端Course模型使用media字段
-          // 关联习题ID - 尝试多种可能的字段，确保转换为字符串
-          relatedExerciseId: (
-            course.relatedExercise?.id ||
-            course.relatedExerciseId ||
-            course.related_exercise_id ||
-            ""
-          ).toString(),
+          sources: course.media || course.sources || [],
+          // 关联习题组ID列表
+          exerciseGroupIds: course.exerciseGroupIds || course.exercise_group_ids || [],
           // 保留原始字段用于类型兼容
           Subject: subjectDetailData,
           teacher: teacherData,
-          relatedExercise: course.relatedExercise,
+          exerciseGroups: course.exerciseGroups,
           students: 0, // 暂无学生数量字段
           // 兼容旧版本 - 学科名称
           subjectName: subjectDetailData?.name || "未分类",
@@ -318,9 +305,8 @@ export const createCourse = async (courseData: Omit<Course, "id">): Promise<Cour
       content: courseData.content, // 确保将content字段包含在API请求中
       subject: subject.code, // 后端期望学科代码，不是学科ID
       media: courseData.sources || [], // 后端期望media字段，不是sources
-      relatedExerciseId: courseData.relatedExerciseId || "", // 修复：使用正确的relatedExerciseId字段
+      exerciseGroupIds: courseData.exerciseGroupIds || [], // 使用习题组ID列表
       teacherId: null, // 暂不设置教师
-      coverImage: courseData.coverImage,
     };
 
     console.log("转换后的API请求数据:", {
@@ -367,7 +353,7 @@ export const updateCourse = async (id: string, courseData: Partial<Course>): Pro
       description: courseData.description,
       content: courseData.content,
       media: courseData.sources, // 后端期望media字段，不是sources
-      relatedExerciseId: courseData.relatedExerciseId,
+      exerciseGroupIds: courseData.exerciseGroupIds,
     };
 
     // 如果有学科分类，获取对应的学科ID
@@ -416,8 +402,8 @@ export const updateCourse = async (id: string, courseData: Partial<Course>): Pro
       }
     }
 
-    // 打印relatedExerciseId的值，确认是否存在
-    console.log("更新课程 - relatedExerciseId值:", courseData.relatedExerciseId);
+    // 打印exerciseGroupIds的值，确认是否存在
+    console.log("更新课程 - exerciseGroupIds值:", courseData.exerciseGroupIds);
 
     // 调试：显示完整的URL和请求数据
     console.log(`发送PUT请求到: ${API_ENDPOINTS.COURSES}/${id}`);

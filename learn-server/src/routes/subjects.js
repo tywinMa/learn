@@ -1,7 +1,53 @@
 const express = require('express');
 const router = express.Router();
-const { Subject, Unit, Course, Exercise } = require('../models');
+const { Subject, Unit, Course, Exercise, ExerciseGroup } = require('../models');
 const { Op } = require('sequelize');
+
+// 通过课程获取习题数量的辅助函数
+const getExerciseCountByCourse = async (courseId) => {
+  try {
+    // 获取课程信息
+    const course = await Course.findByPk(courseId);
+    if (!course) {
+      return 0;
+    }
+    
+    const exerciseGroupIds = course.exerciseGroupIds || [];
+    if (exerciseGroupIds.length === 0) {
+      // 回退到原有逻辑：直接统计unitId关联的习题
+      return await Exercise.count({
+        where: { unitId: courseId }
+      });
+    }
+    
+    // 获取习题组
+    const exerciseGroups = await ExerciseGroup.findAll({
+      where: { 
+        id: { [Op.in]: exerciseGroupIds },
+        isActive: true
+      }
+    });
+    
+    // 合并所有习题组的习题ID并去重
+    const exerciseIdsFromGroups = exerciseGroups.flatMap(group => group.exerciseIds || []);
+    const allExerciseIds = [...new Set(exerciseIdsFromGroups)];
+    
+    if (allExerciseIds.length === 0) {
+      return 0;
+    }
+    
+    // 统计习题数量
+    return await Exercise.count({
+      where: { id: { [Op.in]: allExerciseIds } }
+    });
+  } catch (error) {
+    console.error('通过课程获取习题数量出错:', error);
+    // 出错时回退到原有逻辑
+    return await Exercise.count({
+      where: { unitId: courseId }
+    });
+  }
+};
 
 // 获取所有学科 - 增加颜色和图标信息
 router.get('/', async (req, res) => {
@@ -136,9 +182,7 @@ router.get('/:code/units', async (req, res) => {
 
       // 为每个小单元添加练习题数量
       const courses = await Promise.all(unitCourses.map(async course => {
-        const exercisesCount = await Exercise.count({
-          where: { unitId: course.id }
-        });
+        const exercisesCount = await getExerciseCountByCourse(course.id);
 
         return {
           id: course.id,
@@ -177,8 +221,6 @@ router.get('/:code/units', async (req, res) => {
   }
 });
 
-
-
 // 获取特定单元详情
 router.get('/units/:unitId', async (req, res) => {
   try {
@@ -201,9 +243,7 @@ router.get('/units/:unitId', async (req, res) => {
 
       // 为每个小单元添加练习题数量
       const coursesWithExercises = await Promise.all(courses.map(async course => {
-        const exercisesCount = await Exercise.count({
-          where: { unitId: course.id }
-        });
+        const exercisesCount = await getExerciseCountByCourse(course.id);
 
         return {
           id: course.id,
@@ -234,9 +274,7 @@ router.get('/units/:unitId', async (req, res) => {
     // 尝试查找小单元
     const course = await Course.findByPk(unitId);
     if (course) {
-      const exercisesCount = await Exercise.count({
-        where: { unitId: course.id }
-      });
+      const exercisesCount = await getExerciseCountByCourse(course.id);
 
       return res.json({
         success: true,
@@ -293,9 +331,7 @@ router.get('/units/:unitId/courses', async (req, res) => {
 
     // 为每个小单元添加练习题数量
     const coursesWithExercises = await Promise.all(courses.map(async course => {
-      const exercisesCount = await Exercise.count({
-        where: { unitId: course.id }
-      });
+      const exercisesCount = await getExerciseCountByCourse(course.id);
 
       return {
         id: course.id,
