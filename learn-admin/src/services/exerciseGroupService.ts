@@ -65,7 +65,7 @@ export const getExerciseGroups = async (params?: {
 export const getExerciseGroupsBySubject = async (subjectCode: string): Promise<ExerciseGroup[]> => {
   try {
     const response = await api.get(`/api/admin/exercise-groups/subject/${subjectCode}`);
-    return response.data;
+    return response as unknown as ExerciseGroup[];
   } catch (error) {
     console.error(`获取学科(${subjectCode})习题组列表失败:`, error);
     message.error('获取习题组列表失败');
@@ -76,10 +76,17 @@ export const getExerciseGroupsBySubject = async (subjectCode: string): Promise<E
 // 获取习题组详情
 export const getExerciseGroupById = async (id: string): Promise<ExerciseGroup | null> => {
   try {
+    console.log('🌐 exerciseGroupService - 发送获取习题组详情请求, ID:', id);
     const response = await api.get(`/api/admin/exercise-groups/${id}`);
-    return response.data;
+    if (response && typeof response === 'object') {
+      console.log('✅ exerciseGroupService - 返回习题组数据:', response);
+      return response as unknown as ExerciseGroup;
+    } else {
+      console.error('❌ exerciseGroupService - 响应数据格式不正确:', response);
+      return null;
+    }
   } catch (error) {
-    console.error(`获取习题组(ID:${id})详情失败:`, error);
+    console.error(`❌ exerciseGroupService - 获取习题组(ID:${id})详情失败:`, error);
     message.error('获取习题组详情失败');
     return null;
   }
