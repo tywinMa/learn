@@ -157,18 +157,24 @@ const MainLayout: React.FC = () => {
           label: "课程管理",
           onClick: () => navigate("/courses"),
         },
-
         {
-          key: "exercises",
+          key: "exercise-management",
           icon: <FormOutlined />,
-          label: "练习题管理",
-          onClick: () => navigate("/exercises"),
-        },
-        {
-          key: "exercise-groups",
-          icon: <FormOutlined />,
-          label: "习题组管理",
-          onClick: () => navigate("/exercise-groups"),
+          label: "习题管理",
+          children: [
+            {
+              key: "exercises",
+              icon: <FormOutlined />,
+              label: "练习题管理",
+              onClick: () => navigate("/exercises"),
+            },
+            {
+              key: "exercise-groups",
+              icon: <FormOutlined />,
+              label: "习题组管理",
+              onClick: () => navigate("/exercise-groups"),
+            },
+          ],
         },
         {
           key: "knowledge-points",
@@ -227,8 +233,8 @@ const MainLayout: React.FC = () => {
     if (path.includes("courses")) return ["course-group", "courses"];
     if (path.includes("subjects")) return ["course-group", "subjects"];
     if (path.includes("units")) return ["course-group", "units"];
-    if (path.includes("exercises")) return ["course-group", "exercises"];
-    if (path.includes("exercise-groups")) return ["course-group", "exercise-groups"];
+    if (path.includes("exercises")) return ["course-group", "exercise-management", "exercises"];
+    if (path.includes("exercise-groups")) return ["course-group", "exercise-management", "exercise-groups"];
     if (path.includes("knowledge-points")) return ["course-group", "knowledge-points"];
     if (path.includes("students")) return ["students"];
     if (path.includes("settings")) return ["settings"];
@@ -277,7 +283,7 @@ const MainLayout: React.FC = () => {
         <Menu
           theme="dark"
           mode="inline"
-          defaultOpenKeys={["course-group"]}
+          defaultOpenKeys={["course-group", "exercise-management"]}
           selectedKeys={getSelectedKey()}
           items={menuItems}
           className="border-t border-gray-700"
