@@ -15,6 +15,7 @@ export interface Course {
   sources?: Array<{ type: "image" | "video"; url: string }>;
   courseCode?: string;
   exerciseGroupIds?: string[]; // 关联习题组ID列表
+  coverImage?: string; // 课程封面图片
 
   // 以下是后端API可能返回的字段名，用于类型兼容
   name?: string; // 对应title

@@ -197,8 +197,7 @@ const CourseList: React.FC = () => {
   const getCourseImage = (course: Course) => {
     // 调试课程的媒体资源
     console.log(`CourseList - 课程[${course.id}]媒体资源:`, 
-      course.sources ? JSON.stringify(course.sources) : '无sources', 
-      course.coverImage || '无coverImage'
+      course.sources ? JSON.stringify(course.sources) : '无sources'
     );
 
     if (course.sources && Array.isArray(course.sources) && course.sources.length > 0) {
@@ -310,11 +309,12 @@ const CourseList: React.FC = () => {
         <>
           <Row gutter={[16, 16]}>
             {paginatedCourses.map(course => {
-              // 提取习题信息（如果有）
-              let exerciseInfo = null;
-              if (course.relatedExercise?.id) {
-                exerciseInfo = {
-                  title: course.relatedExercise.title || '习题'
+              // 提取习题组信息（如果有）
+              let exerciseGroupInfo = null;
+              if (course.exerciseGroups && course.exerciseGroups.length > 0) {
+                exerciseGroupInfo = {
+                  count: course.exerciseGroups.length,
+                  names: course.exerciseGroups.map(group => group.name).join(', ')
                 };
               }
               
@@ -384,11 +384,13 @@ const CourseList: React.FC = () => {
                           <ClockCircleOutlined className="mr-1" />创建于 {formatDate(course.createdAt)}
                         </div>
                         
-                        {/* 关联习题信息 - 直接显示习题名称 */}
-                        {exerciseInfo && (
+                        {/* 关联习题组信息 */}
+                        {exerciseGroupInfo && (
                           <div className="w-full flex items-center">
                             <QuestionCircleOutlined className="mr-1" />
-                            <span className="text-gray-600 truncate">{exerciseInfo.title}</span>
+                            <span className="text-gray-600 truncate">
+                              {exerciseGroupInfo.count}个习题组: {exerciseGroupInfo.names}
+                            </span>
                           </div>
                         )}
                       </div>

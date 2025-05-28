@@ -50,40 +50,13 @@ const getCourses = async (req, res) => {
       ]
     });
     
-    // 转换数据格式，添加exerciseIds字段（通过习题组获取）
-    const coursesWithExerciseIds = await Promise.all(rows.map(async course => {
-      const courseData = course.toJSON();
-      
-      // 通过习题组获取所有关联的习题ID
-      const exerciseGroupIds = courseData.exerciseGroupIds || [];
-      let allExerciseIds = [];
-      
-      if (exerciseGroupIds.length > 0) {
-        const exerciseGroups = await ExerciseGroup.findAll({
-          where: { 
-            id: { [Op.in]: exerciseGroupIds },
-            isActive: true
-          }
-        });
-        
-        // 合并所有习题组的习题ID并去重
-        const exerciseIdsFromGroups = exerciseGroups.flatMap(group => group.exerciseIds || []);
-        allExerciseIds = [...new Set(exerciseIdsFromGroups)];
-      }
-      
-      courseData.exerciseIds = allExerciseIds;
-      courseData.exerciseGroupIds = exerciseGroupIds;
-      
-      return courseData;
-    }));
-    
     res.json({
       err_no: 0,
       data: {
         total: count,
         totalPages: Math.ceil(count / parseInt(limit)),
         currentPage: parseInt(page),
-        courses: coursesWithExerciseIds
+        courses: rows
       }
     });
   } catch (error) {
@@ -123,12 +96,10 @@ const getCourseById = async (req, res) => {
       });
     }
     
-    // 转换数据格式
     const courseData = course.toJSON();
     
-    // 通过习题组获取所有关联的习题
+    // 获取关联的习题组详情（包含习题）
     const exerciseGroupIds = courseData.exerciseGroupIds || [];
-    let allExerciseIds = [];
     let exerciseGroups = [];
     let exercises = [];
     
@@ -138,14 +109,11 @@ const getCourseById = async (req, res) => {
           id: { [Op.in]: exerciseGroupIds },
           isActive: true
         },
-        attributes: ['id', 'name', 'exerciseIds']
+        attributes: ['id', 'name', 'description', 'exerciseIds']
       });
       
-      // 合并所有习题组的习题ID并去重
-      const exerciseIdsFromGroups = exerciseGroups.flatMap(group => group.exerciseIds || []);
-      allExerciseIds = [...new Set(exerciseIdsFromGroups)];
-      
-      // 获取习题详情
+      // 获取所有关联习题的详情，去重
+      const allExerciseIds = [...new Set(exerciseGroups.flatMap(group => group.exerciseIds || []))];
       if (allExerciseIds.length > 0) {
         exercises = await Exercise.findAll({
           where: { id: { [Op.in]: allExerciseIds } },
@@ -155,10 +123,8 @@ const getCourseById = async (req, res) => {
       }
     }
     
-    // 提取练习题ID列表和练习题详情
-    courseData.exerciseIds = allExerciseIds;
-    courseData.exercises = exercises;
     courseData.exerciseGroups = exerciseGroups;
+    courseData.exercises = exercises;
     
     res.json({
       err_no: 0,
@@ -196,34 +162,9 @@ const getCoursesBySubject = async (req, res) => {
       order: [['id', 'ASC']]
     });
     
-    // 转换数据格式，添加exerciseIds字段（通过习题组获取）
-    const coursesWithExerciseIds = await Promise.all(courses.map(async course => {
-      const courseData = course.toJSON();
-      
-      // 通过习题组获取所有关联的习题ID
-      const exerciseGroupIds = courseData.exerciseGroupIds || [];
-      let allExerciseIds = [];
-      
-      if (exerciseGroupIds.length > 0) {
-        const exerciseGroups = await ExerciseGroup.findAll({
-          where: { 
-            id: { [Op.in]: exerciseGroupIds },
-            isActive: true
-          }
-        });
-        
-        // 合并所有习题组的习题ID并去重
-        const exerciseIdsFromGroups = exerciseGroups.flatMap(group => group.exerciseIds || []);
-        allExerciseIds = [...new Set(exerciseIdsFromGroups)];
-      }
-      
-      courseData.exerciseIds = allExerciseIds;
-      return courseData;
-    }));
-    
     res.json({
       err_no: 0,
-      data: coursesWithExerciseIds
+      data: courses
     });
   } catch (error) {
     console.error(`获取学科(${req.params.subjectCode})课程列表错误:`, error);
@@ -337,27 +278,10 @@ const createCourse = async (req, res) => {
       ]
     });
     
-    const responseData = courseWithRelations.toJSON();
-    responseData.exerciseGroupIds = exerciseGroupIds;
-    
-    // 获取习题ID用于兼容性
-    let allExerciseIds = [];
-    if (exerciseGroupIds.length > 0) {
-      const exerciseGroups = await ExerciseGroup.findAll({
-        where: { 
-          id: { [Op.in]: exerciseGroupIds },
-          isActive: true
-        }
-      });
-      const exerciseIdsFromGroups = exerciseGroups.flatMap(group => group.exerciseIds || []);
-      allExerciseIds = [...new Set(exerciseIdsFromGroups)];
-    }
-    responseData.exerciseIds = allExerciseIds;
-    
     res.status(201).json({
       err_no: 0,
       message: '课程创建成功',
-      data: responseData
+      data: courseWithRelations
     });
   } catch (error) {
     console.error('创建课程错误:', error);
@@ -470,27 +394,10 @@ const updateCourse = async (req, res) => {
       ]
     });
     
-    const responseData = updatedCourse.toJSON();
-    
-    // 获取习题ID用于兼容性
-    const finalExerciseGroupIds = responseData.exerciseGroupIds || [];
-    let allExerciseIds = [];
-    if (finalExerciseGroupIds.length > 0) {
-      const exerciseGroups = await ExerciseGroup.findAll({
-        where: { 
-          id: { [Op.in]: finalExerciseGroupIds },
-          isActive: true
-        }
-      });
-      const exerciseIdsFromGroups = exerciseGroups.flatMap(group => group.exerciseIds || []);
-      allExerciseIds = [...new Set(exerciseIdsFromGroups)];
-    }
-    responseData.exerciseIds = allExerciseIds;
-    
     res.json({
       err_no: 0,
       message: '课程更新成功',
-      data: responseData
+      data: updatedCourse
     });
   } catch (error) {
     console.error('更新课程错误:', error);
