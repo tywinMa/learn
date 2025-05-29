@@ -137,7 +137,7 @@ sleep 3
 mkdir -p "$SCRIPT_DIR/logs"
 
 echo -e "${GREEN}==============================================${NC}"
-echo -e "${BLUE}🚀 启动 Learn 项目所有服务${NC}"
+echo -e "${BLUE}🚀 启动 Learn 项目所有服务 (并发模式)${NC}"
 echo -e "${GREEN}==============================================${NC}"
 
 # 检查目录是否存在
@@ -156,6 +156,9 @@ if [ ! -d "learn" ]; then
   exit 1
 fi
 
+# 🚀 并发启动所有服务
+echo -e "${BLUE}🚀 并发启动所有服务...${NC}"
+
 # 1. 启动后端服务器 (learn-server)
 echo -e "${GREEN}1. 启动后端服务器 (learn-server)...${NC}"
 cd "$SCRIPT_DIR/learn-server"
@@ -163,63 +166,115 @@ npm run dev > ../logs/server.log 2>&1 &
 SERVER_PID=$!
 echo -e "${CYAN}   后端服务PID: $SERVER_PID${NC}"
 
-# 等待后端服务器启动
-echo -e "${YELLOW}   等待后端服务器启动...${NC}"
-sleep 5
-
-# 检查后端服务器是否成功启动
-if ! lsof -i:3000 >/dev/null 2>&1; then
-  echo -e "${RED}   后端服务器启动失败，请检查日志: logs/server.log${NC}"
-  cleanup
-  exit 1
-fi
-echo -e "${GREEN}   ✅ 后端服务器启动成功: http://localhost:3000${NC}"
-
-# 2. 启动后台管理系统 (learn-admin)
+# 2. 启动后台管理系统 (learn-admin) - 立即启动，不等待
 echo -e "${GREEN}2. 启动后台管理系统 (learn-admin)...${NC}"
 cd "$SCRIPT_DIR/learn-admin"
 npm run dev > ../logs/admin.log 2>&1 &
 ADMIN_PID=$!
 echo -e "${CYAN}   后台管理PID: $ADMIN_PID${NC}"
 
-# 等待后台管理系统启动
-echo -e "${YELLOW}   等待后台管理系统启动...${NC}"
-sleep 8
-
-# 检查后台管理系统是否成功启动
-ADMIN_PORT_FOUND=false
-for PORT in 5173 5174; do
-  if lsof -i:$PORT >/dev/null 2>&1; then
-    echo -e "${GREEN}   ✅ 后台管理系统启动成功: http://localhost:$PORT${NC}"
-    ADMIN_PORT_FOUND=true
-    break
-  fi
-done
-
-if [ "$ADMIN_PORT_FOUND" = false ]; then
-  echo -e "${RED}   后台管理系统启动失败，请检查日志: logs/admin.log${NC}"
-  cleanup
-  exit 1
-fi
-
-# 3. 启动App端 (learn)
+# 3. 启动App端 (learn) - 立即启动，不等待
 echo -e "${GREEN}3. 启动App端 (learn)...${NC}"
 cd "$SCRIPT_DIR/learn"
 npm run web > ../logs/app.log 2>&1 &
 APP_PID=$!
 echo -e "${CYAN}   App端PID: $APP_PID${NC}"
 
-# 等待App端启动
-echo -e "${YELLOW}   等待App端启动...${NC}"
-sleep 10
+echo ""
+echo -e "${YELLOW}⏳ 等待所有服务启动完成...${NC}"
 
-# 检查App端是否成功启动
-if ! lsof -i:8082 >/dev/null 2>&1; then
-  echo -e "${RED}   App端启动失败，请检查日志: logs/app.log${NC}"
+# 健康检查函数
+check_service_health() {
+  local service_name="$1"
+  local port="$2"
+  local max_attempts="$3"
+  
+  for i in $(seq 1 $max_attempts); do
+    if lsof -i:$port >/dev/null 2>&1; then
+      echo -e "${GREEN}   ✅ $service_name 启动成功: http://localhost:$port${NC}"
+      return 0
+    fi
+    sleep 1
+  done
+  
+  echo -e "${RED}   ❌ $service_name 启动失败 (端口 $port 未响应)${NC}"
+  return 1
+}
+
+# 并发健康检查
+echo -e "${YELLOW}   检查服务健康状态...${NC}"
+
+# 检查后端服务 (最重要，给更多时间)
+check_service_health "后端服务器" 3000 15 &
+HEALTH_CHECK_SERVER_PID=$!
+
+# 检查后台管理系统 (可能需要编译)
+check_service_health "后台管理系统" 5174 20 &
+HEALTH_CHECK_ADMIN_PID=$!
+
+# 如果5174不响应，检查5173
+(
+  sleep 20
+  if ! lsof -i:5174 >/dev/null 2>&1; then
+    check_service_health "后台管理系统" 5173 10
+  fi
+) &
+HEALTH_CHECK_ADMIN_ALT_PID=$!
+
+# 检查App端 (可能需要编译)
+check_service_health "App端" 8082 25 &
+HEALTH_CHECK_APP_PID=$!
+
+# 等待所有健康检查完成
+wait $HEALTH_CHECK_SERVER_PID
+SERVER_HEALTH=$?
+
+wait $HEALTH_CHECK_ADMIN_PID
+ADMIN_HEALTH=$?
+
+wait $HEALTH_CHECK_APP_PID
+APP_HEALTH=$?
+
+# 检查是否所有服务都启动成功
+FAILED_SERVICES=()
+
+if [ $SERVER_HEALTH -ne 0 ]; then
+  FAILED_SERVICES+=("后端服务器")
+fi
+
+if [ $ADMIN_HEALTH -ne 0 ]; then
+  # 检查备用端口
+  if ! lsof -i:5173 >/dev/null 2>&1; then
+    FAILED_SERVICES+=("后台管理系统")
+  else
+    echo -e "${GREEN}   ✅ 后台管理系统启动成功: http://localhost:5173${NC}"
+  fi
+fi
+
+if [ $APP_HEALTH -ne 0 ]; then
+  FAILED_SERVICES+=("App端")
+fi
+
+# 如果有服务启动失败，显示错误信息
+if [ ${#FAILED_SERVICES[@]} -gt 0 ]; then
+  echo ""
+  echo -e "${RED}❌ 以下服务启动失败:${NC}"
+  for service in "${FAILED_SERVICES[@]}"; do
+    echo -e "${RED}   - $service${NC}"
+  done
+  echo ""
+  echo -e "${YELLOW}💡 请检查对应的日志文件:${NC}"
+  echo -e "  ${CYAN}后端日志${NC}:      logs/server.log"
+  echo -e "  ${CYAN}后台日志${NC}:      logs/admin.log"
+  echo -e "  ${CYAN}App端日志${NC}:     logs/app.log"
+  echo ""
+  echo -e "${YELLOW}常见解决方案:${NC}"
+  echo -e "  1. 检查依赖是否安装: ${CYAN}npm install${NC}"
+  echo -e "  2. 检查端口是否被占用: ${CYAN}lsof -i:3000,5173,5174,8082${NC}"
+  echo -e "  3. 重新安装依赖: ${CYAN}rm -rf node_modules && npm install${NC}"
   cleanup
   exit 1
 fi
-echo -e "${GREEN}   ✅ App端启动成功: http://localhost:8082${NC}"
 
 echo -e "${GREEN}==============================================${NC}"
 echo -e "${BLUE}🎉 所有服务启动成功！${NC}"

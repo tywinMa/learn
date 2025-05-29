@@ -149,6 +149,9 @@ echo -e "${GREEN}服务已停止${NC}"
 # 转到learn-server目录
 cd "$SCRIPT_DIR/learn-server"
 
+# 创建日志目录（确保日志能正常写入）
+mkdir -p "$SCRIPT_DIR/logs"
+
 # 清理数据库文件（如果指定了force参数）
 if [ "$FORCE_RESET" = true ]; then
   echo -e "${YELLOW}清理数据库文件...${NC}"
@@ -205,7 +208,7 @@ if [ $? -eq 0 ]; then
     
   elif [ "$START_APP" = true ]; then
     echo -e "${GREEN}==============================================${NC}"
-    echo -e "${BLUE}自动启动服务端+App端...${NC}"
+    echo -e "${BLUE}自动启动服务端+App端 (并发模式)...${NC}"
     echo -e "${YELLOW}提示: 按 Ctrl+C 可以停止服务端+App端${NC}"
     echo -e "${GREEN}==============================================${NC}"
     
@@ -252,21 +255,61 @@ if [ $? -eq 0 ]; then
         cd "$SCRIPT_DIR"
     fi
     
+    # 🚀 并发启动服务
+    echo -e "${BLUE}🚀 并发启动服务端+App端...${NC}"
+    
     # 启动后端服务
     echo -e "${BLUE}🔧 启动后端服务...${NC}"
     cd learn-server
-    npm run dev &
+    npm run dev > ../logs/server-app.log 2>&1 &
     SERVER_PID=$!
-    
-    # 等待后端服务启动
-    echo -e "${YELLOW}⏳ 等待后端服务启动...${NC}"
-    sleep 5
     
     # 启动App端
     echo -e "${BLUE}📱 启动App端...${NC}"
     cd "$SCRIPT_DIR/learn"
-    npm run web &
+    npm run web > ../logs/app.log 2>&1 &
     APP_PID=$!
+    
+    echo -e "${YELLOW}⏳ 等待服务启动完成...${NC}"
+    
+    # 健康检查函数
+    check_service() {
+        local service_name="$1"
+        local port="$2"
+        local max_attempts="$3"
+        
+        for i in $(seq 1 $max_attempts); do
+            if lsof -i:$port >/dev/null 2>&1; then
+                echo -e "${GREEN}✅ $service_name 启动成功: http://localhost:$port${NC}"
+                return 0
+            fi
+            sleep 1
+        done
+        
+        echo -e "${RED}❌ $service_name 启动失败${NC}"
+        return 1
+    }
+    
+    # 并发健康检查
+    check_service "后端服务" 3000 15 &
+    HEALTH_CHECK_SERVER=$!
+    
+    check_service "App端" 8082 20 &
+    HEALTH_CHECK_APP=$!
+    
+    # 等待健康检查结果
+    wait $HEALTH_CHECK_SERVER
+    SERVER_OK=$?
+    
+    wait $HEALTH_CHECK_APP
+    APP_OK=$?
+    
+    # 检查启动结果
+    if [ $SERVER_OK -ne 0 ] || [ $APP_OK -ne 0 ]; then
+        echo -e "${RED}❌ 部分服务启动失败，请检查日志${NC}"
+        cleanup_app
+        exit 1
+    fi
     
     echo ""
     echo -e "${GREEN}🎉 服务端+App端启动完成！${NC}"
@@ -285,7 +328,7 @@ if [ $? -eq 0 ]; then
     
   elif [ "$START_ADMIN" = true ]; then
     echo -e "${GREEN}==============================================${NC}"
-    echo -e "${BLUE}自动启动服务端+后台管理...${NC}"
+    echo -e "${BLUE}自动启动服务端+后台管理 (并发模式)...${NC}"
     echo -e "${YELLOW}提示: 按 Ctrl+C 可以停止服务端+后台管理${NC}"
     echo -e "${GREEN}==============================================${NC}"
     
@@ -297,7 +340,7 @@ if [ $? -eq 0 ]; then
         jobs -p | xargs -r kill 2>/dev/null
         
         # 终止指定端口的进程
-        PORTS=(3000 5173)
+        PORTS=(3000 5173 5174)
         for PORT in "${PORTS[@]}"; do
             PORT_PIDS=$(lsof -t -i:$PORT 2>/dev/null)
             if [ -n "$PORT_PIDS" ]; then
@@ -332,26 +375,69 @@ if [ $? -eq 0 ]; then
         cd "$SCRIPT_DIR"
     fi
     
+    # 🚀 并发启动服务
+    echo -e "${BLUE}🚀 并发启动服务端+后台管理...${NC}"
+    
     # 启动后端服务
     echo -e "${BLUE}🔧 启动后端服务...${NC}"
     cd learn-server
-    npm run dev &
+    npm run dev > ../logs/server-admin.log 2>&1 &
     SERVER_PID=$!
-    
-    # 等待后端服务启动
-    echo -e "${YELLOW}⏳ 等待后端服务启动...${NC}"
-    sleep 5
     
     # 启动后台管理系统
     echo -e "${BLUE}👨‍💼 启动后台管理系统...${NC}"
     cd "$SCRIPT_DIR/learn-admin"
-    npm run dev &
+    npm run dev > ../logs/admin.log 2>&1 &
     ADMIN_PID=$!
+    
+    echo -e "${YELLOW}⏳ 等待服务启动完成...${NC}"
+    
+    # 健康检查函数
+    check_service() {
+        local service_name="$1"
+        local port="$2"
+        local max_attempts="$3"
+        
+        for i in $(seq 1 $max_attempts); do
+            if lsof -i:$port >/dev/null 2>&1; then
+                echo -e "${GREEN}✅ $service_name 启动成功: http://localhost:$port${NC}"
+                return 0
+            fi
+            sleep 1
+        done
+        
+        echo -e "${RED}❌ $service_name 启动失败${NC}"
+        return 1
+    }
+    
+    # 并发健康检查
+    check_service "后端服务" 3000 15 &
+    HEALTH_CHECK_SERVER=$!
+    
+    # 检查两个可能的端口
+    (
+      check_service "后台管理系统" 5174 20 || check_service "后台管理系统" 5173 10
+    ) &
+    HEALTH_CHECK_ADMIN=$!
+    
+    # 等待健康检查结果
+    wait $HEALTH_CHECK_SERVER
+    SERVER_OK=$?
+    
+    wait $HEALTH_CHECK_ADMIN
+    ADMIN_OK=$?
+    
+    # 检查启动结果
+    if [ $SERVER_OK -ne 0 ] || [ $ADMIN_OK -ne 0 ]; then
+        echo -e "${RED}❌ 部分服务启动失败，请检查日志${NC}"
+        cleanup_admin
+        exit 1
+    fi
     
     echo ""
     echo -e "${GREEN}🎉 服务端+后台管理启动完成！${NC}"
     echo -e "${CYAN}服务地址:${NC}"
-    echo -e "  👨‍💼 后台管理: ${YELLOW}http://localhost:5173${NC}"
+    echo -e "  👨‍💼 后台管理: ${YELLOW}http://localhost:5173 或 http://localhost:5174${NC}"
     echo -e "  🔧 后端API: ${YELLOW}http://localhost:3000${NC}"
     echo ""
     echo -e "${YELLOW}💡 使用说明:${NC}"
