@@ -27,10 +27,10 @@ const text = `###
   "title": "加法运算",
   "type": "fill_blank",
   "difficulty": 3,
-  "question": "计算：2 + 3 = ____",
+  "question": "计算：2 + 3 = ____, 计算: 3 + 3 = ____",
   "options": null,
-  "correctAnswer": ["5"],
-  "explanation": "2加3等于5"
+  "correctAnswer": ["5", "6"],
+  "explanation": "2加3等于5，3加3等于6"
 }
 输出：符合示例规则要求的选择题json格式内容
 
