@@ -195,7 +195,12 @@ const ExerciseForm: React.FC = () => {
           left: ["", "", "", ""],
           right: ["", "", "", ""],
         };
-        correctAnswer = [0, 1, 2, 3];
+        correctAnswer = {
+          "0": "0",
+          "1": "1", 
+          "2": "2",
+          "3": "3"
+        };
         break;
       case "fill_blank":
         options = null;
@@ -328,6 +333,9 @@ const ExerciseForm: React.FC = () => {
                 content: option.text || option.content || String(option),
                 isCorrect: index === aiData.correctAnswer || option.isCorrect === true,
               }));
+            } else if (aiData.type === "matching" && aiData.options) {
+              // 匹配题的options保持原样，因为AI返回的已经是{left: [], right: []}格式
+              processedOptions = aiData.options;
             }
 
             // 设置表单数据
@@ -707,6 +715,52 @@ const ExerciseForm: React.FC = () => {
                           </Form.List>
                         </Col>
                       </Row>
+
+                      <Divider orientation="left">匹配关系设置</Divider>
+                      <Form.Item shouldUpdate={(prevValues, currentValues) => 
+                        JSON.stringify(prevValues.options?.left) !== JSON.stringify(currentValues.options?.left) ||
+                        JSON.stringify(prevValues.options?.right) !== JSON.stringify(currentValues.options?.right)
+                      }>
+                        {({ getFieldValue }) => {
+                          const leftOptions = getFieldValue(["options", "left"]) || [];
+                          const rightOptions = getFieldValue(["options", "right"]) || [];
+                          
+                          if (leftOptions.length === 0 || rightOptions.length === 0) {
+                            return <div className="text-gray-500">请先添加左侧和右侧项目</div>;
+                          }
+
+                          return (
+                            <div className="space-y-3">
+                              <div className="text-sm text-gray-600 mb-2">
+                                请为每个左侧项目选择对应的右侧项目：
+                              </div>
+                              {leftOptions.map((leftItem: string, leftIndex: number) => (
+                                <div key={leftIndex} className="flex items-center space-x-4">
+                                  <div className="min-w-0 flex-1">
+                                    <span className="text-sm font-medium">{leftItem || `左侧项 ${leftIndex + 1}`}</span>
+                                  </div>
+                                  <div className="text-gray-400">匹配</div>
+                                  <div className="min-w-0 flex-1">
+                                    <Form.Item
+                                      name={["correctAnswer", leftIndex.toString()]}
+                                      rules={[{ required: true, message: "请选择匹配项" }]}
+                                      style={{ marginBottom: 0 }}
+                                    >
+                                      <Select placeholder="选择右侧匹配项">
+                                        {rightOptions.map((rightItem: string, rightIndex: number) => (
+                                          <Select.Option key={rightIndex} value={String(rightIndex)}>
+                                            {rightItem || `右侧项 ${rightIndex + 1}`}
+                                          </Select.Option>
+                                        ))}
+                                      </Select>
+                                    </Form.Item>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }}
+                      </Form.Item>
                     </>
                   );
 

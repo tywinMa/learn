@@ -301,7 +301,7 @@ const initUnitsAndCourses = async (subjects) => {
       order: 3,
       color: chapterColors.math[2].primary,
       secondaryColor: chapterColors.math[2].secondary,
-      courseIds: ['math-3-1', 'math-3-2']
+      courseIds: ['math-3-1', 'math-3-2', 'math-3-3']
     });
     units.push(statsUnit);
 
@@ -321,6 +321,14 @@ const initUnitsAndCourses = async (subjects) => {
         description: '概率的基本概念和计算',
         unitType: 'normal',
         exerciseGroupIds: ['group-math-3-2']
+      },
+      { 
+        id: 'math-3-3', 
+        subject: 'math', 
+        title: '匹配练习', 
+        description: '数学匹配题练习（新格式）',
+        unitType: 'exercise',
+        exerciseGroupIds: ['group-math-matching']
       }
     ];
 
@@ -717,6 +725,51 @@ const initExercises = async (subjects) => {
 
     // 合并所有数学练习题
     exercises.push(...equationExercises, ...examExercises, ...quadraticApplications, ...triangleExercises);
+
+    // 添加匹配题示例数据（用于测试新的对象格式）
+    const matchingExercises = [
+      {
+        id: 'math-matching-1',
+        subject: 'math',
+        title: '数字与汉字匹配',
+        question: '请将阿拉伯数字与对应的汉字进行匹配：',
+        options: {
+          left: ['1', '2', '3', '4'],
+          right: ['四', '二', '一', '三']
+        },
+        correctAnswer: {
+          "0": "2",  // 左侧索引0("1")对应右侧索引2("一")
+          "1": "1",  // 左侧索引1("2")对应右侧索引1("二") 
+          "2": "3",  // 左侧索引2("3")对应右侧索引3("三")
+          "3": "0"   // 左侧索引3("4")对应右侧索引0("四")
+        },
+        explanation: '阿拉伯数字与汉字的对应关系：1-一，2-二，3-三，4-四',
+        type: 'matching',
+        difficulty: 1
+      },
+      {
+        id: 'math-matching-2',
+        subject: 'math',
+        title: '几何图形与名称匹配',
+        question: '请将几何图形与其名称进行匹配：',
+        options: {
+          left: ['三条边的图形', '四条边的图形', '圆形边界', '五条边的图形'],
+          right: ['圆形', '四边形', '三角形', '五边形']
+        },
+        correctAnswer: {
+          "0": "2",  // 三条边的图形 -> 三角形
+          "1": "1",  // 四条边的图形 -> 四边形
+          "2": "0",  // 圆形边界 -> 圆形
+          "3": "3"   // 五条边的图形 -> 五边形
+        },
+        explanation: '根据边数确定几何图形的名称',
+        type: 'matching',
+        difficulty: 2
+      }
+    ];
+
+    // 将匹配题添加到数学练习题中
+    exercises.push(...matchingExercises);
   }
 
   // 物理练习题
@@ -892,6 +945,14 @@ const initExerciseGroups = async (subjects, exercises) => {
         description: '概率基本概念和计算',
         subject: 'math',
         exerciseIds: [], // 后续可以添加
+        isActive: true
+      },
+      {
+        id: 'group-math-matching',
+        name: '匹配题习题组',
+        description: '数学匹配题练习（测试新格式）',
+        subject: 'math',
+        exerciseIds: ['math-matching-1', 'math-matching-2'],
         isActive: true
       }
     ];

@@ -9,8 +9,8 @@ export interface MatchingOptions {
 
 // 匹配题答案类型
 export interface MatchingAnswer {
-  // 存储左侧索引到右侧索引的映射关系，例如 {0: 2, 1: 0, 2: 3, 3: 1} 表示左侧第一项匹配右侧第三项，左侧第二项匹配右侧第一项...
-  mappings: Record<number, number>;
+  // 存储左侧索引到右侧索引的映射关系，例如 {"0": "2", "1": "0", "2": "3", "3": "1"} 表示左侧第一项匹配右侧第三项，左侧第二项匹配右侧第一项...
+  [leftIndex: string]: string;
 }
 
 // 练习题选项类型

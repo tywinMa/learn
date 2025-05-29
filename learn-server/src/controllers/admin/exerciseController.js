@@ -491,7 +491,7 @@ exports.createExercise = async (req, res) => {
       } else if (type === 'fill_blank') {
         finalCorrectAnswer = ['']; // 填空题默认空字符串数组
       } else if (type === 'matching') {
-        finalCorrectAnswer = []; // 匹配题默认空数组
+        finalCorrectAnswer = {}; // 匹配题默认空对象
       } else {
         finalCorrectAnswer = ''; // 其他题型默认空字符串
       }

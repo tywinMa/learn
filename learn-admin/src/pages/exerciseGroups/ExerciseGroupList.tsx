@@ -36,7 +36,7 @@ import {
 import { getSubjects } from "../../services/subjectService";
 import { getCourses } from "../../services/courseService";
 import { createExercise } from "../../services/exerciseService";
-import { getChoiceExerciseList, getFillBlankExerciseList } from "../../services/aiService";
+import { getChoiceExerciseList, getFillBlankExerciseList, getMatchingExerciseList } from "../../services/aiService";
 
 const { Search } = Input;
 const { Option } = Select;
@@ -168,8 +168,10 @@ const ExerciseGroupList: React.FC = () => {
         aiExercises = await getChoiceExerciseList(subjectName, courseName, relevance, difficulty, questionCount);
       } else if (type === 'fill_blank') {
         aiExercises = await getFillBlankExerciseList(subjectName, courseName, relevance, difficulty, questionCount);
+      } else if (type === 'matching') {
+        aiExercises = await getMatchingExerciseList(subjectName, courseName, relevance, difficulty, questionCount);
       } else {
-        message.warning("目前只支持生成选择题和填空题");
+        message.warning("目前只支持生成选择题、填空题和匹配题");
         return;
       }
 
@@ -249,6 +251,19 @@ const ExerciseGroupList: React.FC = () => {
               difficulty: aiExercise.difficulty || 2,
               options: null, // 填空题不需要选项
               correctAnswer: Array.isArray(aiExercise.correctAnswer) ? aiExercise.correctAnswer : [aiExercise.correctAnswer || ''], // 确保填空题答案是数组
+              explanation: aiExercise.explanation || "",
+              isAI: true,
+            };
+          } else if (type === 'matching') {
+            // 处理匹配题格式
+            exerciseData = {
+              subject: subject,
+              title: aiExercise.title || `习题${i + 1}`,
+              question: aiExercise.question || "",
+              type: aiExercise.type || "matching",
+              difficulty: aiExercise.difficulty || 2,
+              options: aiExercise.options || [],
+              correctAnswer: aiExercise.correctAnswer || [],
               explanation: aiExercise.explanation || "",
               isAI: true,
             };
@@ -576,11 +591,9 @@ const ExerciseGroupList: React.FC = () => {
                     <Select placeholder="请选择题目类型" size="large">
                       <Option value="choice">选择题</Option>
                       <Option value="fill_blank">填空题</Option>
+                      <Option value="matching">匹配题</Option>
                       <Option value="application" disabled>
                         应用题（暂未支持）
-                      </Option>
-                      <Option value="matching" disabled>
-                        匹配题（暂未支持）
                       </Option>
                     </Select>
                   </Form.Item>

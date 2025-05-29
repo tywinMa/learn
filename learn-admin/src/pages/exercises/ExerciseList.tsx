@@ -29,7 +29,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { getAllExercises, deleteExercise } from '../../services/exerciseService';
-import { getChoiceExerciseOne, getFillBlankExerciseOne } from '../../services/aiService';
+import { getChoiceExerciseOne, getFillBlankExerciseOne, getMatchingExerciseOne } from '../../services/aiService';
 import { getCourses } from '../../services/courseService';
 import { getSubjects } from '../../services/subjectService';
 import type { Exercise } from '../../services/exerciseService';
@@ -190,8 +190,15 @@ const ExerciseList: React.FC = () => {
           relevance,
           difficulty
         );
+      } else if (type === 'matching') {
+        aiResult = await getMatchingExerciseOne(
+          subjectName,
+          courseName,
+          relevance,
+          difficulty
+        );
       } else {
-        message.warning(`目前只支持生成选择题和填空题`);
+        message.warning(`目前只支持生成选择题、填空题和匹配题`);
         return;
       }
 
@@ -222,6 +229,19 @@ const ExerciseList: React.FC = () => {
             difficulty: aiResult.difficulty || 2,
             options: null, // 填空题不需要选项
             correctAnswer: aiResult.correctAnswer || [''], // 填空题答案是数组
+            explanation: aiResult.explanation || '',
+            isAI: true
+          };
+        } else if (type === 'matching') {
+          // 匹配题数据处理 - AI返回的已经是新格式
+          processedData = {
+            subject: subject,
+            title: aiResult.title || '',
+            question: aiResult.question || '',
+            type: aiResult.type || 'matching',
+            difficulty: aiResult.difficulty || 2,
+            options: aiResult.options || { left: [], right: [] }, // 匹配题的options结构
+            correctAnswer: aiResult.correctAnswer || {}, // 匹配题答案是对象格式
             explanation: aiResult.explanation || '',
             isAI: true
           };
@@ -412,8 +432,8 @@ const ExerciseList: React.FC = () => {
             >
               <Option value="choice">选择题</Option>
               <Option value="fill_blank">填空题</Option>
-              <Option value="application">应用题</Option>
               <Option value="matching">匹配题</Option>
+              <Option value="application" disabled>应用题（暂未支持）</Option>
             </Select>
           </div>
           
@@ -674,8 +694,8 @@ const ExerciseList: React.FC = () => {
                     <Select placeholder="请选择题目类型" size="large">
                       <Option value="choice">选择题</Option>
                       <Option value="fill_blank">填空题</Option>
+                      <Option value="matching">匹配题</Option>
                       <Option value="application" disabled>应用题（暂未支持）</Option>
-                      <Option value="matching" disabled>匹配题（暂未支持）</Option>
                     </Select>
                   </Form.Item>
                 </Col>

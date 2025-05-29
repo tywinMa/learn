@@ -570,15 +570,27 @@ export default function PracticeScreen() {
     // 标记已提交答案
     setHasSubmittedAnswer(true);
 
-    // 提交答题结果到服务器
-    submitAnswerToServer(currentExerciseId, isCorrect);
+    // 在清空pendingAnswer之前，先获取用户答案
+    let userAnswerForServer = null;
+    if (pendingAnswer && pendingAnswer.exerciseId === currentExerciseId) {
+      if (exercise.type === "choice") {
+        userAnswerForServer = pendingAnswer.optionIndex;
+      } else if (exercise.type === "fill_blank") {
+        userAnswerForServer = pendingAnswer.fillBlankAnswers;
+      } else if (exercise.type === "matching") {
+        userAnswerForServer = pendingAnswer.matchingAnswers;
+      }
+    }
+
+    // 提交答题结果到服务器，传递用户答案
+    submitAnswerToServer(currentExerciseId, isCorrect, userAnswerForServer);
 
     // 清空待处理答案
     setPendingAnswer(null);
   };
 
   // 提交答题结果到服务器
-  const submitAnswerToServer = async (exerciseId: string, isCorrect: boolean) => {
+  const submitAnswerToServer = async (exerciseId: string, isCorrect: boolean, userAnswer?: number | number[] | string[] | null) => {
     try {
       // 使用新的AnswerRecord API端点
       const studentId = await getCurrentStudentIdForProgress();
@@ -589,14 +601,14 @@ export default function PracticeScreen() {
       const responseTime = Math.floor(Math.random() * 10000) + 2000; // 模拟2-12秒的响应时间
       
       // 获取用户的具体答案
-      let userAnswer = null;
-      if (pendingAnswer && pendingAnswer.exerciseId === exerciseId) {
-        if (currentExercise?.type === "choice") {
-          userAnswer = pendingAnswer.optionIndex;
-        } else if (currentExercise?.type === "fill_blank") {
-          userAnswer = pendingAnswer.fillBlankAnswers;
-        } else if (currentExercise?.type === "matching") {
-          userAnswer = pendingAnswer.matchingAnswers;
+      let userAnswerForServer = userAnswer || null;
+      if (!userAnswerForServer && currentExercise) {
+        if (currentExercise.type === "choice") {
+          userAnswerForServer = -1; // 默认错误答案
+        } else if (currentExercise.type === "fill_blank" && Array.isArray(currentExercise.correctAnswer)) {
+          userAnswerForServer = currentExercise.correctAnswer.map(() => "");
+        } else if (currentExercise.type === "matching" && Array.isArray(currentExercise.options?.left)) {
+          userAnswerForServer = currentExercise.options.left.map(() => -1);
         }
       }
       
@@ -620,7 +632,7 @@ export default function PracticeScreen() {
         exerciseId,
         unitId: actualUnitId, // 使用课程ID，确保进度记录到正确的课程
         isCorrect,
-        userAnswer,
+        userAnswer: userAnswerForServer,
         responseTime: Math.floor(responseTime / 1000), // 转换为秒
         sessionId,
         practiceMode: isTestForUnlocking ? 'unlock_test' : 'normal',

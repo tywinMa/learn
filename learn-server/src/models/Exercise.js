@@ -41,15 +41,15 @@ const Exercise = sequelize.define(
       type: DataTypes.STRING,
       allowNull: false,
       defaultValue: "choice", // 选择题
-      // 可能的值: 'choice', 'matching', 'fill_blank', 'application', 'math'
+      // 可能的值: 'choice', 'matching', 'fill_blank', 'application'
     },
     difficulty: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      defaultValue: 1, // 1-5的难度评级
+      defaultValue: 1, // 1-3的难度评级
       validate: {
         min: 1,
-        max: 5,
+        max: 3,
       },
     },
     media: {

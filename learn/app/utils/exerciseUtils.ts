@@ -35,15 +35,25 @@ export const checkAnswerCorrect = (
       return isChoiceCorrect;
 
     case "matching":
-      // 匹配题 - 比较数组
-      if (Array.isArray(userAnswer) && Array.isArray(exercise.correctAnswer)) {
-        const userAnswerStr = JSON.stringify(userAnswer);
+      // 匹配题 - 比较对象格式答案
+      if (Array.isArray(userAnswer) && typeof exercise.correctAnswer === 'object' && !Array.isArray(exercise.correctAnswer)) {
+        // 将用户的数组答案转换为对象格式
+        const userAnswerObj: Record<string, string> = {};
+        (userAnswer as number[]).forEach((rightIndex: number, leftIndex: number) => {
+          if (rightIndex !== -1) { // 只记录有效匹配
+            userAnswerObj[leftIndex.toString()] = rightIndex.toString();
+          }
+        });
+        
+        // 比较对象
+        const userAnswerStr = JSON.stringify(userAnswerObj);
         const correctAnswerStr = JSON.stringify(exercise.correctAnswer);
         const isMatchingCorrect = userAnswerStr === correctAnswerStr;
         
         console.log(`匹配题答案比较:`, {
           用户答案数组: userAnswer,
-          正确答案数组: exercise.correctAnswer,
+          用户答案对象: userAnswerObj,
+          正确答案对象: exercise.correctAnswer,
           用户答案字符串: userAnswerStr,
           正确答案字符串: correctAnswerStr,
           匹配结果: isMatchingCorrect
