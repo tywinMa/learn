@@ -96,8 +96,41 @@ router.post('/:studentId/submit', async (req, res) => {
         isCorrect = String(answer).trim().toLowerCase() === String(correctAnswer).trim().toLowerCase();
       }
     } else if (exercise.type === 'matching') {
-      // 匹配题：比较匹配结果
-      isCorrect = JSON.stringify(answer) === JSON.stringify(correctAnswer);
+      // 匹配题：统一使用对象格式
+      if (typeof answer === 'object' && !Array.isArray(answer) && 
+          typeof correctAnswer === 'object' && !Array.isArray(correctAnswer)) {
+        // 直接比较对象
+        isCorrect = JSON.stringify(answer) === JSON.stringify(correctAnswer);
+        console.log('匹配题答案验证:', {
+          用户对象答案: answer,
+          正确答案: correctAnswer,
+          验证结果: isCorrect
+        });
+      } else if (Array.isArray(answer) && typeof correctAnswer === 'object' && !Array.isArray(correctAnswer)) {
+        // 兼容处理：如果前端还是传递数组格式，转换为对象进行比较
+        const userAnswerObj = {};
+        answer.forEach((rightIndex, leftIndex) => {
+          if (rightIndex !== -1) { // 只记录有效匹配
+            userAnswerObj[leftIndex.toString()] = rightIndex.toString();
+          }
+        });
+        isCorrect = JSON.stringify(userAnswerObj) === JSON.stringify(correctAnswer);
+        console.log('匹配题答案验证(兼容模式):', {
+          用户数组答案: answer,
+          用户对象答案: userAnswerObj,
+          正确答案: correctAnswer,
+          验证结果: isCorrect
+        });
+      } else {
+        console.warn('匹配题答案格式错误:', {
+          用户答案: answer,
+          用户答案类型: typeof answer,
+          是否为数组: Array.isArray(answer),
+          正确答案: correctAnswer,
+          正确答案类型: typeof correctAnswer
+        });
+        isCorrect = false;
+      }
     } else {
       // 其他题型：字符串比较
       isCorrect = String(answer).trim() === String(correctAnswer).trim();
@@ -486,7 +519,8 @@ router.get('/:studentId/progress/:unitId', async (req, res) => {
       where: { studentId, unitId } 
     });
 
-    if (unitProgressEntry && unitProgressEntry.completed) {
+    if (unitProgressEntry) {
+      // 如果存在UnitProgress记录，优先使用其数据
       const exercises = await getExercisesByCourse(unitId);
       const exercisesInUnit = exercises.length;
       const unlockNextStatus = unitProgressEntry.stars === 3;
@@ -505,7 +539,7 @@ router.get('/:studentId/progress/:unitId', async (req, res) => {
       
       const actualCompletedExercises = correctAnswerRecords.length;
 
-      console.log(`[Progress Details] From UnitProgress: ${unitId}, Stars: ${unitProgressEntry.stars}, Completed: ${unitProgressEntry.completed}, ActualCompleted: ${actualCompletedExercises}/${exercisesInUnit}`);
+      console.log(`[Progress Details] From UnitProgress: ${unitId}, Stars: ${unitProgressEntry.stars}, Completed: ${unitProgressEntry.completed}, ActualCompleted: ${actualCompletedExercises}/${exercisesInUnit}, StudyCount: ${unitProgressEntry.studyCount}, PracticeCount: ${unitProgressEntry.practiceCount}`);
       
       return res.json({
         success: true,
@@ -676,7 +710,8 @@ router.post('/:studentId/progress/batch', async (req, res) => {
           where: { studentId, unitId } 
         });
 
-        if (unitProgressEntry && unitProgressEntry.completed) {
+        if (unitProgressEntry) {
+          // 如果存在UnitProgress记录，优先使用其数据
           const exercises = await getExercisesByCourse(unitId);
           const exercisesInUnit = exercises.length;
           
@@ -868,9 +903,7 @@ router.post('/:studentId/increment-study/:unitId', async (req, res) => {
 
     if (!created) {
       // 更新现有记录
-      if (activityType === 'study_start') {
-        unitProgress.studyCount += 1;
-      }
+      unitProgress.studyCount += 1; // 每次调用都增加学习次数
       
       if (timeSpent > 0) {
         unitProgress.totalTimeSpent += timeSpent;
@@ -878,6 +911,10 @@ router.post('/:studentId/increment-study/:unitId', async (req, res) => {
       
       unitProgress.lastStudyTime = new Date();
       await unitProgress.save();
+      
+      console.log(`更新学习次数: unitId=${unitId}, studentId=${studentId}, studyCount=${unitProgress.studyCount}`);
+    } else {
+      console.log(`创建新的UnitProgress记录: unitId=${unitId}, studentId=${studentId}, studyCount=1`);
     }
 
     res.json({
@@ -941,9 +978,7 @@ router.post('/:studentId/increment-practice/:unitId', async (req, res) => {
 
     if (!created) {
       // 更新现有记录
-      if (activityType === 'practice_start') {
-        unitProgress.practiceCount += 1;
-      }
+      unitProgress.practiceCount += 1; // 每次调用都增加练习次数
       
       if (timeSpent > 0) {
         unitProgress.totalTimeSpent += timeSpent;
@@ -951,6 +986,10 @@ router.post('/:studentId/increment-practice/:unitId', async (req, res) => {
       
       unitProgress.lastPracticeTime = new Date();
       await unitProgress.save();
+      
+      console.log(`更新练习次数: unitId=${unitId}, studentId=${studentId}, practiceCount=${unitProgress.practiceCount}`);
+    } else {
+      console.log(`创建新的UnitProgress记录: unitId=${unitId}, studentId=${studentId}, practiceCount=1`);
     }
 
     res.json({

@@ -9,7 +9,7 @@ export const checkAnswerCorrect = (
     type?: string;
     correctAnswer: any;
   },
-  userAnswer: number | number[] | string[]
+  userAnswer: number | number[] | string[] | Record<string, string>
 ): boolean => {
   if (!exercise) return false;
 
@@ -35,24 +35,16 @@ export const checkAnswerCorrect = (
       return isChoiceCorrect;
 
     case "matching":
-      // 匹配题 - 比较对象格式答案
-      if (Array.isArray(userAnswer) && typeof exercise.correctAnswer === 'object' && !Array.isArray(exercise.correctAnswer)) {
-        // 将用户的数组答案转换为对象格式
-        const userAnswerObj: Record<string, string> = {};
-        (userAnswer as number[]).forEach((rightIndex: number, leftIndex: number) => {
-          if (rightIndex !== -1) { // 只记录有效匹配
-            userAnswerObj[leftIndex.toString()] = rightIndex.toString();
-          }
-        });
-        
-        // 比较对象
-        const userAnswerStr = JSON.stringify(userAnswerObj);
+      // 匹配题 - 直接比较对象格式答案
+      if (typeof userAnswer === 'object' && !Array.isArray(userAnswer) && 
+          typeof exercise.correctAnswer === 'object' && !Array.isArray(exercise.correctAnswer)) {
+        // 直接比较对象
+        const userAnswerStr = JSON.stringify(userAnswer);
         const correctAnswerStr = JSON.stringify(exercise.correctAnswer);
         const isMatchingCorrect = userAnswerStr === correctAnswerStr;
         
         console.log(`匹配题答案比较:`, {
-          用户答案数组: userAnswer,
-          用户答案对象: userAnswerObj,
+          用户答案对象: userAnswer,
           正确答案对象: exercise.correctAnswer,
           用户答案字符串: userAnswerStr,
           正确答案字符串: correctAnswerStr,
@@ -119,7 +111,7 @@ export const processAnswer = async (
     correctAnswer: any;
     type?: string;
   },
-  userAnswer: number | number[] | string[]
+  userAnswer: number | number[] | string[] | Record<string, string>
 ): Promise<boolean> => {
   // 应用题特殊处理 - 返回待批改状态
   if (exercise.type === "application") {
@@ -156,7 +148,7 @@ export const addToErrorBook = async (
     correctAnswer: any;
     type?: string;
   },
-  userAnswer: number | number[] | string[]
+  userAnswer: number | number[] | string[] | Record<string, string>
 ): Promise<void> => {
   try {
     // 不同题型的处理逻辑
@@ -186,7 +178,7 @@ export const calculateCorrectCount = (
     type?: string;
     correctAnswer: any;
   }>,
-  userAnswers: Record<string, number | number[] | string[] | boolean>
+  userAnswers: Record<string, number | number[] | string[] | Record<string, string> | boolean>
 ): number => {
   let correct = 0;
 
@@ -200,7 +192,7 @@ export const calculateCorrectCount = (
         }
       } else {
         // 否则需要通过工具函数判断答案是否正确
-        const isCorrect = checkAnswerCorrect(exercise, userAnswers[exercise.id] as number | number[] | string[]);
+        const isCorrect = checkAnswerCorrect(exercise, userAnswers[exercise.id] as number | number[] | string[] | Record<string, string>);
         if (isCorrect) {
           correct++;
         }

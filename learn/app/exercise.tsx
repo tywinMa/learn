@@ -315,7 +315,9 @@ export default function PracticeScreen() {
   const subjectCode =
     typeof params.subject === "string" && params.subject.trim()
       ? params.subject.trim()
-      : currentSubject?.code || "math";
+      : currentSubject?.code !== undefined && currentSubject?.code !== null
+      ? currentSubject.code
+      : "math";
 
   // 假定lessonId已包含学科前缀，不再需要格式化
 
@@ -441,7 +443,7 @@ export default function PracticeScreen() {
         console.log(`用户练习了 ${totalPracticeTime} 秒`);
 
         // 使用保存的actualUnitId，如果没有则回退到lessonId
-        const unitIdForRecord = actualUnitId || lessonId;
+        const unitIdForRecord = actualUnitId !== "" ? actualUnitId : lessonId;
 
         // 发送最终练习时间统计
         fetch(`${API_BASE_URL}/api/answer-records/${currentStudentId}/increment-practice/${unitIdForRecord}`, {
@@ -491,7 +493,7 @@ export default function PracticeScreen() {
     // 如果没有待处理的答案，创建一个默认的空答案
     // 这样即使用户没有做任何选择，也能提交答案（默认为错误）
     const currentExerciseId = exercise.id;
-    let userAnswer: number | number[] | string[] = -1; // 默认使用-1，确保不会与任何选项索引匹配
+    let userAnswer: number | number[] | string[] | Record<string, string> = -1; // 默认使用-1，确保不会与任何选项索引匹配
     let hasUserSelection = false; // 标记是否有用户选择
 
     if (pendingAnswer && pendingAnswer.exerciseId === currentExerciseId) {
@@ -513,19 +515,26 @@ export default function PracticeScreen() {
         hasUserSelection = true;
         console.log("提交填空题答案:", userAnswer);
       } else if (exercise.type === "matching" && pendingAnswer.matchingAnswers) {
-        // 匹配题：检查是否所有项都已完成匹配
+        // 匹配题：将数组格式转换为对象格式
         const matchingPairs = pendingAnswer.matchingAnswers;
         const allMatched = Array.isArray(matchingPairs) && matchingPairs.every(pair => pair !== -1);
         
         if (allMatched) {
-          // 只有当所有项都匹配时才算有效答案
-          userAnswer = matchingPairs;
+          // 将数组格式转换为对象格式
+          const matchingObj: Record<string, string> = {};
+          matchingPairs.forEach((rightIndex: number, leftIndex: number) => {
+            if (rightIndex !== -1) {
+              matchingObj[leftIndex.toString()] = rightIndex.toString();
+            }
+          });
+          
+          userAnswer = matchingObj;
           hasUserSelection = true;
           console.log("提交匹配题答案:", userAnswer);
         } else {
-          // 如果还有未匹配的项，使用默认错误答案
+          // 如果还有未匹配的项，使用默认错误答案（空对象）
           console.log("匹配题未完全匹配，当前状态:", matchingPairs);
-          userAnswer = Array(matchingPairs?.length || 0).fill(-1);
+          userAnswer = {}; // 空对象表示没有匹配
           hasUserSelection = false;
         }
       }
@@ -535,8 +544,8 @@ export default function PracticeScreen() {
 
       // 根据题型创建默认的空答案
       if (exercise.type === "matching" && Array.isArray(exercise.options?.left)) {
-        // 匹配题默认全部匹配为-1（未匹配）
-        userAnswer = Array(exercise.options.left.length).fill(-1);
+        // 匹配题默认答案使用对象格式，空对象表示没有匹配
+        userAnswer = {};
       } else if (exercise.type === "fill_blank" && Array.isArray(exercise.correctAnswer)) {
         // 填空题默认全部为空字符串
         userAnswer = Array(exercise.correctAnswer.length).fill("");
@@ -578,7 +587,30 @@ export default function PracticeScreen() {
       } else if (exercise.type === "fill_blank") {
         userAnswerForServer = pendingAnswer.fillBlankAnswers;
       } else if (exercise.type === "matching") {
-        userAnswerForServer = pendingAnswer.matchingAnswers;
+        // 匹配题：将数组格式转换为对象格式
+        const matchingPairs = pendingAnswer.matchingAnswers;
+        if (Array.isArray(matchingPairs)) {
+          const matchingObj: Record<string, string> = {};
+          matchingPairs.forEach((rightIndex: number, leftIndex: number) => {
+            if (rightIndex !== -1) {
+              matchingObj[leftIndex.toString()] = rightIndex.toString();
+            }
+          });
+          userAnswerForServer = matchingObj;
+        } else {
+          userAnswerForServer = {};
+        }
+      }
+    }
+    
+    // 如果没有用户答案，使用默认错误答案
+    if (userAnswerForServer === undefined || userAnswerForServer === null) {
+      if (exercise.type === "choice") {
+        userAnswerForServer = -1; // 默认错误答案
+      } else if (exercise.type === "fill_blank" && Array.isArray(exercise.correctAnswer)) {
+        userAnswerForServer = exercise.correctAnswer.map(() => "");
+      } else if (exercise.type === "matching" && Array.isArray(exercise.options?.left)) {
+        userAnswerForServer = {}; // 空对象表示没有匹配
       }
     }
 
@@ -590,7 +622,7 @@ export default function PracticeScreen() {
   };
 
   // 提交答题结果到服务器
-  const submitAnswerToServer = async (exerciseId: string, isCorrect: boolean, userAnswer?: number | number[] | string[] | null) => {
+  const submitAnswerToServer = async (exerciseId: string, isCorrect: boolean, userAnswer?: number | number[] | string[] | Record<string, string> | null) => {
     try {
       // 使用新的AnswerRecord API端点
       const studentId = await getCurrentStudentIdForProgress();
@@ -599,18 +631,6 @@ export default function PracticeScreen() {
       
       // 计算响应时间 (秒)
       const responseTime = Math.floor(Math.random() * 10000) + 2000; // 模拟2-12秒的响应时间
-      
-      // 获取用户的具体答案
-      let userAnswerForServer = userAnswer || null;
-      if (!userAnswerForServer && currentExercise) {
-        if (currentExercise.type === "choice") {
-          userAnswerForServer = -1; // 默认错误答案
-        } else if (currentExercise.type === "fill_blank" && Array.isArray(currentExercise.correctAnswer)) {
-          userAnswerForServer = currentExercise.correctAnswer.map(() => "");
-        } else if (currentExercise.type === "matching" && Array.isArray(currentExercise.options?.left)) {
-          userAnswerForServer = currentExercise.options.left.map(() => -1);
-        }
-      }
       
       // 生成或获取会话ID
       let sessionId = sessionStorage?.getItem('currentSessionId');
@@ -631,8 +651,7 @@ export default function PracticeScreen() {
       const requestBody = {
         exerciseId,
         unitId: actualUnitId, // 使用课程ID，确保进度记录到正确的课程
-        isCorrect,
-        userAnswer: userAnswerForServer,
+        answer: userAnswer, // 只传递答案，让服务器验证
         responseTime: Math.floor(responseTime / 1000), // 转换为秒
         sessionId,
         practiceMode: isTestForUnlocking ? 'unlock_test' : 'normal',
@@ -646,6 +665,12 @@ export default function PracticeScreen() {
           screenSize: `${Dimensions.get('window').width}x${Dimensions.get('window').height}`
         }
       };
+
+      console.log('答题请求数据:', {
+        exerciseId,
+        answer: userAnswer,
+        unitId: actualUnitId
+      });
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -681,9 +706,9 @@ export default function PracticeScreen() {
               return {
                 ...prev,
                 masteryLevel: data.data.masteryLevel,
-                correctCount: data.data.correctCount || prev.correctCount,
-                incorrectCount: data.data.incorrectCount || prev.incorrectCount,
-                totalAnswerCount: data.data.totalAnswers || prev.totalAnswerCount,
+                correctCount: data.data.correctCount !== undefined ? data.data.correctCount : prev.correctCount,
+                incorrectCount: data.data.incorrectCount !== undefined ? data.data.incorrectCount : prev.incorrectCount,
+                totalAnswerCount: data.data.totalAnswers !== undefined ? data.data.totalAnswers : prev.totalAnswerCount,
               };
             });
           }

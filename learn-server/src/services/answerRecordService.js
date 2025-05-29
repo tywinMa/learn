@@ -287,23 +287,73 @@ class AnswerRecordService {
    * 更新单元进度
    */
   static async updateUnitProgress(studentId, unitId, isCorrect, responseTime, pointsEarned) {
+    // 首先获取当前单元的总题目数
+    const { Course, ExerciseGroup, Exercise } = require('../models');
+    
+    // 获取课程信息
+    const course = await Course.findByPk(unitId);
+    let totalExercises = 0;
+    let allExerciseIds = [];
+    
+    if (course && course.exerciseGroupIds && course.exerciseGroupIds.length > 0) {
+      // 获取所有关联的习题组
+      const exerciseGroups = await ExerciseGroup.findAll({
+        where: { 
+          id: { [Op.in]: course.exerciseGroupIds },
+          isActive: true
+        }
+      });
+
+      // 收集所有练习题ID
+      for (const group of exerciseGroups) {
+        if (group.exerciseIds && Array.isArray(group.exerciseIds)) {
+          allExerciseIds.push(...group.exerciseIds);
+        }
+      }
+      
+      // 去重并计算总数
+      const uniqueExerciseIds = [...new Set(allExerciseIds)];
+      totalExercises = uniqueExerciseIds.length;
+    }
+    
+    // 计算当前已完成的题目数（基于正确答题记录）
+    let completedExercises = 0;
+    if (allExerciseIds.length > 0) {
+      const correctAnswers = await AnswerRecord.findAll({
+        where: {
+          studentId,
+          exerciseId: { [Op.in]: allExerciseIds },
+          isCorrect: true
+        },
+        attributes: ['exerciseId'],
+        group: ['exerciseId']
+      });
+      completedExercises = correctAnswers.length;
+    }
+
     const [unitProgress, created] = await UnitProgress.findOrCreate({
       where: { studentId: studentId, unitId },
       defaults: {
-        totalExercises: 1,
-        completedExercises: isCorrect ? 1 : 0,
+        totalExercises: totalExercises,
+        completedExercises: completedExercises,
         correctCount: isCorrect ? 1 : 0,
         incorrectCount: isCorrect ? 0 : 1,
         totalAnswerCount: 1,
         totalTimeSpent: responseTime || 0,
-        masteryLevel: isCorrect ? 0.1 : 0,
-        lastStudyTime: new Date()
+        masteryLevel: completedExercises > 0 ? completedExercises / totalExercises : 0,
+        lastStudyTime: new Date(),
+        // 根据完成度计算星级
+        stars: this.calculateStars(completedExercises, totalExercises),
+        completed: completedExercises >= totalExercises * 0.8 // 80%完成度算完成
       }
     });
 
     if (!created) {
       // 更新现有记录
+      unitProgress.totalExercises = totalExercises;
+      unitProgress.completedExercises = completedExercises;
       unitProgress.totalAnswerCount += 1;
+      
       if (isCorrect) {
         unitProgress.correctCount += 1;
       } else {
@@ -316,14 +366,33 @@ class AnswerRecordService {
       
       unitProgress.lastStudyTime = new Date();
       
-      // 重新计算完成度和掌握程度
-      const correctnessRate = unitProgress.correctCount / unitProgress.totalAnswerCount;
-      unitProgress.masteryLevel = Math.min(1, correctnessRate);
+      // 重新计算掌握程度和星级
+      const completionRate = totalExercises > 0 ? completedExercises / totalExercises : 0;
+      const correctnessRate = unitProgress.totalAnswerCount > 0 ? unitProgress.correctCount / unitProgress.totalAnswerCount : 0;
+      unitProgress.masteryLevel = (completionRate * 0.6) + (correctnessRate * 0.4);
+      unitProgress.stars = this.calculateStars(completedExercises, totalExercises);
+      unitProgress.completed = completedExercises >= totalExercises * 0.8;
       
       await unitProgress.save();
     }
 
+    console.log(`UnitProgress更新: unitId=${unitId}, studentId=${studentId}, completedExercises=${completedExercises}/${totalExercises}, stars=${unitProgress.stars}`);
+    
     return unitProgress;
+  }
+
+  /**
+   * 计算星级
+   */
+  static calculateStars(completedExercises, totalExercises) {
+    if (totalExercises === 0) return 0;
+    
+    const completionRate = completedExercises / totalExercises;
+    
+    if (completionRate >= 0.8) return 3;      // 80%以上 = 3星
+    if (completionRate >= 0.6) return 2;      // 60%以上 = 2星  
+    if (completionRate > 0) return 1;         // 有完成题目 = 1星
+    return 0;                                 // 未完成任何题目 = 0星
   }
 
   /**
