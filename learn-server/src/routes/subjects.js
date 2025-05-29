@@ -60,8 +60,8 @@ router.get('/', async (req, res) => {
     const enhancedSubjects = subjects.map(subject => {
       const subjectData = subject.toJSON();
 
-      // 根据学科代码设置颜色
-      const colors = {
+      // 根据学科代码设置默认颜色（仅当数据库没有颜色时使用）
+      const defaultColors = {
         math: "#58CC02",
         physics: "#5EC0DE",
         chemistry: "#FF9600",
@@ -70,8 +70,8 @@ router.get('/', async (req, res) => {
         default: "#1CB0F6"
       };
 
-      // 添加颜色字段
-      subjectData.color = colors[subject.code] || colors.default;
+      // 优先使用数据库中的颜色，如果没有则使用默认颜色
+      subjectData.color = subject.color || defaultColors[subject.code] || defaultColors.default;
 
       // 添加图标名称映射（如果icon字段只存了图标名称而不是完整的Material Community Icons名称）
       subjectData.iconName = getIconNameByCode(subject.code, subject.icon);
