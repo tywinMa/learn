@@ -12,7 +12,11 @@ import {
   Col,
   Typography,
   Empty,
-  Pagination
+  Pagination,
+  Modal,
+  Form,
+  Space,
+  Spin
 } from 'antd';
 import { 
   PlusOutlined, 
@@ -20,10 +24,14 @@ import {
   DeleteOutlined, 
   ReloadOutlined,
   SearchOutlined,
-  BookOutlined
+  BookOutlined,
+  RobotOutlined
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { getAllExercises, deleteExercise } from '../../services/exerciseService';
+import { getChoiceExerciseOne } from '../../services/aiService';
+import { getCourses } from '../../services/courseService';
+import { getSubjects } from '../../services/subjectService';
 import type { Exercise } from '../../services/exerciseService';
 
 const { Option } = Select;
@@ -39,6 +47,14 @@ const ExerciseList: React.FC = () => {
   const [typeFilter, setTypeFilter] = useState<string | undefined>(undefined);
   const [difficultyFilter, setDifficultyFilter] = useState<string | undefined>(undefined);
   const [deleting, setDeleting] = useState<string | null>(null);
+  
+  // AI生成相关状态
+  const [aiModalVisible, setAiModalVisible] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiStep, setAiStep] = useState<'select' | 'form'>('select');
+  const [courses, setCourses] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [aiForm] = Form.useForm();
   
   // 分页相关状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -66,10 +82,25 @@ const ExerciseList: React.FC = () => {
       setLoading(false);
     }
   }, []);
+
+  // 加载课程和学科数据
+  const fetchBasicData = useCallback(async () => {
+    try {
+      const [coursesData, subjectsData] = await Promise.all([
+        getCourses(),
+        getSubjects()
+      ]);
+      setCourses(coursesData || []);
+      setSubjects(subjectsData || []);
+    } catch (error) {
+      console.error('加载基础数据失败:', error);
+    }
+  }, []);
   
   useEffect(() => {
     fetchExercises();
-  }, [fetchExercises]);
+    fetchBasicData();
+  }, [fetchExercises, fetchBasicData]);
   
   const handleDelete = async (id: string) => {
     try {
@@ -90,6 +121,87 @@ const ExerciseList: React.FC = () => {
     }
   };
   
+  // AI生成习题相关函数
+  const handleAiModalOpen = () => {
+    setAiModalVisible(true);
+    setAiStep('select');
+    aiForm.resetFields();
+  };
+
+  const handleAiModalClose = () => {
+    setAiModalVisible(false);
+    setAiStep('select');
+    aiForm.resetFields();
+    setAiGenerating(false);
+  };
+
+  const handleSelectGenerationType = (type: string) => {
+    if (type === 'info') {
+      setAiStep('form');
+    } else {
+      message.info('上传图片生成功能暂未开放');
+    }
+  };
+
+  const handleAiGenerate = async () => {
+    try {
+      const values = await aiForm.validateFields();
+      const { subject, type, courseId, relevance, difficulty } = values;
+
+      if (type !== 'choice') {
+        message.warning('目前只支持生成选择题');
+        return;
+      }
+
+      setAiGenerating(true);
+
+      // 找到选中的课程信息
+      const selectedCourse = courses.find(course => course.id === courseId);
+      const courseName = selectedCourse?.title || '通用课程';
+
+      // 找到选中的学科信息
+      const selectedSubject = subjects.find(subj => subj.code === subject);
+      const subjectName = selectedSubject?.name || subject;
+
+      // 调用AI生成接口
+      const aiResult = await getChoiceExerciseOne(
+        subjectName,
+        courseName,
+        relevance,
+        difficulty
+      );
+
+      if (aiResult) {
+        // 将AI生成的数据存储到sessionStorage，以便在新页面中使用
+        const exerciseData = {
+          subject: subject,
+          title: aiResult.title || '',
+          question: aiResult.question || '',
+          type: aiResult.type || 'choice',
+          difficulty: aiResult.difficulty || 2,
+          options: aiResult.options || [],
+          correctAnswer: aiResult.correctAnswer || 0,
+          explanation: aiResult.explanation || '',
+          isAI: true
+        };
+
+        sessionStorage.setItem('aiGeneratedExercise', JSON.stringify(exerciseData));
+        
+        message.success('AI生成习题成功，正在跳转到编辑页面...');
+        
+        // 延迟一下再跳转，让用户看到成功消息
+        setTimeout(() => {
+          navigate('/exercises/new');
+        }, 1000);
+      }
+    } catch (error) {
+      console.error('AI生成习题失败:', error);
+      message.error('AI生成习题失败，请重试');
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+  
   // 确保exercises是数组后再筛选
   const filteredExercises = Array.isArray(exercises) ? exercises.filter(exercise => {
     if (!exercise) return false;
@@ -104,17 +216,15 @@ const ExerciseList: React.FC = () => {
       exercise.subject === subjectFilter : 
       true;
     
-    // 检查content数组中的题型
-    let matchType = true;
-    if (typeFilter) {
-      matchType = (exercise.content || []).some(item => item.type === typeFilter);
-    }
+    // 检查题型
+    const matchType = typeFilter ? 
+      exercise.type === typeFilter : 
+      true;
     
-    // 检查content数组中的难度
-    let matchDifficulty = true;
-    if (difficultyFilter) {
-      matchDifficulty = (exercise.content || []).some(item => item.difficulty === difficultyFilter);
-    }
+    // 检查难度
+    const matchDifficulty = difficultyFilter ? 
+      exercise.difficulty === parseInt(difficultyFilter) : 
+      true;
     
     return matchSearch && matchSubject && matchType && matchDifficulty;
   }) : [];
@@ -196,6 +306,15 @@ const ExerciseList: React.FC = () => {
             size="large"
           >
             添加习题
+          </Button>
+          <Button 
+            type="primary" 
+            icon={<RobotOutlined />}
+            onClick={handleAiModalOpen}
+            size="large"
+            className="ml-2"
+          >
+            AI生成
           </Button>
         </div>
       </div>
@@ -313,7 +432,7 @@ const ExerciseList: React.FC = () => {
                       <Popconfirm
                         title="确定删除这个习题吗？"
                         description="此操作不可恢复，请谨慎操作！"
-                        onConfirm={() => handleDelete(exercise.id)}
+                        onConfirm={() => handleDelete(String(exercise.id))}
                         okText="确定"
                         cancelText="取消"
                       >
@@ -321,7 +440,7 @@ const ExerciseList: React.FC = () => {
                           danger
                           ghost
                           icon={<DeleteOutlined />} 
-                          loading={deleting === exercise.id}
+                          loading={deleting === String(exercise.id)}
                           className="border-red-500 text-red-600 hover:bg-red-500 hover:text-white transition-all duration-300"
                         >
                           删除
@@ -347,39 +466,37 @@ const ExerciseList: React.FC = () => {
                       
                       {/* 元信息 */}
                       <div className="flex flex-wrap gap-2 text-xs">
-                        {exercise.exerciseCode && (
-                          <div className="flex items-center text-slate-600 bg-blue-100 px-2 py-1 rounded-full">
-                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-1.5"></div>
-                            <span className="font-medium">{exercise.exerciseCode}</span>
-                          </div>
-                        )}
                         <div className="flex items-center text-slate-600 bg-green-100 px-2 py-1 rounded-full">
                           <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></div>
-                          <span className="font-medium">{exercise.author || '系统'}</span>
+                          <span className="font-medium">系统</span>
                         </div>
                         <div className="flex items-center text-slate-600 bg-indigo-100 px-2 py-1 rounded-full">
                           <BookOutlined className="mr-1 text-indigo-600 text-xs" />
-                          <span className="font-medium">{(exercise.content || []).length}题</span>
+                          <span className="font-medium">{exercise.type}</span>
+                        </div>
+                        <div className="flex items-center text-slate-600 bg-yellow-100 px-2 py-1 rounded-full">
+                          <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-1.5"></div>
+                          <span className="font-medium">难度 {exercise.difficulty}</span>
                         </div>
                       </div>
                     </div>
                     
                     {/* 描述区域 */}
                     <div className="flex-1">
-                      {exercise.description ? (
+                      {exercise.question ? (
                         <div className="bg-white p-3 rounded-lg border-l-3 border-blue-400 shadow-sm">
                           <Paragraph 
                             ellipsis={{ rows: 2, expandable: true, symbol: '展开' }} 
                             className="mb-0 text-slate-700 leading-relaxed text-sm"
-                            title={exercise.description}
+                            title={exercise.question}
                           >
-                            {exercise.description}
+                            {exercise.question}
                           </Paragraph>
                         </div>
                       ) : (
                         <div className="bg-slate-100 p-3 rounded-lg text-center border border-slate-200">
                           <Text type="secondary" className="text-xs">
-                            暂无描述
+                            暂无题目内容
                           </Text>
                         </div>
                       )}
@@ -426,6 +543,161 @@ const ExerciseList: React.FC = () => {
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       )}
+
+      {/* AI生成弹窗 */}
+      <Modal
+        title="AI一键生成习题"
+        open={aiModalVisible}
+        onCancel={handleAiModalClose}
+        footer={null}
+        width={600}
+        destroyOnClose
+      >
+        {aiStep === 'select' ? (
+          <div className="py-8">
+            <div className="text-center mb-6">
+              <RobotOutlined className="text-4xl text-blue-500 mb-4" />
+              <Title level={3}>选择生成方式</Title>
+              <Text type="secondary">请选择适合您的习题生成方式</Text>
+            </div>
+            
+            <Row gutter={[24, 24]}>
+              <Col span={12}>
+                <Card
+                  hoverable
+                  className="text-center h-full border-2 border-dashed border-gray-300 hover:border-blue-500 transition-all duration-300"
+                  onClick={() => handleSelectGenerationType('upload')}
+                  bodyStyle={{ padding: '32px 16px' }}
+                >
+                  <div className="text-5xl mb-4">📷</div>
+                  <Title level={4} className="mb-2">上传图片生成</Title>
+                  <Text type="secondary" className="text-sm">
+                    上传题目图片，AI智能识别并生成习题
+                  </Text>
+                  <div className="mt-4">
+                    <Button size="small" disabled>暂未开放</Button>
+                  </div>
+                </Card>
+              </Col>
+              
+              <Col span={12}>
+                <Card
+                  hoverable
+                  className="text-center h-full border-2 border-solid border-blue-200 hover:border-blue-500 hover:shadow-lg transition-all duration-300"
+                  onClick={() => handleSelectGenerationType('info')}
+                  bodyStyle={{ padding: '32px 16px' }}
+                >
+                  <div className="text-5xl mb-4">📝</div>
+                  <Title level={4} className="mb-2">信息生成</Title>
+                  <Text type="secondary" className="text-sm">
+                    根据学科、课程等信息智能生成习题
+                  </Text>
+                  <div className="mt-4">
+                    <Button type="primary" size="small">立即体验</Button>
+                  </div>
+                </Card>
+              </Col>
+            </Row>
+          </div>
+        ) : (
+          <div className="py-4">
+            <Form
+              form={aiForm}
+              layout="vertical"
+              onFinish={handleAiGenerate}
+            >
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    label="选择学科"
+                    name="subject"
+                    rules={[{ required: true, message: '请选择学科' }]}
+                  >
+                    <Select placeholder="请选择学科" size="large">
+                      {subjects.map(subject => (
+                        <Option key={subject.code} value={subject.code}>
+                          {subject.name}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
+                
+                <Col span={12}>
+                  <Form.Item
+                    label="题目类型"
+                    name="type"
+                    rules={[{ required: true, message: '请选择题目类型' }]}
+                  >
+                    <Select placeholder="请选择题目类型" size="large">
+                      <Option value="choice">选择题</Option>
+                      <Option value="fill_blank" disabled>填空题（暂未支持）</Option>
+                      <Option value="application" disabled>应用题（暂未支持）</Option>
+                      <Option value="matching" disabled>匹配题（暂未支持）</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+              
+              <Form.Item
+                label="相关课程"
+                name="courseId"
+                rules={[{ required: true, message: '请选择相关课程' }]}
+              >
+                <Select placeholder="请选择相关课程" size="large">
+                  {courses.map(course => (
+                    <Option key={course.id} value={course.id}>
+                      {course.title} ({getSubjectName(course.subject)})
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+              
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Form.Item
+                    label="题目相关性"
+                    name="relevance"
+                  >
+                    <Input placeholder="例如：函数、方程等（可选）" size="large" />
+                  </Form.Item>
+                </Col>
+                
+                <Col span={12}>
+                  <Form.Item
+                    label="题目难度"
+                    name="difficulty"
+                    initialValue={2}
+                  >
+                    <Select placeholder="请选择难度" size="large">
+                      <Option value={1}>简单</Option>
+                      <Option value={2}>中等</Option>
+                      <Option value={3}>困难</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+              
+              <Form.Item className="mb-0 mt-6">
+                <Space className="w-full justify-center">
+                  <Button onClick={handleAiModalClose} size="large">
+                    取消
+                  </Button>
+                  <Button 
+                    type="primary" 
+                    htmlType="submit" 
+                    loading={aiGenerating}
+                    size="large"
+                    icon={<RobotOutlined />}
+                  >
+                    {aiGenerating ? '正在生成中...' : '开始生成'}
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Form>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
