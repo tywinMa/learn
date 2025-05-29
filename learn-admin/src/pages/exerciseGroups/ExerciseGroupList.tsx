@@ -36,7 +36,7 @@ import {
 import { getSubjects } from "../../services/subjectService";
 import { getCourses } from "../../services/courseService";
 import { createExercise } from "../../services/exerciseService";
-import { getChoiceExerciseList } from "../../services/aiService";
+import { getChoiceExerciseList, getFillBlankExerciseList } from "../../services/aiService";
 
 const { Search } = Input;
 const { Option } = Select;
@@ -143,11 +143,6 @@ const ExerciseGroupList: React.FC = () => {
       const values = await aiForm.validateFields();
       const { groupName, subject, type, courseId, relevance, difficulty, questionCount } = values;
 
-      if (type !== "choice") {
-        message.warning("目前只支持生成选择题");
-        return;
-      }
-
       setAiGenerating(true);
 
       // 找到选中的课程信息
@@ -167,8 +162,16 @@ const ExerciseGroupList: React.FC = () => {
         questionCount,
       });
 
-      // 调用AI生成接口获取习题列表
-      const aiExercises = await getChoiceExerciseList(subjectName, courseName, relevance, difficulty, questionCount);
+      // 根据题目类型调用不同的AI生成接口获取习题列表
+      let aiExercises;
+      if (type === 'choice') {
+        aiExercises = await getChoiceExerciseList(subjectName, courseName, relevance, difficulty, questionCount);
+      } else if (type === 'fill_blank') {
+        aiExercises = await getFillBlankExerciseList(subjectName, courseName, relevance, difficulty, questionCount);
+      } else {
+        message.warning("目前只支持生成选择题和填空题");
+        return;
+      }
 
       console.log("AI生成的习题列表:", aiExercises);
 
@@ -207,32 +210,52 @@ const ExerciseGroupList: React.FC = () => {
       for (let i = 0; i < selectedExercises.length; i++) {
         const aiExercise = selectedExercises[i];
         try {
-          // 处理AI生成的选项格式
-          let processedOptions = aiExercise.options;
-          let correctAnswer = aiExercise.correctAnswer;
+          let exerciseData;
+          
+          if (type === 'choice') {
+            // 处理选择题格式
+            let processedOptions = aiExercise.options;
+            let correctAnswer = aiExercise.correctAnswer;
 
-          if (Array.isArray(aiExercise.options)) {
-            // 将AI格式转换为系统格式
-            processedOptions = aiExercise.options.map((option: any) => option.text || option.content || String(option));
+            if (Array.isArray(aiExercise.options)) {
+              // 将AI格式转换为系统格式
+              processedOptions = aiExercise.options.map((option: any) => option.text || option.content || String(option));
 
-            // 确保correctAnswer是数字索引
-            if (typeof correctAnswer !== "number") {
-              correctAnswer = aiExercise.options.findIndex((opt: any) => opt.isCorrect === true);
-              if (correctAnswer === -1) correctAnswer = 0;
+              // 确保correctAnswer是数字索引
+              if (typeof correctAnswer !== "number") {
+                correctAnswer = aiExercise.options.findIndex((opt: any) => opt.isCorrect === true);
+                if (correctAnswer === -1) correctAnswer = 0;
+              }
             }
-          }
 
-          const exerciseData = {
-            subject: subject,
-            title: aiExercise.title || `习题${i + 1}`,
-            question: aiExercise.question || "",
-            type: aiExercise.type || "choice",
-            difficulty: aiExercise.difficulty || 2,
-            options: processedOptions,
-            correctAnswer: correctAnswer,
-            explanation: aiExercise.explanation || "",
-            isAI: true,
-          };
+            exerciseData = {
+              subject: subject,
+              title: aiExercise.title || `习题${i + 1}`,
+              question: aiExercise.question || "",
+              type: aiExercise.type || "choice",
+              difficulty: aiExercise.difficulty || 2,
+              options: processedOptions,
+              correctAnswer: correctAnswer,
+              explanation: aiExercise.explanation || "",
+              isAI: true,
+            };
+          } else if (type === 'fill_blank') {
+            // 处理填空题格式
+            exerciseData = {
+              subject: subject,
+              title: aiExercise.title || `习题${i + 1}`,
+              question: aiExercise.question || "",
+              type: aiExercise.type || "fill_blank",
+              difficulty: aiExercise.difficulty || 2,
+              options: null, // 填空题不需要选项
+              correctAnswer: Array.isArray(aiExercise.correctAnswer) ? aiExercise.correctAnswer : [aiExercise.correctAnswer || ''], // 确保填空题答案是数组
+              explanation: aiExercise.explanation || "",
+              isAI: true,
+            };
+          } else {
+            console.error(`不支持的题目类型: ${type}`);
+            continue;
+          }
 
           console.log(`创建第${i + 1}个习题:`, exerciseData);
           const createdExercise = await createExercise(exerciseData);
@@ -552,9 +575,7 @@ const ExerciseGroupList: React.FC = () => {
                   <Form.Item label="题目类型" name="type" rules={[{ required: true, message: "请选择题目类型" }]}>
                     <Select placeholder="请选择题目类型" size="large">
                       <Option value="choice">选择题</Option>
-                      <Option value="fill_blank" disabled>
-                        填空题（暂未支持）
-                      </Option>
+                      <Option value="fill_blank">填空题</Option>
                       <Option value="application" disabled>
                         应用题（暂未支持）
                       </Option>

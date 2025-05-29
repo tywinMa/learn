@@ -29,7 +29,7 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { getAllExercises, deleteExercise } from '../../services/exerciseService';
-import { getChoiceExerciseOne } from '../../services/aiService';
+import { getChoiceExerciseOne, getFillBlankExerciseOne } from '../../services/aiService';
 import { getCourses } from '../../services/courseService';
 import { getSubjects } from '../../services/subjectService';
 import type { Exercise } from '../../services/exerciseService';
@@ -55,6 +55,10 @@ const ExerciseList: React.FC = () => {
   const [courses, setCourses] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [aiForm] = Form.useForm();
+  
+  // 添加课程过滤相关状态
+  const [filteredCourses, setFilteredCourses] = useState<any[]>([]);
+  const [selectedSubject, setSelectedSubject] = useState<string>('');
   
   // 分页相关状态
   const [currentPage, setCurrentPage] = useState(1);
@@ -133,6 +137,8 @@ const ExerciseList: React.FC = () => {
     setAiStep('select');
     aiForm.resetFields();
     setAiGenerating(false);
+    setSelectedSubject('');
+    setFilteredCourses([]);
   };
 
   const handleSelectGenerationType = (type: string) => {
@@ -143,15 +149,20 @@ const ExerciseList: React.FC = () => {
     }
   };
 
+  // 处理学科选择变化
+  const handleSubjectChange = (subjectCode: string) => {
+    setSelectedSubject(subjectCode);
+    // 根据选择的学科过滤课程
+    const filtered = courses.filter((course) => course.subject === subjectCode);
+    setFilteredCourses(filtered);
+    // 清空课程选择
+    aiForm.setFieldsValue({ courseId: undefined });
+  };
+
   const handleAiGenerate = async () => {
     try {
       const values = await aiForm.validateFields();
       const { subject, type, courseId, relevance, difficulty } = values;
-
-      if (type !== 'choice') {
-        message.warning('目前只支持生成选择题');
-        return;
-      }
 
       setAiGenerating(true);
 
@@ -163,29 +174,60 @@ const ExerciseList: React.FC = () => {
       const selectedSubject = subjects.find(subj => subj.code === subject);
       const subjectName = selectedSubject?.name || subject;
 
-      // 调用AI生成接口
-      const aiResult = await getChoiceExerciseOne(
-        subjectName,
-        courseName,
-        relevance,
-        difficulty
-      );
+      // 根据题目类型调用不同的AI生成接口
+      let aiResult;
+      if (type === 'choice') {
+        aiResult = await getChoiceExerciseOne(
+          subjectName,
+          courseName,
+          relevance,
+          difficulty
+        );
+      } else if (type === 'fill_blank') {
+        aiResult = await getFillBlankExerciseOne(
+          subjectName,
+          courseName,
+          relevance,
+          difficulty
+        );
+      } else {
+        message.warning(`目前只支持生成选择题和填空题`);
+        return;
+      }
 
       if (aiResult) {
-        // 将AI生成的数据存储到sessionStorage，以便在新页面中使用
-        const exerciseData = {
-          subject: subject,
-          title: aiResult.title || '',
-          question: aiResult.question || '',
-          type: aiResult.type || 'choice',
-          difficulty: aiResult.difficulty || 2,
-          options: aiResult.options || [],
-          correctAnswer: aiResult.correctAnswer || 0,
-          explanation: aiResult.explanation || '',
-          isAI: true
-        };
+        // 处理不同题型的数据格式
+        let processedData;
+        
+        if (type === 'choice') {
+          // 选择题数据处理
+          processedData = {
+            subject: subject,
+            title: aiResult.title || '',
+            question: aiResult.question || '',
+            type: aiResult.type || 'choice',
+            difficulty: aiResult.difficulty || 2,
+            options: aiResult.options || [],
+            correctAnswer: aiResult.correctAnswer || 0,
+            explanation: aiResult.explanation || '',
+            isAI: true
+          };
+        } else if (type === 'fill_blank') {
+          // 填空题数据处理
+          processedData = {
+            subject: subject,
+            title: aiResult.title || '',
+            question: aiResult.question || '',
+            type: aiResult.type || 'fill_blank',
+            difficulty: aiResult.difficulty || 2,
+            options: null, // 填空题不需要选项
+            correctAnswer: aiResult.correctAnswer || [''], // 填空题答案是数组
+            explanation: aiResult.explanation || '',
+            isAI: true
+          };
+        }
 
-        sessionStorage.setItem('aiGeneratedExercise', JSON.stringify(exerciseData));
+        sessionStorage.setItem('aiGeneratedExercise', JSON.stringify(processedData));
         
         message.success('AI生成习题成功，正在跳转到编辑页面...');
         
@@ -613,7 +655,7 @@ const ExerciseList: React.FC = () => {
                     name="subject"
                     rules={[{ required: true, message: '请选择学科' }]}
                   >
-                    <Select placeholder="请选择学科" size="large">
+                    <Select placeholder="请选择学科" size="large" onChange={handleSubjectChange}>
                       {subjects.map(subject => (
                         <Option key={subject.code} value={subject.code}>
                           {subject.name}
@@ -631,7 +673,7 @@ const ExerciseList: React.FC = () => {
                   >
                     <Select placeholder="请选择题目类型" size="large">
                       <Option value="choice">选择题</Option>
-                      <Option value="fill_blank" disabled>填空题（暂未支持）</Option>
+                      <Option value="fill_blank">填空题</Option>
                       <Option value="application" disabled>应用题（暂未支持）</Option>
                       <Option value="matching" disabled>匹配题（暂未支持）</Option>
                     </Select>
@@ -644,10 +686,14 @@ const ExerciseList: React.FC = () => {
                 name="courseId"
                 rules={[{ required: true, message: '请选择相关课程' }]}
               >
-                <Select placeholder="请选择相关课程" size="large">
-                  {courses.map(course => (
+                <Select 
+                  placeholder={selectedSubject ? "请选择相关课程" : "请先选择学科"} 
+                  size="large"
+                  disabled={!selectedSubject}
+                >
+                  {filteredCourses.map(course => (
                     <Option key={course.id} value={course.id}>
-                      {course.title} ({getSubjectName(course.subject)})
+                      {course.title}
                     </Option>
                   ))}
                 </Select>

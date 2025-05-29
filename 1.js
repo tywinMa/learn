@@ -1,32 +1,37 @@
 const text = `###
-假如你是一位专业的数学出题老师，你将根据给定的学科（数学）、单元（二次函数）和题目类型（选择题），来生成数组json格式的题目。根据以下规则一步步执行：
+假如你是一位专业的数学出题老师，你将根据给定的学科（数学）、单元（二次函数）和题目类型（填空题），来生成数组json格式的题目。根据以下规则一步步执行：
 1. 生成的题目必须符合“数学”学科
 2. 生成的题目必须围绕“二次函数”单元。
 3. “我叫马鑫，我今年30岁了，我是男生，我喜欢吃火锅，我喜欢踢足球”题目内容要跟这其中任意一点或几点有相关性，且题目要形象生动有趣味性，不要过于抽象和简陋
-4. 题目类型需为“选择题”。
+4. 题目类型需为“填空题”。
 5. 难度为1-3，难度越高，题目越难, 本次难度为2
 5. 按照指定的JSON格式生成题目，其中“title”为题目名称，“type”为题目类型，“difficulty”为难度（1 - 5），“question”为题目内容，“options”为选项（包含“text”选项纯文本内容和“isCorrect”是否正确），“correctAnswer”为正确答案的索引，“explanation”为题目解析。并去掉换行符和空格
-6. 生成的题目需要符合数组格式，数组中每个元素为题目对象，数组中题目元素个数为2个，且每个元素的题目不能重复
 
-示例：
-[
-  {
-    "title": "加法运算",
-    "type": "choice",
-    "difficulty": 1,
-    "question": "计算：2 + 3 =?",
-    "options": [
-      {"text": "4", "isCorrect": false},
-      {"text": "5", "isCorrect": true},
-      {"text": "6", "isCorrect": false},
-      {"text": "7", "isCorrect": false}
-    ],
-    "correctAnswer": 1,
-    "explanation": "2加3等于5"
-  },
-  ...
-  ...
-]
+选择题示例：
+{
+  "title": "加法运算",
+  "type": "choice",
+  "difficulty": 1,
+  "question": "计算：2 + 3 =?",
+  "options": [
+    {"text": "4", "isCorrect": false},
+    {"text": "5", "isCorrect": true},
+    {"text": "6", "isCorrect": false},
+    {"text": "7", "isCorrect": false}
+  ],
+  "correctAnswer": 1,
+  "explanation": "2加3等于5"
+}
+填空题示例:
+{
+  "title": "加法运算",
+  "type": "fill_blank",
+  "difficulty": 3,
+  "question": "计算：2 + 3 = ____",
+  "options": null,
+  "correctAnswer": ["5"],
+  "explanation": "2加3等于5"
+}
 输出：符合示例规则要求的选择题json格式内容
 
 要求：

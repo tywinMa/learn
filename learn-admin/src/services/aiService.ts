@@ -16,7 +16,7 @@ export const getChoiceExerciseOne = async (subjectName: string, unit: string, li
   5. 难度等级为1-3，难度越高，题目越难，本次难度为${difficulty ? `，${difficulty}` : "2"}
   5. 按照指定的JSON格式生成题目，其中“title”为题目名称，“type”为题目类型，“difficulty”为难度（1 - 3），“question”为题目内容，“options”为选项（包含“text”选项纯文本内容和“isCorrect”是否正确），“correctAnswer”为正确答案的索引，“explanation”为题目解析。并去掉换行符和空格
 
-  示例：
+  选择题示例：
   {
     "title": "加法运算",
     "type": "choice",
@@ -31,7 +31,7 @@ export const getChoiceExerciseOne = async (subjectName: string, unit: string, li
     "correctAnswer": 1,
     "explanation": "2加3等于5"
   }
-  输出：符合示例规则要求的选择题json格式内容
+  输出：符合示例规则要求的题目json格式内容
 
   要求：
   1 以指定的JSON格式输出题目
@@ -80,6 +80,88 @@ export const getChoiceExerciseList = async (subjectName: string, unit: string, l
     ...
   ]
   输出：符合示例规则要求的选择题json格式内容
+
+  要求：
+  1 以指定的JSON格式输出题目
+  2 输出的题目需符合学科、单元、题目相关性和题目类型的要求
+  ###`;
+  const data = await fetchAIContent(prompt);
+  return data;
+};
+
+
+export const getFillBlankExerciseOne = async (subjectName: string, unit: string, like?: string, difficulty?: number) => {
+  if (!subjectName || !unit) {
+    throw new Error("subjectName and unit are required");
+  }
+  const prompt = `
+  ###
+  你是一位专业的${subjectName}出题老师，你将根据给定的学科（${subjectName}）、单元（${unit}）${
+    like ? `、题目相关性（${like}）` : ""
+  }、题目类型（填空题）和难度等级（${
+    difficulty ? `，${difficulty}` : "2"
+  }），来生成json格式的题目。根据以下规则一步步执行：
+  1. 生成的题目必须符合“${subjectName}”学科。
+  2. 生成的题目必须围绕“${unit}”单元。
+  ${like ? `3. 题目要与“${like}”任意一点或几点有相关性。` : ""}题目要形象生动有趣味性, 不要过于抽象和简陋
+  4. 题目类型需为“填空题”。
+  5. 难度等级为1-3，难度越高，题目越难，本次难度为${difficulty ? `，${difficulty}` : "2"}
+  5. 按照指定的JSON格式生成题目，其中“title”为题目名称，“type”为题目类型，“difficulty”为难度（1 - 3），“question”为题目内容，“options”为选项（包含“text”选项纯文本内容和“isCorrect”是否正确），“correctAnswer”为正确答案的索引，“explanation”为题目解析。并去掉换行符和空格
+
+  填空题示例:
+  {
+    "title": "加法运算",
+    "type": "fill_blank",
+    "difficulty": 3,
+    "question": "计算：2 + 3 = ____",
+    "options": null,
+    "correctAnswer": ["5"],
+    "explanation": "2加3等于5"
+  }
+  输出：符合示例规则要求的题目json格式内容
+
+  要求：
+  1 以指定的JSON格式输出题目
+  2 输出的题目需符合学科、单元、题目相关性和题目类型的要求
+  ###`;
+  const data = await fetchAIContent(prompt);
+  return data;
+};
+
+export const getFillBlankExerciseList = async (subjectName: string, unit: string, like?: string, difficulty?: number, questionCount?: number) => {
+  if (!subjectName || !unit) {
+    throw new Error("subjectName and unit are required");
+  }
+  const prompt = `
+  ###
+  你是一位专业的${subjectName}出题老师，你将根据给定的学科（${subjectName}）、单元（${unit}）${
+    like ? `、题目相关性（${like}）` : ""
+  }、题目类型（填空题）和难度等级（${
+    difficulty ? `，${difficulty}` : "2"
+  }），来生成json格式的题目。根据以下规则一步步执行：
+  1. 生成的题目必须符合“${subjectName}”学科。
+  2. 生成的题目必须围绕“${unit}”单元。
+  ${like ? `3. 题目要与“${like}”这其中任意一点或几点有相关性。` : ""}题目要形象生动有趣味性，不要过于抽象和简陋
+  4. 题目类型需为“填空题”。
+  5. 难度等级为1-3，难度越高，题目越难，本次难度为${difficulty ? `，${difficulty}` : "2"}
+  5. 按照指定的JSON格式生成题目，其中“title”为题目名称，“type”为题目类型，“difficulty”为难度（1 - 3），“question”为题目内容，“options”为选项（包含“text”选项纯文本内容和“isCorrect”是否正确），“correctAnswer”为正确答案的索引，“explanation”为题目解析。并去掉换行符和空格
+  6. 生成的题目需要符合数组格式，数组中每个元素为题目对象，数组中题目元素个数为${questionCount ? `，${questionCount}` : "3"}个，且每个元素的题目不能重复
+
+  填空题示例:
+  [
+    {
+      "title": "加法运算",
+      "type": "fill_blank",
+      "difficulty": 3,
+      "question": "计算：2 + 3 = ____",
+      "options": null,
+      "correctAnswer": ["5"],
+      "explanation": "2加3等于5"
+    },
+    ...
+    ...
+  ]
+  输出：符合示例规则要求的json格式内容
 
   要求：
   1 以指定的JSON格式输出题目
