@@ -482,6 +482,21 @@ exports.createExercise = async (req, res) => {
       });
     }
 
+    // 处理correctAnswer，确保不为null
+    let finalCorrectAnswer = correctAnswer;
+    if (correctAnswer === null || correctAnswer === undefined) {
+      // 根据题目类型设置默认值
+      if (type === 'choice') {
+        finalCorrectAnswer = 0; // 选择题默认第一个选项
+      } else if (type === 'fill_blank') {
+        finalCorrectAnswer = ['']; // 填空题默认空字符串数组
+      } else if (type === 'matching') {
+        finalCorrectAnswer = []; // 匹配题默认空数组
+      } else {
+        finalCorrectAnswer = ''; // 其他题型默认空字符串
+      }
+    }
+
     // 创建练习题数据
     const exerciseData = {
       id: exerciseId,
@@ -489,7 +504,7 @@ exports.createExercise = async (req, res) => {
       title,
       question,
       options: processedOptions || null,
-      correctAnswer: correctAnswer || null,
+      correctAnswer: finalCorrectAnswer,
       explanation: explanation || null,
       type: type || 'choice',
       difficulty: difficulty || 1,
