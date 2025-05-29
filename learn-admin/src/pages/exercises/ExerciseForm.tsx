@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Form, Input, Button, Card, Select, Radio, Space, Divider, message, Spin, Typography, Row, Col } from "antd";
+import { Form, Input, Button, Card, Select, Radio, Space, Divider, message, Spin, Typography, Row, Col, Transfer } from "antd";
 import {
   PlusOutlined,
   MinusCircleOutlined,
@@ -48,6 +48,12 @@ interface FormValues {
   knowledgePointIds?: string[];
 }
 
+interface TransferKnowledgePoint {
+  key: string;
+  title: string;
+  description: string;
+}
+
 const ExerciseForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -60,6 +66,10 @@ const ExerciseForm: React.FC = () => {
   const [knowledgePoints, setKnowledgePoints] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<string>("");
+  
+  // Transfer组件相关状态
+  const [knowledgePointsData, setKnowledgePointsData] = useState<TransferKnowledgePoint[]>([]);
+  const [selectedKnowledgePointKeys, setSelectedKnowledgePointKeys] = useState<string[]>([]);
 
   // 初始化表单
   const initialValues: FormValues = {
@@ -112,6 +122,14 @@ const ExerciseForm: React.FC = () => {
         const kpData = await getKnowledgePointsForSelect(defaultSubject);
         setKnowledgePoints(kpData);
         setSelectedSubject(defaultSubject);
+        
+        // 转换为Transfer组件需要的格式
+        const transferData = kpData.map((kp: any) => ({
+          key: kp.id.toString(),
+          title: kp.title,
+          description: `学科: ${kp.subject}`,
+        }));
+        setKnowledgePointsData(transferData);
       } catch (error) {
         console.error("获取知识点列表失败:", error);
       }
@@ -126,14 +144,31 @@ const ExerciseForm: React.FC = () => {
   const handleSubjectChange = async (subject: string) => {
     setSelectedSubject(subject);
     form.setFieldValue("knowledgePointIds", []); // 清空知识点选择
+    setSelectedKnowledgePointKeys([]); // 清空Transfer选择
 
     // 重新获取该学科的知识点
     try {
       const kpData = await getKnowledgePointsForSelect(subject);
       setKnowledgePoints(kpData);
+      
+      // 转换为Transfer组件需要的格式
+      const transferData = kpData.map((kp: any) => ({
+        key: kp.id.toString(),
+        title: kp.title,
+        description: `学科: ${kp.subject}`,
+      }));
+      setKnowledgePointsData(transferData);
     } catch (error) {
       console.error("获取知识点列表失败:", error);
     }
+  };
+
+  // Transfer组件变化处理
+  const handleKnowledgePointTransferChange = (targetKeys: React.Key[]) => {
+    const keys = targetKeys.map(key => key.toString());
+    setSelectedKnowledgePointKeys(keys);
+    // 同步更新表单数据
+    form.setFieldValue("knowledgePointIds", keys);
   };
 
   // 获取当前学科的课程
@@ -248,6 +283,18 @@ const ExerciseForm: React.FC = () => {
             try {
               const kpData = await getKnowledgePointsForSelect(exerciseData.subject);
               setKnowledgePoints(kpData);
+              
+              // 转换为Transfer组件需要的格式
+              const transferData = kpData.map((kp: any) => ({
+                key: kp.id.toString(),
+                title: kp.title,
+                description: `学科: ${kp.subject}`,
+              }));
+              setKnowledgePointsData(transferData);
+              
+              // 设置已选择的知识点
+              const selectedKeys = (exerciseData.knowledgePointIds || []).map((id: any) => id.toString());
+              setSelectedKnowledgePointKeys(selectedKeys);
             } catch (error) {
               console.error("获取知识点列表失败:", error);
             }
@@ -303,6 +350,18 @@ const ExerciseForm: React.FC = () => {
                 try {
                   const kpData = await getKnowledgePointsForSelect(aiData.subject);
                   setKnowledgePoints(kpData);
+                  
+                  // 转换为Transfer组件需要的格式
+                  const transferData = kpData.map((kp: any) => ({
+                    key: kp.id.toString(),
+                    title: kp.title,
+                    description: `学科: ${kp.subject}`,
+                  }));
+                  setKnowledgePointsData(transferData);
+                  
+                  // 设置已选择的知识点
+                  const selectedKeys = (aiData.knowledgePointIds || []).map((id: any) => id.toString());
+                  setSelectedKnowledgePointKeys(selectedKeys);
                 } catch (error) {
                   console.error("获取知识点列表失败:", error);
                 }
@@ -464,22 +523,24 @@ const ExerciseForm: React.FC = () => {
             </Form.Item>
           </div>
 
-          <Form.Item name="knowledgePointIds" label="关联知识点" extra="选择与此题目相关的知识点，可多选">
-            <Select
-              mode="multiple"
-              placeholder="请选择相关知识点"
-              allowClear
+          <Form.Item name="knowledgePointIds" label="关联知识点" extra="选择与此题目相关的知识点">
+            <Transfer
+              dataSource={knowledgePointsData}
+              titles={['可选知识点', '已选知识点']}
+              targetKeys={selectedKnowledgePointKeys}
+              onChange={handleKnowledgePointTransferChange}
+              render={item => item.title}
               showSearch
-              filterOption={(input, option) =>
-                option?.children?.toString().toLowerCase().includes(input.toLowerCase()) || false
+              filterOption={(inputValue, option) =>
+                option.title.toLowerCase().includes(inputValue.toLowerCase()) ||
+                option.description.toLowerCase().includes(inputValue.toLowerCase())
               }
-            >
-              {knowledgePoints.map((kp) => (
-                <Option key={kp.id} value={kp.id.toString()}>
-                  {kp.title}
-                </Option>
-              ))}
-            </Select>
+              listStyle={{
+                width: 280,
+                height: 300,
+              }}
+              oneWay={false}
+            />
           </Form.Item>
 
           <Form.Item shouldUpdate={(prevValues, currentValues) => prevValues.type !== currentValues.type}>
