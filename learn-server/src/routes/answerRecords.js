@@ -2,7 +2,54 @@ const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
 const AnswerRecordService = require('../services/answerRecordService');
-const { AnswerRecord, Exercise, UnitProgress, Student, sequelize } = require('../models');
+const { AnswerRecord, Exercise, UnitProgress, Student, Course, ExerciseGroup, sequelize } = require('../models');
+
+/**
+ * 获取课程关联的练习题
+ * @param {string} courseId 课程ID
+ * @returns {Promise<Array>} 练习题列表
+ */
+async function getExercisesByCourse(courseId) {
+  try {
+    // 获取课程信息
+    const course = await Course.findByPk(courseId);
+    if (!course || !course.exerciseGroupIds || course.exerciseGroupIds.length === 0) {
+      return [];
+    }
+
+    // 获取所有关联的习题组
+    const exerciseGroups = await ExerciseGroup.findAll({
+      where: { 
+        id: { [Op.in]: course.exerciseGroupIds },
+        isActive: true
+      }
+    });
+
+    // 收集所有练习题ID
+    const allExerciseIds = [];
+    for (const group of exerciseGroups) {
+      if (group.exerciseIds && Array.isArray(group.exerciseIds)) {
+        allExerciseIds.push(...group.exerciseIds);
+      }
+    }
+
+    // 去重并获取练习题
+    const uniqueExerciseIds = [...new Set(allExerciseIds)];
+    if (uniqueExerciseIds.length === 0) {
+      return [];
+    }
+
+    const exercises = await Exercise.findAll({
+      where: { id: { [Op.in]: uniqueExerciseIds } },
+      attributes: ['id']
+    });
+
+    return exercises;
+  } catch (error) {
+    console.error(`获取课程${courseId}的练习题失败:`, error);
+    return [];
+  }
+}
 
 /**
  * 提交答题记录 - 新版本，使用AnswerRecord
@@ -440,15 +487,11 @@ router.get('/:studentId/progress/:unitId', async (req, res) => {
     });
 
     if (unitProgressEntry && unitProgressEntry.completed) {
-      const exercisesInUnit = await Exercise.count({ where: { unitId } });
+      const exercises = await getExercisesByCourse(unitId);
+      const exercisesInUnit = exercises.length;
       const unlockNextStatus = unitProgressEntry.stars === 3;
 
       // 获取实际完成的题目数（基于正确的答题记录）
-      const exercises = await Exercise.findAll({
-        where: { unitId },
-        attributes: ['id']
-      });
-      
       const exerciseIds = exercises.map(ex => ex.id);
       const correctAnswerRecords = await AnswerRecord.findAll({
         where: {
@@ -492,10 +535,7 @@ router.get('/:studentId/progress/:unitId', async (req, res) => {
     // 2. 回退到基于AnswerRecord计算
     console.log(`[Progress Details] UnitProgress miss or not completed for ${unitId}, falling back to AnswerRecord calc`);
     
-    const exercises = await Exercise.findAll({
-      where: { unitId },
-      attributes: ['id']
-    });
+    const exercises = await getExercisesByCourse(unitId);
 
     if (exercises.length === 0) {
       console.warn(`[Progress Details] No exercises found for unit ${unitId}, returning default empty progress.`);
@@ -637,14 +677,10 @@ router.post('/:studentId/progress/batch', async (req, res) => {
         });
 
         if (unitProgressEntry && unitProgressEntry.completed) {
-          const exercisesInUnit = await Exercise.count({ where: { unitId } });
+          const exercises = await getExercisesByCourse(unitId);
+          const exercisesInUnit = exercises.length;
           
           // 获取实际完成的题目数（基于正确的答题记录）
-          const exercises = await Exercise.findAll({
-            where: { unitId },
-            attributes: ['id']
-          });
-          
           const exerciseIds = exercises.map(ex => ex.id);
           const correctAnswerRecords = await AnswerRecord.findAll({
             where: {
@@ -680,10 +716,7 @@ router.post('/:studentId/progress/batch', async (req, res) => {
           };
         } else {
           // 基于AnswerRecord计算进度
-          const exercises = await Exercise.findAll({
-            where: { unitId },
-            attributes: ['id']
-          });
+          const exercises = await getExercisesByCourse(unitId);
 
           if (exercises.length === 0) {
             progressData[unitId] = {

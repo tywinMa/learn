@@ -38,7 +38,6 @@ export interface ExerciseContent {
 export interface Exercise {
   id: string | number;
   subject: string;
-  unitId: string;
   title: string; // 习题标题
   question: string;
   options?: any;
@@ -56,7 +55,6 @@ export interface Exercise {
     id: string;
     title: string;
     subject: string;
-    unitId: string;
   };
   subjectInfo?: {
     id: string;
@@ -68,7 +66,6 @@ export interface Exercise {
 // 创建练习题请求参数类型
 export interface CreateExerciseParams {
   subject: string;
-  unitId: string;
   title: string; // 习题标题
   question: string;
   type: string;
@@ -85,7 +82,6 @@ export interface CreateExerciseParams {
 // 更新练习题请求参数类型
 export interface UpdateExerciseParams {
   subject?: string;
-  unitId?: string;
   title?: string; // 习题标题
   question?: string;
   type?: string;

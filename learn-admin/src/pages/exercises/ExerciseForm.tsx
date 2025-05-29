@@ -33,6 +33,7 @@ import {
 } from '../../services/exerciseService';
 import { getCourses } from '../../services/courseService';
 import { getKnowledgePointsForSelect } from '../../services/knowledgePointService';
+import { getSubjects } from '../../services/subjectService';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -53,23 +54,8 @@ const difficultyOptions = [
   { value: 3, label: '困难' }
 ];
 
-// 学科选项
-const subjectOptions = [
-  { value: 'math', label: '数学' },
-  { value: 'chinese', label: '语文' },
-  { value: 'english', label: '英语' },
-  { value: 'physics', label: '物理' },
-  { value: 'chemistry', label: '化学' },
-  { value: 'biology', label: '生物' },
-  { value: 'history', label: '历史' },
-  { value: 'geography', label: '地理' },
-  { value: 'politics', label: '政治' },
-  { value: 'it', label: '信息技术' }
-];
-
 interface FormValues {
   subject: string;
-  unitId: string;
   title: string;
   type: 'choice' | 'fill_blank' | 'application' | 'matching';
   difficulty: number;
@@ -90,12 +76,12 @@ const ExerciseForm: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [courses, setCourses] = useState<any[]>([]);
   const [knowledgePoints, setKnowledgePoints] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<string>('');
   
   // 初始化表单
   const initialValues: FormValues = {
     subject: 'math',
-    unitId: '',
     title: '',
     type: 'choice',
     difficulty: 2,
@@ -113,6 +99,21 @@ const ExerciseForm: React.FC = () => {
   
   // 获取课程列表和知识点列表
   useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const subjectsData = await getSubjects();
+        console.log('从API获取的学科数据:', subjectsData);
+        const formattedSubjects = subjectsData.map(subject => ({
+          value: subject.code,
+          label: subject.name
+        }));
+        console.log('格式化后的学科选项:', formattedSubjects);
+        setSubjects(formattedSubjects);
+      } catch (error) {
+        console.error('获取学科列表失败:', error);
+      }
+    };
+
     const fetchCourses = async () => {
       try {
         const coursesData = await getCourses();
@@ -134,6 +135,7 @@ const ExerciseForm: React.FC = () => {
       }
     };
     
+    fetchSubjects();
     fetchCourses();
     fetchKnowledgePoints();
   }, []);
@@ -141,7 +143,6 @@ const ExerciseForm: React.FC = () => {
   // 学科变化时过滤课程和知识点
   const handleSubjectChange = async (subject: string) => {
     setSelectedSubject(subject);
-    form.setFieldValue('unitId', ''); // 清空课程选择
     form.setFieldValue('knowledgePointIds', []); // 清空知识点选择
     
     // 重新获取该学科的知识点
@@ -248,7 +249,6 @@ const ExerciseForm: React.FC = () => {
             // 设置表单数据
             form.setFieldsValue({
               subject: exerciseData.subject,
-              unitId: exerciseData.unitId,
               title: exerciseData.title || '',
               type: exerciseData.type,
               difficulty: exerciseData.difficulty,
@@ -303,7 +303,6 @@ const ExerciseForm: React.FC = () => {
       // 构建练习题数据
       const exerciseData: any = {
         subject: values.subject,
-        unitId: values.unitId,
         title: values.title,
         question: values.question,
         type: values.type,
@@ -316,10 +315,10 @@ const ExerciseForm: React.FC = () => {
       
       // 如果是选择题，从options中提取正确答案
       if (values.type === 'choice' && Array.isArray(values.options)) {
-        const correctOptions = values.options
-          .filter((option: any) => option.isCorrect === true)
-          .map((option: any) => option.content || '');
-        exerciseData.correctAnswer = correctOptions.length > 0 ? correctOptions : [];
+        const correctIndexes = values.options
+          .map((option: any, index: number) => option.isCorrect === true ? index : -1)
+          .filter((index: number) => index !== -1);
+        exerciseData.correctAnswer = correctIndexes.length === 1 ? correctIndexes[0] : correctIndexes;
       }
       
       console.log('准备发送的习题数据:', exerciseData);
@@ -391,23 +390,8 @@ const ExerciseForm: React.FC = () => {
                 rules={[{ required: true, message: '请选择学科' }]}
               >
                 <Select onChange={handleSubjectChange}>
-                  {subjectOptions.map(option => (
+                  {subjects.map(option => (
                     <Option key={option.value} value={option.value}>{option.label}</Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item
-                name="unitId"
-                label="所属课程"
-                rules={[{ required: true, message: '请选择课程' }]}
-              >
-                <Select placeholder="请先选择学科">
-                  {filteredCourses.map(course => (
-                    <Option key={course.id} value={course.id}>
-                      {course.title}
-                    </Option>
                   ))}
                 </Select>
               </Form.Item>
@@ -547,11 +531,11 @@ const ExerciseForm: React.FC = () => {
                                 </Form.Item>
                                 
                                 <Button 
-                                  type={form.getFieldValue(['options', index, 'isCorrect']) ? 'primary' : 'default'}
+                                  type={form.getFieldValue(['options', index, 'isCorrect']) === true ? 'primary' : 'default'}
                                   onClick={() => toggleOptionCorrect(index)}
                                   icon={<CheckCircleOutlined />}
                                 >
-                                  {form.getFieldValue(['options', index, 'isCorrect']) ? '正确答案' : '设为正确'}
+                                  {form.getFieldValue(['options', index, 'isCorrect']) === true ? '正确答案' : '设为正确'}
                                 </Button>
                                 
                                 {fields.length > 2 && (

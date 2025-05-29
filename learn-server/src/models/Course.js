@@ -14,25 +14,20 @@ const Course = sequelize.define('Course', {
     allowNull: false,
     comment: '学科代码，如math、physics等，用于标识所属学科'
   },
-  unitId: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    comment: '所属单元ID'
-  },
   title: {
     type: DataTypes.STRING,
     allowNull: false,
-    comment: '小单元标题'
+    comment: '课程标题'
   },
   description: {
     type: DataTypes.TEXT,
     allowNull: true,
-    comment: '小单元描述'
+    comment: '课程描述'
   },
   content: {
     type: DataTypes.TEXT,
     allowNull: true,
-    comment: '小单元学习内容，支持富文本'
+    comment: '课程学习内容，支持富文本'
   },
   media: {
     type: DataTypes.JSON,
@@ -49,13 +44,13 @@ const Course = sequelize.define('Course', {
     type: DataTypes.ENUM('normal', 'exercise'),
     allowNull: false,
     defaultValue: 'normal',
-    comment: '小单元类型：normal-普通学习单元，exercise-练习单元'
+    comment: '课程类型：normal-普通学习课程，exercise-练习课程'
   },
   position: {
     type: DataTypes.ENUM('default', 'left', 'right'),
     allowNull: false,
     defaultValue: 'default',
-    comment: '特殊单元的位置：default-默认位置，left-左侧，right-右侧'
+    comment: '特殊课程的位置：default-默认位置，left-左侧，right-右侧'
   },
   teacherId: {
     type: DataTypes.INTEGER,
@@ -70,7 +65,7 @@ const Course = sequelize.define('Course', {
   }
 }, {
   timestamps: true,
-  comment: '小单元表，存储课程小单元信息',
+  comment: '课程表，存储独立的课程信息',
 });
 
 module.exports = Course; 

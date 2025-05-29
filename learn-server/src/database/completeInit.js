@@ -194,7 +194,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'math-1-1', 
         subject: 'math', 
-        unitId: 'math-1', 
         title: '一元二次方程', 
         description: '一元二次方程的解法和应用',
         unitType: 'normal',
@@ -203,7 +202,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'math-1-2', 
         subject: 'math', 
-        unitId: 'math-1', 
         title: '因式分解', 
         description: '多项式的因式分解方法',
         unitType: 'normal',
@@ -212,7 +210,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'math-1-3', 
         subject: 'math', 
-        unitId: 'math-1', 
         title: '配方法', 
         description: '使用配方法解一元二次方程',
         unitType: 'normal',
@@ -221,7 +218,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'math-1-4', 
         subject: 'math', 
-        unitId: 'math-1', 
         title: '第一次月考', 
         description: '代数章节综合测试',
         unitType: 'exercise', 
@@ -231,7 +227,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'math-1-5', 
         subject: 'math', 
-        unitId: 'math-1', 
         title: '二次函数', 
         description: '二次函数的性质和图像',
         unitType: 'normal',
@@ -240,7 +235,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'math-1-6', 
         subject: 'math', 
-        unitId: 'math-1', 
         title: '二次函数应用', 
         description: '二次函数在实际问题中的应用',
         unitType: 'normal',
@@ -270,7 +264,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'math-2-1', 
         subject: 'math', 
-        unitId: 'math-2', 
         title: '三角形', 
         description: '三角形的性质和计算',
         unitType: 'normal',
@@ -279,7 +272,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'math-2-2', 
         subject: 'math', 
-        unitId: 'math-2', 
         title: '圆', 
         description: '圆的性质和计算',
         unitType: 'normal',
@@ -288,7 +280,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'math-2-3', 
         subject: 'math', 
-        unitId: 'math-2', 
         title: '几何综合', 
         description: '几何章节综合练习',
         unitType: 'exercise',
@@ -318,7 +309,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'math-3-1', 
         subject: 'math', 
-        unitId: 'math-3', 
         title: '数据统计', 
         description: '数据的收集整理和分析',
         unitType: 'normal',
@@ -327,7 +317,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'math-3-2', 
         subject: 'math', 
-        unitId: 'math-3', 
         title: '概率计算', 
         description: '概率的基本概念和计算',
         unitType: 'normal',
@@ -360,7 +349,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'physics-1-1', 
         subject: 'physics', 
-        unitId: 'physics-1', 
         title: '运动学', 
         description: '描述物体运动的规律',
         unitType: 'normal',
@@ -369,7 +357,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'physics-1-2', 
         subject: 'physics', 
-        unitId: 'physics-1', 
         title: '力学', 
         description: '研究力与运动的关系',
         unitType: 'normal',
@@ -402,7 +389,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'chemistry-1-1', 
         subject: 'chemistry', 
-        unitId: 'chemistry-1', 
         title: '原子结构', 
         description: '原子的组成和结构',
         unitType: 'normal',
@@ -435,7 +421,6 @@ const initUnitsAndCourses = async (subjects) => {
       { 
         id: 'biology-1-1', 
         subject: 'biology', 
-        unitId: 'biology-1', 
         title: '细胞结构', 
         description: '细胞的基本结构和组成',
         unitType: 'normal',
@@ -1072,7 +1057,7 @@ const initAdminData = async () => {
   
   const admin = await User.create({
     username: 'admin',
-    password: 'admin123',
+    password: '123456',
     email: 'admin@learn.com',
     role: 'admin',
     name: '系统管理员'
@@ -1080,22 +1065,13 @@ const initAdminData = async () => {
   users.push(admin);
 
   const teacher1 = await User.create({
-    username: 'teacher1',
-    password: 'teacher123',
+    username: 'teacher',
+    password: '123456',
     email: 'teacher1@learn.com',
     role: 'teacher',
     name: '张老师'
   });
   users.push(teacher1);
-
-  const teacher2 = await User.create({
-    username: 'teacher2',
-    password: 'teacher123',
-    email: 'teacher2@learn.com',
-    role: 'teacher',
-    name: '李老师'
-  });
-  users.push(teacher2);
 
   console.log(`创建了${users.length}个用户账户`);
   return users;

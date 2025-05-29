@@ -21,10 +21,6 @@ Unit.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 Course.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 Subject.hasMany(Course, { foreignKey: 'subject', sourceKey: 'code' });
 
-// 单元与课程之间的关系
-Course.belongsTo(Unit, { foreignKey: 'unitId', targetKey: 'id' });
-Unit.hasMany(Course, { foreignKey: 'unitId', sourceKey: 'id' });
-
 // 学科与练习题之间的关系
 Exercise.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 Subject.hasMany(Exercise, { foreignKey: 'subject', sourceKey: 'code' });
