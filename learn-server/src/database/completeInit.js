@@ -9,7 +9,7 @@ const completeInit = async (options = {}) => {
   const { 
     includeAdminData = true,
     includeKnowledgePoints = true,
-    force = false 
+    force = true 
   } = options;
   
   try {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Form, Input, Button, Card, Select, message, Collapse, Typography, Space, Divider, Upload } from 'antd';
 import { ArrowLeftOutlined, InfoCircleOutlined, InboxOutlined, LoadingOutlined, BookOutlined, QuestionCircleOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -83,6 +83,9 @@ const CourseForm: React.FC = () => {
   const [sources, setSources] = useState<Array<{type: 'image' | 'video', url: string}>>([]);
   const isEditing = !!id;
   const [uploading, setUploading] = useState(false);
+  
+  // 用于跟踪当前加载的学科，避免重复请求
+  const currentLoadingSubjectRef = useRef<string | null>(null);
 
   // 编辑器配置
   const editorConfig: Partial<IEditorConfig> = {
@@ -139,17 +142,26 @@ const CourseForm: React.FC = () => {
   };
 
   // 添加获取习题数据的函数
-  const fetchExercises = useCallback(async () => {
-    // 避免重复加载
-    if (loadingExercises) {
-      console.log('CourseForm - fetchExercises 已在加载中，跳过');
+  const fetchExercises = useCallback(async (subjectCode?: string) => {
+    const targetSubject = subjectCode || selectedSubject;
+    
+    // 如果没有学科代码，跳过加载
+    if (!targetSubject) {
+      console.log('CourseForm - fetchExercises 跳过：没有学科代码');
       return;
     }
     
-    console.log('CourseForm - fetchExercises 被调用');
+    // 避免重复加载同一学科的数据
+    if (loadingExercises || currentLoadingSubjectRef.current === targetSubject) {
+      console.log('CourseForm - fetchExercises 已在加载中或重复请求，跳过');
+      return;
+    }
+    
+    console.log('CourseForm - fetchExercises 被调用, 学科:', targetSubject);
+    currentLoadingSubjectRef.current = targetSubject;
     setLoadingExercises(true);
     try {
-      const data = await getExerciseGroupsBySubject(selectedSubject);
+      const data = await getExerciseGroupsBySubject(targetSubject);
       console.log('CourseForm - 习题数据加载完成, 数量:', data.length);
       console.log('CourseForm - 习题数据示例:', data.length > 0 ? data[0] : '无数据');
       setExercises(data);
@@ -160,8 +172,9 @@ const CourseForm: React.FC = () => {
       setExercises([]);
     } finally {
       setLoadingExercises(false);
+      currentLoadingSubjectRef.current = null;
     }
-  }, [loadingExercises, selectedSubject]);
+  }, [selectedSubject]); // 只依赖selectedSubject，移除其他容易造成循环的依赖
 
   // 提取获取课程数据的逻辑为独立函数
   const fetchCourseData = useCallback(async () => {
@@ -240,21 +253,32 @@ const CourseForm: React.FC = () => {
     fetchSubjects();
   }, [fetchSubjects]);
 
-  // 预加载习题数据 - 确保编辑模式下能正确显示关联习题
-  useEffect(() => {
-    if (exercises.length === 0 && !loadingExercises) {
-      console.log('CourseForm - 组件挂载，预加载习题数据');
-      fetchExercises();
-    }
-  }, []); // 空依赖数组，只在组件挂载时执行一次
-
   // 加载课程数据 - 修复依赖数组，确保在id变化时重新加载
   useEffect(() => {
     // 只在编辑模式下加载课程数据
     if (isEditing && id) {
       fetchCourseData();
     }
-  }, [isEditing, id]); // 移除form依赖，避免无限循环
+  }, [isEditing, id, fetchCourseData]);
+
+  // 监听学科变化，自动加载对应的习题组数据
+  useEffect(() => {
+    if (selectedSubject) {
+      console.log('CourseForm - 学科已选择:', selectedSubject, '开始加载习题组数据');
+      fetchExercises();
+    }
+  }, [selectedSubject]); // 只依赖selectedSubject，避免循环
+
+  // 预加载默认学科的习题数据（编辑模式下或新建时有默认学科）
+  useEffect(() => {
+    // 如果是新建模式且还没有选择学科，但学科列表已加载，可以预加载第一个学科的习题
+    if (!isEditing && !selectedSubject && subjects.length > 0) {
+      const defaultSubject = subjects[0].code;
+      console.log('CourseForm - 新建模式，预加载默认学科习题:', defaultSubject);
+      // 直接调用fetchExercises函数
+      fetchExercises(defaultSubject);
+    }
+  }, [isEditing, selectedSubject, subjects.length]); // 移除fetchExercises依赖，只监听必要的状态变化
 
   // 编辑器创建完成时的处理函数
   const handleCreated = (editor: IDomEditor) => {
@@ -628,13 +652,6 @@ const CourseForm: React.FC = () => {
                   allowClear
                   showSearch
                   size="large"
-                  onDropdownVisibleChange={(open) => {
-                    // 仅当下拉框打开且没有加载过数据时才加载
-                    if (open && exercises.length === 0 && !loadingExercises) {
-                      console.log('打开下拉框, 开始加载习题数据');
-                      fetchExercises();
-                    }
-                  }}
                   optionFilterProp="children"
                   filterOption={(input, option) =>
                     (option?.label?.toString() || '').toLowerCase().includes(input.toLowerCase())
