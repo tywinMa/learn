@@ -37,6 +37,7 @@ import { getSubjects } from "../../services/subjectService";
 import { getCourses } from "../../services/courseService";
 import { createExercise } from "../../services/exerciseService";
 import { getChoiceExerciseList, getFillBlankExerciseList, getMatchingExerciseList } from "../../services/aiService";
+import { createAIGenerateExerciseGroupTask } from "../../services/taskService";
 
 const { Search } = Input;
 const { Option } = Select;
@@ -145,170 +146,38 @@ const ExerciseGroupList: React.FC = () => {
 
       setAiGenerating(true);
 
-      // 找到选中的课程信息
-      const selectedCourse = courses.find((course) => course.id === courseId);
-      const courseName = selectedCourse?.title || "通用课程";
-
-      // 找到选中的学科信息
-      const subjectName = getSubjectName(subject);
-
-      console.log("开始AI生成习题组，参数:", {
+      console.log("创建AI生成习题组任务，参数:", {
         groupName,
         subject,
-        subjectName,
-        courseName,
+        type,
+        courseId,
         relevance,
         difficulty,
         questionCount,
       });
 
-      // 根据题目类型调用不同的AI生成接口获取习题列表
-      let aiExercises;
-      if (type === 'choice') {
-        aiExercises = await getChoiceExerciseList(subjectName, courseName, relevance, difficulty, questionCount);
-      } else if (type === 'fill_blank') {
-        aiExercises = await getFillBlankExerciseList(subjectName, courseName, relevance, difficulty, questionCount);
-      } else if (type === 'matching') {
-        aiExercises = await getMatchingExerciseList(subjectName, courseName, relevance, difficulty, questionCount);
-      } else {
-        message.warning("目前只支持生成选择题、填空题和匹配题");
-        return;
-      }
+      // 创建异步任务
+      const task = await createAIGenerateExerciseGroupTask({
+        groupName,
+        subject,
+        type,
+        courseId,
+        relevance,
+        difficulty,
+        questionCount,
+      });
 
-      console.log("AI生成的习题列表:", aiExercises);
+      console.log("任务创建成功:", task);
+      
+      message.success("任务已创建，正在后台生成中，请在任务管理中查看进度");
+      
+      // 刷新习题组列表
+      fetchExerciseGroups();
+      handleAiModalClose();
 
-      if (!Array.isArray(aiExercises) || aiExercises.length === 0) {
-        message.error("AI生成习题失败，请重试");
-        return;
-      }
-
-      // 根据用户选择的数量截取题目
-      const selectedExercises = aiExercises.slice(0, questionCount);
-      console.log(
-        `用户选择生成${questionCount}道题，实际可用题目${aiExercises.length}道，最终使用${selectedExercises.length}道`
-      );
-
-      // 1. 首先创建习题组
-      const exerciseGroupData = {
-        id: `${subject}-group-${Date.now()}`,
-        name: groupName,
-        description: `AI自动生成的${subjectName}习题组（共${selectedExercises.length}道题）`,
-        subject: subject,
-        exerciseIds: [],
-        isActive: true,
-      };
-
-      const groupCreated = await createExerciseGroup(exerciseGroupData);
-      if (!groupCreated) {
-        message.error("创建习题组失败");
-        return;
-      }
-
-      const groupId = exerciseGroupData.id; // 使用我们指定的ID
-      console.log("成功创建习题组，ID:", groupId);
-
-      // 2. 批量创建习题
-      const createdExerciseIds: string[] = [];
-      for (let i = 0; i < selectedExercises.length; i++) {
-        const aiExercise = selectedExercises[i];
-        try {
-          let exerciseData;
-          
-          if (type === 'choice') {
-            // 处理选择题格式
-            let processedOptions = aiExercise.options;
-            let correctAnswer = aiExercise.correctAnswer;
-
-            if (Array.isArray(aiExercise.options)) {
-              // 将AI格式转换为系统格式
-              processedOptions = aiExercise.options.map((option: any) => option.text || option.content || String(option));
-
-              // 确保correctAnswer是数字索引
-              if (typeof correctAnswer !== "number") {
-                correctAnswer = aiExercise.options.findIndex((opt: any) => opt.isCorrect === true);
-                if (correctAnswer === -1) correctAnswer = 0;
-              }
-            }
-
-            exerciseData = {
-              subject: subject,
-              title: aiExercise.title || `习题${i + 1}`,
-              question: aiExercise.question || "",
-              type: aiExercise.type || "choice",
-              difficulty: aiExercise.difficulty || 2,
-              options: processedOptions,
-              correctAnswer: correctAnswer,
-              explanation: aiExercise.explanation || "",
-              isAI: true,
-            };
-          } else if (type === 'fill_blank') {
-            // 处理填空题格式
-            exerciseData = {
-              subject: subject,
-              title: aiExercise.title || `习题${i + 1}`,
-              question: aiExercise.question || "",
-              type: aiExercise.type || "fill_blank",
-              difficulty: aiExercise.difficulty || 2,
-              options: null, // 填空题不需要选项
-              correctAnswer: Array.isArray(aiExercise.correctAnswer) ? aiExercise.correctAnswer : [aiExercise.correctAnswer || ''], // 确保填空题答案是数组
-              explanation: aiExercise.explanation || "",
-              isAI: true,
-            };
-          } else if (type === 'matching') {
-            // 处理匹配题格式
-            exerciseData = {
-              subject: subject,
-              title: aiExercise.title || `习题${i + 1}`,
-              question: aiExercise.question || "",
-              type: aiExercise.type || "matching",
-              difficulty: aiExercise.difficulty || 2,
-              options: aiExercise.options || [],
-              correctAnswer: aiExercise.correctAnswer || [],
-              explanation: aiExercise.explanation || "",
-              isAI: true,
-            };
-          } else {
-            console.error(`不支持的题目类型: ${type}`);
-            continue;
-          }
-
-          console.log(`创建第${i + 1}个习题:`, exerciseData);
-          const createdExercise = await createExercise(exerciseData);
-
-          if (createdExercise && createdExercise.id) {
-            createdExerciseIds.push(String(createdExercise.id));
-          }
-        } catch (error) {
-          console.error(`创建第${i + 1}个习题失败:`, error);
-        }
-      }
-
-      console.log("创建的习题ID列表:", createdExerciseIds);
-
-      // 3. 更新习题组，添加习题ID
-      if (createdExerciseIds.length > 0) {
-        console.log(`开始更新习题组${groupId}，添加${createdExerciseIds.length}个习题ID`);
-        const updateSuccess = await updateExerciseGroup(groupId, {
-          exerciseIds: createdExerciseIds,
-        });
-
-        if (updateSuccess) {
-          message.success(`AI生成习题组成功！共创建了${createdExerciseIds.length}道习题并已添加到习题组中`);
-        } else {
-          message.warning(`创建了${createdExerciseIds.length}道习题，但添加到习题组时出现问题，请手动检查`);
-        }
-
-        // 刷新习题组列表
-        fetchExerciseGroups();
-        handleAiModalClose();
-      } else {
-        message.warning("习题组创建成功，但习题生成失败，请手动添加习题");
-        fetchExerciseGroups();
-        handleAiModalClose();
-      }
     } catch (error) {
-      console.error("AI生成习题组失败:", error);
-      message.error("AI生成习题组失败，请重试");
+      console.error("创建AI生成习题组任务失败:", error);
+      message.error("创建任务失败，请重试");
     } finally {
       setAiGenerating(false);
     }
@@ -600,11 +469,12 @@ const ExerciseGroupList: React.FC = () => {
                 </Col>
 
                 <Col span={12}>
-                  <Form.Item label="相关课程" name="courseId" rules={[{ required: true, message: "请选择相关课程" }]}>
+                  <Form.Item label="相关课程（可选）" name="courseId">
                     <Select
-                      placeholder={selectedSubject ? "请选择相关课程" : "请先选择学科"}
+                      placeholder={selectedSubject ? (filteredCourses.length > 0 ? "请选择相关课程" : "暂无课程，可跳过") : "请先选择学科"}
                       size="large"
                       disabled={!selectedSubject}
+                      allowClear
                     >
                       {filteredCourses.map((course) => (
                         <Option key={course.id} value={course.id}>

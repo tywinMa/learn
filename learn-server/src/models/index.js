@@ -9,6 +9,7 @@ const KnowledgePoint = require('./KnowledgePoint');
 const User = require('./User');
 const Student = require('./Student');
 const ExerciseGroup = require('./ExerciseGroup');
+const Task = require('./Task');
 const { sequelize } = require('../config/database');
 
 // 定义模型之间的关系
@@ -71,10 +72,19 @@ AnswerRecord.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
 // 同步所有模型到数据库
 const syncDatabase = async () => {
   try {
-    // 使用alter模式而不是force模式，这样不会删除现有数据
-    // alter模式会尝试修改表结构以匹配模型，同时保留数据
+    // 禁用外键约束检查（仅SQLite）
+    if (sequelize.getDialect() === 'sqlite') {
+      await sequelize.query('PRAGMA foreign_keys = OFF;');
+    }
+
+    // 首先尝试正常同步
     await sequelize.sync({ alter: true });
     console.log('所有模型已同步到数据库');
+
+    // 重新启用外键约束检查（仅SQLite）
+    if (sequelize.getDialect() === 'sqlite') {
+      await sequelize.query('PRAGMA foreign_keys = ON;');
+    }
 
     // 检查表是否存在
     try {
@@ -83,11 +93,10 @@ const syncDatabase = async () => {
       await sequelize.query('SELECT 1 FROM Courses LIMIT 1');
       await sequelize.query('SELECT 1 FROM Exercises LIMIT 1');
       await sequelize.query('SELECT 1 FROM KnowledgePoints LIMIT 1');
-      await sequelize.query('SELECT 1 FROM WrongExercises LIMIT 1');
-      await sequelize.query('SELECT 1 FROM UserRecords LIMIT 1');
       await sequelize.query('SELECT 1 FROM AnswerRecords LIMIT 1');
       await sequelize.query('SELECT 1 FROM Users LIMIT 1');
       await sequelize.query('SELECT 1 FROM StudentPoints LIMIT 1');
+      await sequelize.query('SELECT 1 FROM Tasks LIMIT 1');
       console.log('数据库表结构完整');
     } catch (checkError) {
       // 如果表不存在，将创建它们（已经通过上面的sync操作完成）
@@ -96,8 +105,19 @@ const syncDatabase = async () => {
   } catch (error) {
     console.error('同步模型到数据库时出错:', error);
 
-    // 如果出现严重错误，尝试使用force模式重建表
-    // 这是最后的解决方案，会删除所有数据
+    // 重新启用外键约束检查
+    if (sequelize.getDialect() === 'sqlite') {
+      await sequelize.query('PRAGMA foreign_keys = ON;');
+    }
+
+    // 如果是外键约束错误，推荐手动重置数据库
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      console.log('⚠️  检测到外键约束冲突');
+      console.log('💡 建议运行: ./reset-data.sh --force 来重置数据库');
+      throw new Error('外键约束冲突，请运行 ./reset-data.sh --force 重置数据库');
+    }
+
+    // 如果出现其他严重错误，尝试使用force模式重建表
     console.log('尝试使用force模式重建表...');
     try {
       await sequelize.sync({ force: true });
@@ -121,6 +141,7 @@ module.exports = {
   User,
   Student,
   ExerciseGroup,
+  Task,
   sequelize,
   syncDatabase
 };

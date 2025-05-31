@@ -27,6 +27,7 @@ const adminExerciseGroupRoutes = require('./routes/admin/exerciseGroupRoutes');
 const adminUploadRoutes = require('./routes/admin/uploadRoutes');
 const adminSubjectRoutes = require('./routes/admin/subjectRoutes');
 const adminKnowledgePointRoutes = require('./routes/admin/knowledgePointRoutes');
+const adminTaskRoutes = require('./routes/admin/taskRoutes');
 
 const app = express();
 const PORT = config.port;
@@ -69,6 +70,7 @@ app.use('/api/admin/exercise-groups', adminExerciseGroupRoutes);
 app.use('/api/admin/upload', adminUploadRoutes);
 app.use('/api/admin/subjects', adminSubjectRoutes);
 app.use('/api/admin/knowledge-points', adminKnowledgePointRoutes);
+app.use('/api/admin/tasks', adminTaskRoutes);
 
 // 根路由
 app.get('/', (req, res) => {
@@ -98,9 +100,9 @@ const startServer = async () => {
     await testConnection();
     console.log('数据库连接测试成功');
     
-    // 注释掉数据库同步，避免影响现有数据
-    // await syncDatabase();
-    console.log('跳过数据库模型同步，使用现有数据库结构');
+    // 启用数据库同步，确保Task表被创建
+    await syncDatabase();
+    console.log('数据库模型同步完成');
     
     // 检查数据库状态
     const { Subject } = require('./models');

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, ScrollView, View as RNView, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
+import { StyleSheet, ScrollView, View as RNView, TouchableOpacity, ActivityIndicator, Alert, useWindowDimensions } from "react-native";
 import { Text, View } from "@/components/Themed";
 import { Ionicons } from "@expo/vector-icons";
 // TypeScript暂时忽略 expo-router 导出错误
@@ -7,6 +7,63 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { API_BASE_URL } from "@/constants/apiConfig";
 import { getCurrentStudentIdForProgress } from "../services/progressService";
+import RenderHtml from 'react-native-render-html';
+
+// HTML渲染组件 - 支持题目和选项的HTML内容
+const HtmlContent = ({ html, style }: { html: string; style?: any }) => {
+  const { width } = useWindowDimensions();
+  
+  // 检查是否包含HTML标签
+  const hasHtmlTags = /<[^>]*>/g.test(html);
+  
+  if (!hasHtmlTags) {
+    // 没有HTML标签，直接使用Text组件
+    return <Text style={style}>{html}</Text>;
+  }
+  
+  // 有HTML标签，使用RenderHtml组件
+  const tagsStyles = {
+    body: {
+      color: style?.color || '#333',
+      fontSize: style?.fontSize || 16,
+      fontFamily: style?.fontFamily || 'System',
+      lineHeight: style?.lineHeight || 22,
+    },
+    p: {
+      marginVertical: 4,
+    },
+    strong: {
+      fontWeight: 'bold' as const,
+    },
+    em: {
+      fontStyle: 'italic' as const,
+    },
+    code: {
+      fontFamily: 'monospace',
+      backgroundColor: '#f5f5f5',
+      padding: 2,
+      borderRadius: 3,
+    },
+    sup: {
+      fontSize: (style?.fontSize || 16) * 0.7,
+      lineHeight: 1,
+    },
+    sub: {
+      fontSize: (style?.fontSize || 16) * 0.7,
+      lineHeight: 1,
+    },
+  };
+  
+  return (
+    <RenderHtml
+      contentWidth={width - 64} // 减去padding
+      source={{ html }}
+      tagsStyles={tagsStyles}
+      systemFonts={['System']}
+      enableExperimentalMarginCollapsing={true}
+    />
+  );
+};
 
 export default function WrongExercisesScreen() {
   const router = useRouter();
@@ -122,7 +179,7 @@ export default function WrongExercisesScreen() {
               return (
                 <RNView key={index} style={styles.exerciseCard}>
                   <RNView style={styles.questionContainer}>
-                    <Text style={styles.questionText}>{item.exerciseData.question}</Text>
+                    <HtmlContent html={item.exerciseData.question} style={styles.questionText} />
                     {item.exerciseData.isAI && (
                       <RNView style={styles.aiIconContainer}>
                         <Ionicons name="sparkles" size={16} color="#FF9500" />
@@ -141,7 +198,7 @@ export default function WrongExercisesScreen() {
                             optIndex === item.exerciseData.correctAnswer && styles.correctOption,
                           ]}
                         >
-                          <Text style={styles.optionText}>{option}</Text>
+                          <HtmlContent html={option} style={styles.optionText} />
                           {optIndex === item.exerciseData.correctAnswer && (
                             <Ionicons name="checkmark-circle" size={20} color="green" />
                           )}

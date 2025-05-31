@@ -8,6 +8,7 @@ import {
   Avatar,
   message,
   Tooltip,
+  Badge,
 } from "antd";
 import type { MenuProps } from "antd";
 import {
@@ -22,11 +23,15 @@ import {
   BugOutlined,
   ReadOutlined,
   FormOutlined,
+  UnorderedListOutlined,
 } from "@ant-design/icons";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { getCurrentUser, logout } from "../../services/auth";
 import { useUserStore } from "../../store/userStore";
 import { useSubjectStore } from "../../store/subjectStore";
+import TaskModal from "../TaskModal";
+import { getTaskStats } from "../../services/taskService";
+import type { TaskStats } from "../../services/taskService";
 
 const { Header, Sider, Content } = Layout;
 
@@ -85,6 +90,8 @@ const enableDebugMode = () => {
 
 const MainLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
+  const [taskModalVisible, setTaskModalVisible] = useState(false);
+  const [taskStats, setTaskStats] = useState<TaskStats | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, setUser, clearUser } = useUserStore();
@@ -93,6 +100,16 @@ const MainLayout: React.FC = () => {
 
   // 开发环境才显示调试按钮
   const isDev = import.meta.env.DEV;
+
+  // 获取任务统计
+  const fetchTaskStats = async () => {
+    try {
+      const stats = await getTaskStats();
+      setTaskStats(stats);
+    } catch (error) {
+      console.error("获取任务统计失败:", error);
+    }
+  };
 
   // 启用调试模式
   const toggleDebugMode = () => {
@@ -120,6 +137,13 @@ const MainLayout: React.FC = () => {
     fetchSubjects().catch((error) => {
       console.error("加载学科数据失败:", error);
     });
+
+    // 初始加载任务统计
+    fetchTaskStats();
+
+    // 每30秒刷新一次任务统计
+    const interval = setInterval(fetchTaskStats, 30000);
+    return () => clearInterval(interval);
   }, [navigate, user, setUser, fetchSubjects]);
 
   const {
@@ -314,6 +338,22 @@ const MainLayout: React.FC = () => {
               {getPageTitle()}
             </div>
             <div className="flex items-center">
+              {/* 任务查询按钮 */}
+              <Tooltip title="任务管理">
+                <Badge 
+                  count={taskStats ? taskStats.running + taskStats.pending : 0}
+                  size="small"
+                  offset={[-2, 2]}
+                >
+                  <Button
+                    type="text"
+                    icon={<UnorderedListOutlined />}
+                    onClick={() => setTaskModalVisible(true)}
+                    className="mr-2"
+                  />
+                </Badge>
+              </Tooltip>
+              
               {/* 仅在开发环境显示调试按钮 */}
               {isDev && (
                 <Tooltip title="开启调试模式">
@@ -355,6 +395,12 @@ const MainLayout: React.FC = () => {
           <Outlet />
         </Content>
       </Layout>
+
+      {/* 任务查询弹窗 */}
+      <TaskModal 
+        visible={taskModalVisible} 
+        onClose={() => setTaskModalVisible(false)} 
+      />
     </Layout>
   );
 };

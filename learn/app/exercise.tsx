@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Modal,
   ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import { Text, View } from "@/components/Themed";
 import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
@@ -25,6 +26,69 @@ import { useSubject } from "@/hooks/useSubject";
 import { LinearGradient } from "expo-linear-gradient";
 import { API_BASE_URL } from "@/constants/apiConfig";
 import { KnowledgePointModal } from "./components/KnowledgePointModal";
+import RenderHtml from 'react-native-render-html';
+
+// HTML渲染组件 - 支持解析内容的HTML格式
+const HtmlContent = ({ html, style }: { html: string; style?: any }) => {
+  const { width } = useWindowDimensions();
+  
+  // 检查是否包含HTML标签
+  const hasHtmlTags = /<[^>]*>/g.test(html);
+  
+  if (!hasHtmlTags) {
+    // 没有HTML标签，直接使用Text组件
+    return <Text style={style}>{html}</Text>;
+  }
+  
+  // 有HTML标签，使用RenderHtml组件
+  const tagsStyles = {
+    body: {
+      color: style?.color || '#444',
+      fontSize: style?.fontSize || 15,
+      fontFamily: style?.fontFamily || 'System',
+      lineHeight: style?.lineHeight || 22,
+    },
+    p: {
+      marginVertical: 4,
+    },
+    strong: {
+      fontWeight: 'bold' as const,
+    },
+    em: {
+      fontStyle: 'italic' as const,
+    },
+    code: {
+      fontFamily: 'monospace',
+      backgroundColor: '#f5f5f5',
+      padding: 2,
+      borderRadius: 3,
+    },
+    pre: {
+      backgroundColor: '#f5f5f5',
+      padding: 8,
+      borderRadius: 5,
+      marginVertical: 8,
+    },
+    sup: {
+      fontSize: (style?.fontSize || 15) * 0.7,
+      lineHeight: 1,
+    },
+    sub: {
+      fontSize: (style?.fontSize || 15) * 0.7,
+      lineHeight: 1,
+    },
+  };
+  
+  return (
+    <RenderHtml
+      contentWidth={width - 64} // 减去更多的padding
+      source={{ html }}
+      tagsStyles={tagsStyles}
+      systemFonts={['System']}
+      enableExperimentalMarginCollapsing={true}
+    />
+  );
+};
 
 // 知识点类型定义
 interface KnowledgePoint {
@@ -126,7 +190,10 @@ const ResultFeedback = ({
           {explanation && (
             <RNView style={styles.explanationContainer}>
               <Text style={styles.explanationTitle}>解析：</Text>
-              <Text style={styles.explanationText}>{explanation}</Text>
+              <HtmlContent 
+                html={explanation} 
+                style={styles.explanationText}
+              />
             </RNView>
           )}
 

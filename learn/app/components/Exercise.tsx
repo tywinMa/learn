@@ -1,8 +1,71 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View as RNView, TouchableOpacity, TextInput, Image, Platform, Alert } from "react-native";
+import { StyleSheet, View as RNView, TouchableOpacity, TextInput, Image, Platform, Alert, useWindowDimensions } from "react-native";
 import { Text } from "../components/Themed";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
+import RenderHtml from 'react-native-render-html';
+
+// HTML渲染组件 - 支持题目、选项和解析的HTML内容
+const HtmlContent = ({ html, style }: { html: string; style?: any }) => {
+  const { width } = useWindowDimensions();
+  
+  // 检查是否包含HTML标签
+  const hasHtmlTags = /<[^>]*>/g.test(html);
+  
+  if (!hasHtmlTags) {
+    // 没有HTML标签，直接使用Text组件
+    return <Text style={style}>{html}</Text>;
+  }
+  
+  // 有HTML标签，使用RenderHtml组件
+  const tagsStyles = {
+    body: {
+      color: style?.color || '#333',
+      fontSize: style?.fontSize || 16,
+      fontFamily: style?.fontFamily || 'System',
+      lineHeight: style?.lineHeight || 24,
+    },
+    p: {
+      marginVertical: 4,
+    },
+    strong: {
+      fontWeight: 'bold' as const,
+    },
+    em: {
+      fontStyle: 'italic' as const,
+    },
+    code: {
+      fontFamily: 'monospace',
+      backgroundColor: '#f5f5f5',
+      padding: 2,
+      borderRadius: 3,
+    },
+    pre: {
+      backgroundColor: '#f5f5f5',
+      padding: 8,
+      borderRadius: 5,
+      marginVertical: 8,
+    },
+    sup: {
+      fontSize: (style?.fontSize || 16) * 0.7,
+      lineHeight: 1,
+    },
+    sub: {
+      fontSize: (style?.fontSize || 16) * 0.7,
+      lineHeight: 1,
+    },
+  };
+  
+  return (
+    <RenderHtml
+      contentWidth={width - 32} // 减去padding
+      source={{ html }}
+      tagsStyles={tagsStyles}
+      systemFonts={['System']}
+      enableExperimentalMarginCollapsing={true}
+    />
+  );
+};
 
 // 练习题组件
 export const Exercise = ({
@@ -127,7 +190,12 @@ export const Exercise = ({
 
     if (parts.length <= 1) {
       // 没有空白处，直接显示问题
-      return <Text style={styles.fillBlankQuestion}>{exercise.question}</Text>;
+      return (
+        <HtmlContent 
+          html={exercise.question} 
+          style={styles.fillBlankQuestion}
+        />
+      );
     }
 
     // 渲染包含输入框的问题
@@ -136,7 +204,12 @@ export const Exercise = ({
         {parts.map((part, index) => (
           <RNView key={index} style={styles.fillBlankPart}>
             {/* 显示文本部分 */}
-            {part && <Text style={styles.fillBlankText}>{part}</Text>}
+            {part && (
+              <HtmlContent 
+                html={part} 
+                style={styles.fillBlankText}
+              />
+            )}
 
             {/* 添加输入框，最后一个部分后面不需要输入框 */}
             {index < parts.length - 1 && (
@@ -186,15 +259,16 @@ export const Exercise = ({
                 onPress={() => setSelectedLeftIndex(index)}
                 disabled={isAnsweredLocally || isAnswered}
               >
-                <Text 
-                  style={[
-                    styles.matchingItemText,
-                    selectedLeftIndex === index && styles.matchingItemTextSelected,
-                    matchingPairs[index] !== -1 && styles.matchingItemTextMatched
-                  ]}
-                >
-                  {item}
-                </Text>
+                <RNView style={{ flex: 1 }}>
+                  <HtmlContent 
+                    html={item} 
+                    style={[
+                      styles.matchingItemText,
+                      selectedLeftIndex === index && styles.matchingItemTextSelected,
+                      matchingPairs[index] !== -1 && styles.matchingItemTextMatched
+                    ]}
+                  />
+                </RNView>
                 {matchingPairs[index] !== -1 && (
                   <Ionicons name="checkmark-circle" size={18} color="#FF9600" style={styles.matchingItemIcon} />
                 )}
@@ -239,15 +313,16 @@ export const Exercise = ({
                 }}
                 disabled={isAnsweredLocally || isAnswered || selectedLeftIndex === null}
               >
-                <Text 
-                  style={[
-                    styles.matchingItemText,
-                    matchingPairs.includes(index) && styles.matchingItemTextMatched,
-                    selectedLeftIndex !== null && styles.matchingItemTextSelectable,
-                  ]}
-                >
-                  {item}
-                </Text>
+                <RNView style={{ flex: 1 }}>
+                  <HtmlContent 
+                    html={item} 
+                    style={[
+                      styles.matchingItemText,
+                      matchingPairs.includes(index) && styles.matchingItemTextMatched,
+                      selectedLeftIndex !== null && styles.matchingItemTextSelectable,
+                    ]}
+                  />
+                </RNView>
                 {matchingPairs.includes(index) && (
                   <Ionicons name="checkmark-circle" size={18} color="#FF9600" style={styles.matchingItemIcon} />
                 )}
@@ -264,13 +339,19 @@ export const Exercise = ({
               if (rightIndex === -1) return null;
               return (
                 <RNView key={`match-${leftIndex}`} style={styles.matchingResultRow}>
-                  <Text style={styles.matchingResultText}>
-                    {exercise.options.left[leftIndex]} 
-                </Text>
+                  <RNView style={styles.matchingResultTextContainer}>
+                    <HtmlContent 
+                      html={exercise.options.left[leftIndex]} 
+                      style={styles.matchingResultText}
+                    />
+                  </RNView>
                   <Ionicons name="arrow-forward" size={14} color="#666" style={{marginHorizontal: 4}} />
-                  <Text style={styles.matchingResultText}>
-                    {exercise.options.right[rightIndex]}
-                  </Text>
+                  <RNView style={styles.matchingResultTextContainer}>
+                    <HtmlContent 
+                      html={exercise.options.right[rightIndex]}
+                      style={styles.matchingResultText}
+                    />
+                  </RNView>
                   <TouchableOpacity 
                     style={styles.matchingDeleteButton}
                     onPress={() => {
@@ -477,7 +558,12 @@ export const Exercise = ({
                     onPress={() => handleChoiceSelection(index)}
                     disabled={isAnsweredLocally || isAnswered}
                   >
-                    <Text style={styles.optionText}>{optionText}</Text>
+                    <RNView style={{ flex: 1 }}>
+                      <HtmlContent 
+                        html={optionText} 
+                        style={styles.optionText}
+                      />
+                    </RNView>
                     {localSelection === index && !isAnswered && (
                       <Ionicons name="radio-button-on" size={20} color="#5EC0DE" style={styles.icon} />
                     )}
@@ -547,7 +633,12 @@ export const Exercise = ({
   return (
     <RNView style={styles.exerciseContainer}>
       <RNView style={styles.questionContainer}>
-        <Text style={styles.questionText}>{exercise.question}</Text>
+        <RNView style={{ flex: 1, marginRight: 8 }}>
+          <HtmlContent 
+            html={exercise.question} 
+            style={styles.questionText}
+          />
+        </RNView>
         {exercise.isAI && (
           <RNView style={styles.aiIconContainer}>
             <Ionicons name="sparkles" size={16} color="#FF9500" />
@@ -812,10 +903,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#f9f9f9",
     borderRadius: 4,
   },
+  matchingResultTextContainer: {
+    flex: 1,
+  },
   matchingResultText: {
     fontSize: 13,
     color: "#333",
-    flex: 1,
   },
   matchingDeleteButton: {
     padding: 4,
