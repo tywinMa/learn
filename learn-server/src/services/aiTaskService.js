@@ -163,7 +163,8 @@ class AITaskService {
     
     try {
       const response = await axios.post("https://ark.cn-beijing.volces.com/api/v3/chat/completions", {
-        model: "doubao-1-5-pro-32k-250115",
+        model: "doubao-1-5-thinking-pro-250415",
+        // model: "doubao-1-5-pro-32k-250115",
         messages: [{ role: "system", content: text }],
       }, {
         headers: {
