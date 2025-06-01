@@ -461,6 +461,7 @@ const ExerciseGroupList: React.FC = () => {
                       <Option value="choice">选择题</Option>
                       <Option value="fill_blank">填空题</Option>
                       <Option value="matching">匹配题</Option>
+                      <Option value="mixed">混合题型</Option>
                       <Option value="application" disabled>
                         应用题（暂未支持）
                       </Option>

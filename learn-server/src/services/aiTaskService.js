@@ -13,10 +13,15 @@ class AITaskService {
     try {
       const { groupName, subject, type, courseId, relevance, difficulty, questionCount } = params;
 
+      const typeDescription = type === 'choice' ? '选择题' : 
+                          type === 'fill_blank' ? '填空题' : 
+                          type === 'matching' ? '匹配题' : 
+                          type === 'mixed' ? '混合题型' : '题目';
+
       const task = await TaskService.createTask({
         type: 'ai_generate_exercise_group',
         title: `AI生成习题组: ${groupName}`,
-        description: `正在生成${questionCount}道${type === 'choice' ? '选择题' : type === 'fill_blank' ? '填空题' : '匹配题'}...`,
+        description: `正在生成${questionCount}道${typeDescription}...`,
         params,
         createdBy
       });
@@ -139,6 +144,8 @@ class AITaskService {
         prompt = AITaskService.getFillBlankPrompt(subjectName, unit, relevance, difficulty, questionCount);
       } else if (type === 'matching') {
         prompt = AITaskService.getMatchingPrompt(subjectName, unit, relevance, difficulty, questionCount);
+      } else if (type === 'mixed') {
+        prompt = AITaskService.getMixedPrompt(subjectName, unit, relevance, difficulty, questionCount);
       } else {
         throw new Error(`不支持的题目类型: ${type}`);
       }
@@ -201,7 +208,7 @@ class AITaskService {
       isAI: true,
     };
 
-    if (type === 'choice') {
+    if (type === 'choice' || aiExercise.type === 'choice') {
       let processedOptions = aiExercise.options;
       let correctAnswer = aiExercise.correctAnswer;
 
@@ -218,14 +225,42 @@ class AITaskService {
 
       exerciseData.options = processedOptions;
       exerciseData.correctAnswer = correctAnswer;
-    } else if (type === 'fill_blank') {
+    } else if (type === 'fill_blank' || aiExercise.type === 'fill_blank') {
       exerciseData.options = null;
       exerciseData.correctAnswer = Array.isArray(aiExercise.correctAnswer) 
         ? aiExercise.correctAnswer 
         : [aiExercise.correctAnswer || ''];
-    } else if (type === 'matching') {
+    } else if (type === 'matching' || aiExercise.type === 'matching') {
       exerciseData.options = aiExercise.options || [];
       exerciseData.correctAnswer = aiExercise.correctAnswer || [];
+    } else if (type === 'mixed') {
+      // 混合题型，根据AI返回的实际类型来处理
+      if (aiExercise.type === 'choice') {
+        let processedOptions = aiExercise.options;
+        let correctAnswer = aiExercise.correctAnswer;
+
+        if (Array.isArray(aiExercise.options)) {
+          processedOptions = aiExercise.options.map((option) => 
+            option.text || option.content || String(option)
+          );
+
+          if (typeof correctAnswer !== "number") {
+            correctAnswer = aiExercise.options.findIndex((opt) => opt.isCorrect === true);
+            if (correctAnswer === -1) correctAnswer = 0;
+          }
+        }
+
+        exerciseData.options = processedOptions;
+        exerciseData.correctAnswer = correctAnswer;
+      } else if (aiExercise.type === 'fill_blank') {
+        exerciseData.options = null;
+        exerciseData.correctAnswer = Array.isArray(aiExercise.correctAnswer) 
+          ? aiExercise.correctAnswer 
+          : [aiExercise.correctAnswer || ''];
+      } else if (aiExercise.type === 'matching') {
+        exerciseData.options = aiExercise.options || [];
+        exerciseData.correctAnswer = aiExercise.correctAnswer || [];
+      }
     }
 
     return exerciseData;
@@ -293,7 +328,7 @@ class AITaskService {
   ${relevance ? `3. 题目要与"${relevance}"这其中任意一点或几点有相关性。` : ""}题目要形象生动有趣味性，不要过于抽象和简陋
   4. 题目类型需为"填空题"。
   5. 难度等级为1-3，难度越高，题目越难，本次难度为${difficulty ? `，${difficulty}` : "2"}
-  5. 按照指定的JSON格式生成题目，其中"title"为题目名称，"type"为题目类型，"difficulty"为难度（1 - 3），"question"为题目内容，"options"为选项（包含"text"选项纯文本内容和"isCorrect"是否正确），"correctAnswer"为正确答案的索引，"explanation"为题目解析。并去掉换行符和空格
+  5. 按照指定的JSON格式生成题目，其中"title"为题目名称，"type"为题目类型，"difficulty"为难度（1 - 3），"question"为题目内容，"options"为选项（填空题为null），"correctAnswer"为正确答案的索引，"explanation"为题目解析。并去掉换行符和空格
   6. 生成的题目需要符合数组格式，数组中每个元素为题目对象，数组中题目元素个数为${questionCount ? `，${questionCount}` : "3"}个，且每个元素的题目不能重复
 
   填空题示例:
@@ -370,58 +405,80 @@ class AITaskService {
   }
 
   /**
-   * 模拟AI生成的习题数据（保留作为备用）
+   * 获取混合题提示词
    */
-  static getMockExerciseData(type, questionCount) {
-    const exercises = [];
-    
-    for (let i = 0; i < questionCount; i++) {
-      if (type === 'choice') {
-        exercises.push({
-          title: `选择题${i + 1}`,
-          type: 'choice',
-          difficulty: 2,
-          question: `这是第${i + 1}道选择题的题目内容`,
-          options: [
-            { text: '选项A', isCorrect: false },
-            { text: '选项B', isCorrect: true },
-            { text: '选项C', isCorrect: false },
-            { text: '选项D', isCorrect: false }
-          ],
-          correctAnswer: 1,
-          explanation: `这是第${i + 1}道题的解析`
-        });
-      } else if (type === 'fill_blank') {
-        exercises.push({
-          title: `填空题${i + 1}`,
-          type: 'fill_blank',
-          difficulty: 2,
-          question: `这是第${i + 1}道填空题：_____`,
-          correctAnswer: [`答案${i + 1}`],
-          explanation: `这是第${i + 1}道题的解析`
-        });
-      } else if (type === 'matching') {
-        exercises.push({
-          title: `匹配题${i + 1}`,
-          type: 'matching',
-          difficulty: 2,
-          question: `请将下列项目进行匹配：`,
-          options: {
-            left: ['左侧1', '左侧2', '左侧3', '左侧4'],
-            right: ['右侧4', '右侧3', '右侧2', '右侧1']
-          },
-          correctAnswer: {
-            '0': '3',
-            '1': '2', 
-            '2': '1',
-            '3': '0'
-          },
-          explanation: `这是第${i + 1}道题的解析`
-        });
-      }
-    }
-    
-    return exercises;
+  static getMixedPrompt(subjectName, unit, relevance, difficulty, questionCount) {
+    return `
+  ###
+  你是一位专业的${subjectName}出题老师，你将根据给定的学科（${subjectName}）、单元（${unit}）${
+    relevance ? `、题目相关性（${relevance}）` : ""
+  }、题目类型（混合题型）和难度等级（${
+    difficulty ? `，${difficulty}` : "2"
+  }），来生成json格式的题目。根据以下规则一步步执行：
+  1. 生成的题目必须符合"${subjectName}"学科。
+  2. 生成的题目必须围绕"${unit}"单元。
+  3. ${relevance ? `题目要与"${relevance}"这其中任意一点或几点有相关性。` : ""}题目要形象生动有趣味性，不要过于抽象和简陋
+  4. 题目类型为"混合题型"，可以任意出选择题、填空题、匹配题，让题目类型多样化。
+  5. 难度等级为1-3，难度越高，题目越难，本次难度为${difficulty ? `，${difficulty}` : "2"}
+  6. 按照指定的JSON格式生成题目，其中"title"为题目名称，"type"为具体题目类型（choice/fill_blank/matching），"difficulty"为难度（1 - 3），"question"为题目内容，"options"为选项，"correctAnswer"为正确答案，"explanation"为题目解析。并去掉换行符和空格
+  7. 生成的题目需要符合数组格式，数组中每个元素为题目对象，数组中题目元素个数为${questionCount ? `，${questionCount}` : "5"}个，且每个元素的题目不能重复
+  8. 混合题型中应该包含多种题目类型，建议选择题、填空题、匹配题各占一定比例
+
+  选择题格式("options"为选项（包含"text"选项纯文本内容和"isCorrect"是否正确）):
+  {
+    "title": "加法运算",
+    "type": "choice",
+    "difficulty": 1,
+    "question": "计算：2 + 3 =?",
+    "options": [
+      {"text": "4", "isCorrect": false},
+      {"text": "5", "isCorrect": true},
+      {"text": "6", "isCorrect": false},
+      {"text": "7", "isCorrect": false}
+    ],
+    "correctAnswer": 1,
+    "explanation": "2加3等于5"
+  }
+
+  填空题格式("options"为选项（填空题为null）):
+  {
+    "title": "加法运算",
+    "type": "fill_blank",
+    "difficulty": 2,
+    "question": "计算：2 + 3 = ____",
+    "options": null,
+    "correctAnswer": ["5"],
+    "explanation": "2加3等于5"
+  }
+
+  匹配题格式("options"为选项（包含"left"左侧选项列表和"right"右侧选项列表）,"correctAnswer"为正确匹配关系（使用对象格式，左侧索引作为键，右侧索引作为值）):
+  {
+    "title": "数字与中文匹配",
+    "type": "matching",
+    "difficulty": 1,
+    "question": "请将下列数字与对应的中文数字进行匹配：",
+    "options": {
+      "left": ["1", "2", "3", "4"],
+      "right": ["四", "二", "一", "三"]
+    },
+    "correctAnswer": {
+      "0": "2",
+      "1": "1",
+      "2": "3", 
+      "3": "0"
+    },
+    "explanation": "1对应一，2对应二，3对应三，4对应四"
+  }
+
+  输出：符合示例规则要求的混合题型json格式内容
+
+  要求：
+  1 以指定的JSON格式输出题目
+  2 输出的题目需符合学科、单元、题目相关性的要求
+  3 题目类型要多样化，包含选择题、填空题、匹配题
+  4 每种题目类型的格式必须严格按照上述示例
+  5 选择题的correctAnswer为索引数字，填空题的correctAnswer为字符串数组，匹配题的correctAnswer为索引对象
+  ###`;
   }
 }
 

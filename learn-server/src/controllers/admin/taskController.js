@@ -112,7 +112,7 @@ class TaskController {
         });
       }
 
-      if (!['choice', 'fill_blank', 'matching'].includes(type)) {
+      if (!['choice', 'fill_blank', 'matching', 'mixed'].includes(type)) {
         return res.status(400).json({
           success: false,
           message: '不支持的题目类型'
