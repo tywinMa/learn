@@ -21,15 +21,15 @@ alwaysApply: true
 ## learn
 - learn目录下是这是一个基于React Native和Expo的跨平台移动应用，支持iOS和Android平台,
 - 需要使用React Native和Expo等跨平台包，支持iOS和Android平台
-- 使用`npm run web`启动项目
+- 使用`npm run web`启动项目,端口是`8082`
 ## learn-admin后台管理系统
 - learn-admin目录下是一个后台管理系统，配合learn-server项目，管理learn应用的数据内容
-- 使用`npm run dev`启动项目
+- 使用`npm run dev`启动项目,端口是`5173`
 ## learn-server所有项目的后端
 - learn-server目录下是上面两个项目的后端，采用expressjs, sqlite, sequelize技术栈
 - app端的接口以/api开头,后台的接口以/api/admin开头
 - 数据库文件在database目录下的`learn.sqlite`
-- 使用`npm run dev`启动项目
+- 使用`npm run dev`启动项目,端口是`3000`
 ## 数据初始化重置脚本
 `reset-data.sh`是一个删除数据库并重置数据的脚本，用于开发测试使用
 
