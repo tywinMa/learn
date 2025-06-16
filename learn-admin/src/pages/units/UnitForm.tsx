@@ -9,13 +9,17 @@ import {
   Switch,
   message,
   Spin,
-  Divider
+  Divider,
+  Row,
+  Col,
+  Tag
 } from 'antd';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getUnitById, createUnit, updateUnit } from '../../services/unitService';
 import type { CreateUnitParams, UpdateUnitParams } from '../../services/unitService';
 import { getSubjects } from '../../services/subjectService';
 import type { Subject } from '../../services/subjectService';
+import { getGrades, getGradeSubjects, type Grade, type SubjectGrade } from '../../services/gradeService';
 import { getCoursesBySubject } from '../../services/courseService';
 import type { Course } from '../../services/courseService';
 
@@ -24,7 +28,7 @@ const { TextArea } = Input;
 
 interface FormValues {
   id: string;
-  subject: string;
+  subjectGradeId: number;
   title: string;
   description: string;
   order: number;
@@ -41,12 +45,15 @@ const UnitForm: React.FC = () => {
   
   const [form] = Form.useForm<FormValues>();
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [grades, setGrades] = useState<Grade[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState<string>('');
+  const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
+  const [currentSubjectGrade, setCurrentSubjectGrade] = useState<SubjectGrade | null>(null);
   const [initialValues, setInitialValues] = useState<FormValues>({
     id: '',
-    subject: '',
+    subjectGradeId: 0,
     title: '',
     description: '',
     order: 1,
@@ -67,19 +74,28 @@ const UnitForm: React.FC = () => {
         console.log('获取到学科数据:', subjectsData);
         setSubjects(subjectsData);
         
+        // 获取年级列表
+        const gradesData = await getGrades();
+        console.log('获取到年级数据:', gradesData);
+        setGrades(gradesData);
+        
         // 如果是编辑模式，获取单元信息
         if (isEditMode && id) {
           console.log('编辑模式，获取单元数据，ID:', id);
           const unitData = await getUnitById(id);
           console.log('获取到单元数据:', unitData);
           
-          if (unitData) {
-            setSelectedSubject(unitData.subject);
-            console.log('设置选中学科:', unitData.subject);
+                     if (unitData && unitData.subjectGrade) {
+             const subjectGrade = unitData.subjectGrade;
+             setSelectedSubject(subjectGrade.subjectCode);
+             setSelectedGrade(subjectGrade.gradeId);
+             setCurrentSubjectGrade(subjectGrade as SubjectGrade);
+            
+            console.log('设置选中学科年级:', subjectGrade);
             
             // 获取该学科的课程
-            console.log('开始获取学科课程:', unitData.subject);
-            const subjectCourses = await getCoursesBySubject(unitData.subject);
+            console.log('开始获取学科课程:', subjectGrade.subjectCode);
+            const subjectCourses = await getCoursesBySubject(subjectGrade.subjectCode);
             console.log('获取到课程数据:', subjectCourses);
             setCourses(subjectCourses);
             
@@ -93,7 +109,7 @@ const UnitForm: React.FC = () => {
             
             const formData: FormValues = {
               id: unitData.id,
-              subject: unitData.subject,
+              subjectGradeId: unitData.subjectGradeId,
               title: unitData.title,
               description: unitData.description || '',
               order: unitData.order,
@@ -113,11 +129,17 @@ const UnitForm: React.FC = () => {
               console.log('延迟设置表单数据完成');
             }, 100);
           } else {
-            message.error('未找到单元信息');
+            message.error('未找到单元信息或单元数据格式错误');
             navigate('/units');
           }
         } else {
-          console.log('创建模式，无需加载单元数据');
+          console.log('创建模式，设置默认值');
+          if (subjectsData.length > 0) {
+            setSelectedSubject(subjectsData[0].code);
+          }
+          if (gradesData.length > 0) {
+            setSelectedGrade(gradesData[0].id);
+          }
         }
       } catch (error) {
         console.error('加载数据失败:', error);
@@ -130,33 +152,92 @@ const UnitForm: React.FC = () => {
     
     fetchData();
   }, [id, isEditMode, form, navigate]);
+
+  // 当学科和年级都选择后，查找对应的SubjectGrade关联
+  useEffect(() => {
+    if (selectedSubject && selectedGrade && !isEditMode) {
+      findSubjectGrade();
+    }
+  }, [selectedSubject, selectedGrade, isEditMode]);
+
+  const findSubjectGrade = async () => {
+    if (!selectedSubject || !selectedGrade) {
+      setCurrentSubjectGrade(null);
+      setCourses([]);
+      return;
+    }
+
+    try {
+      // 获取指定年级的所有学科关联
+      const gradeSubjects = await getGradeSubjects(selectedGrade);
+      
+      // 查找当前学科和年级的关联
+      const subjectGrade = gradeSubjects.find(sg => sg.subjectCode === selectedSubject);
+      
+             if (subjectGrade) {
+         setCurrentSubjectGrade(subjectGrade as SubjectGrade);
+         // 获取课程列表
+        const subjectCourses = await getCoursesBySubject(selectedSubject);
+        setCourses(subjectCourses);
+      } else {
+        setCurrentSubjectGrade(null);
+        setCourses([]);
+        message.warning(`${getSubjectName(selectedSubject)}在${getGradeName(selectedGrade)}中不可用`);
+      }
+    } catch (error) {
+      console.error('查找学科年级关联失败:', error);
+      setCurrentSubjectGrade(null);
+      setCourses([]);
+    }
+  };
+
+  // 获取学科名称
+  const getSubjectName = (subjectCode: string) => {
+    const subject = subjects.find(s => s.code === subjectCode);
+    return subject ? subject.name : subjectCode;
+  };
+
+  // 获取年级名称
+  const getGradeName = (gradeId: number) => {
+    const grade = grades.find(g => g.id === gradeId);
+    return grade ? grade.name : `年级${gradeId}`;
+  };
+
+  // 获取当前显示名称
+  const getCurrentDisplayName = () => {
+    if (!selectedSubject || !selectedGrade) {
+      return '请选择学科和年级';
+    }
+    return `${getSubjectName(selectedSubject)} - ${getGradeName(selectedGrade)}`;
+  };
   
   const handleSubjectChange = async (subjectCode: string) => {
     console.log('学科变更:', subjectCode);
     setSelectedSubject(subjectCode);
     form.setFieldsValue({ courseIds: [] });
-    
-    // 获取该学科的课程
-    try {
-      console.log('获取学科课程:', subjectCode);
-      const subjectCourses = await getCoursesBySubject(subjectCode);
-      console.log('获取到课程数据:', subjectCourses);
-      setCourses(subjectCourses);
-    } catch (error) {
-      console.error('获取课程列表失败:', error);
-      setCourses([]);
-    }
+  };
+
+  const handleGradeChange = (gradeId: number) => {
+    console.log('年级变更:', gradeId);
+    setSelectedGrade(gradeId);
+    form.setFieldsValue({ courseIds: [] });
   };
   
   const handleSubmit = async (values: FormValues) => {
     try {
       setLoading(true);
+
+      // 确保有选中的学科年级
+      if (!currentSubjectGrade) {
+        message.error('请先选择有效的学科和年级组合');
+        return;
+      }
       
       // 根据模式执行创建或更新操作
       if (isEditMode && id) {
         // 更新单元
         const updateData: UpdateUnitParams = {
-          subject: values.subject,
+          subjectGradeId: currentSubjectGrade.id,
           title: values.title,
           description: values.description,
           order: values.order,
@@ -178,12 +259,12 @@ const UnitForm: React.FC = () => {
         const generateId = () => {
           const timestamp = Date.now().toString(36);
           const random = Math.random().toString(36).substr(2, 5);
-          return `${values.subject}-${timestamp}-${random}`;
+          return `${selectedSubject}-grade${selectedGrade}-${timestamp}-${random}`;
         };
         
         const createData: CreateUnitParams = {
           id: values.id || generateId(),
-          subject: values.subject,
+          subjectGradeId: currentSubjectGrade.id,
           title: values.title,
           description: values.description,
           order: values.order,
@@ -202,242 +283,218 @@ const UnitForm: React.FC = () => {
         }
       }
     } catch (error) {
-      console.error('提交表单失败:', error);
-      message.error('提交表单失败');
+      console.error('保存失败:', error);
+      message.error('保存失败');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">
-          {isEditMode ? '编辑大单元' : '创建新大单元'}
-        </h1>
-      </div>
-      
-      <Card className="shadow-sm">
-        <Spin spinning={loading}>
-          <Form
-            form={form}
-            layout="vertical"
-            initialValues={initialValues}
-            onFinish={handleSubmit}
-            requiredMark={false}
-          >
-            {!isEditMode && (
-              <Form.Item
-                name="id"
-                label="大单元ID"
-                tooltip="可以自定义ID，留空将自动生成"
-              >
-                <Input placeholder="如：math-1（可留空自动生成）" />
-              </Form.Item>
-            )}
-            
-            <Form.Item
-              name="subject"
-              label="所属学科"
-              rules={[{ required: true, message: '请选择所属学科' }]}
-            >
-              <Select 
-                placeholder="选择学科" 
-                onChange={handleSubjectChange}
-              >
-                {subjects.map(subject => (
-                  <Option key={subject.code} value={subject.code}>{subject.name} ({subject.code})</Option>
-                ))}
-              </Select>
-            </Form.Item>
-            
-            <Divider orientation="left">大单元信息</Divider>
-            
-            <Form.Item
-              name="title"
-              label="大单元标题"
-              rules={[{ required: true, message: '请输入大单元标题' }]}
-            >
-              <Input placeholder="输入大单元标题" />
-            </Form.Item>
-            
-            <Form.Item
-              name="description"
-              label="大单元描述"
-            >
-              <TextArea rows={3} placeholder="简要描述大单元内容和学习目标" />
-            </Form.Item>
-            
-            <Form.Item
-              name="order"
-              label="显示顺序"
-              tooltip="数字越小排序越靠前"
-              rules={[{ required: true, message: '请输入显示顺序' }]}
-            >
-              <InputNumber min={1} style={{ width: '100%' }} placeholder="输入显示顺序" />
-            </Form.Item>
-            
-            <Form.Item shouldUpdate={(prevValues, currentValues) => 
-              prevValues.courseIds !== currentValues.courseIds || prevValues.subject !== currentValues.subject
-            }>
-              {({ getFieldValue }) => {
-                const selectedCourseIds = getFieldValue('courseIds') || [];
-                const selectedCount = courses.filter(course => 
-                  selectedCourseIds.includes(course.id)
-                ).length;
-                
-                return (
-                  <Form.Item
-                    name="courseIds"
-                    label="关联的课程"
-                    tooltip="选择该大单元包含的课程"
-                    extra={`当前已选择 ${selectedCount} 门课程（共 ${courses.length} 门可选）`}
-                  >
-                    <Select 
-                      mode="multiple"
-                      placeholder={courses.length > 0 ? "选择包含的课程" : "请先选择学科以加载课程"} 
-                      allowClear
-                      disabled={!selectedSubject || courses.length === 0}
-                      showSearch
-                      filterOption={(input, option) => {
-                        if (option && option.children) {
-                          return String(option.children).toLowerCase().includes(input.toLowerCase());
-                        }
-                        return false;
-                      }}
-                      optionLabelProp="label"
-                      notFoundContent={courses.length === 0 ? "暂无课程数据" : "未找到匹配的课程"}
-                    >
-                      {courses.map(course => (
-                        <Option 
-                          key={course.id} 
-                          value={course.id}
-                          label={`${course.title || course.name} (${course.courseCode || course.course_code || course.id})`}
-                        >
-                          <div>
-                            <div style={{ fontWeight: 'bold' }}>{course.title || course.name}</div>
-                            <div style={{ fontSize: '12px', color: '#666' }}>
-                              课程编号: {course.courseCode || course.course_code || course.id} | 
-                              教师: {course.instructor || course.teacher?.name || '未分配'}
-                            </div>
-                          </div>
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                );
-              }}
-            </Form.Item>
+  const handleCancel = () => {
+    navigate('/units');
+  };
 
-            {/* 课程预览区域 */}
-            <Form.Item shouldUpdate={(prevValues, currentValues) => {
-              console.log('表单值更新检查:', {
-                prev: prevValues.courseIds,
-                current: currentValues.courseIds,
-                courses: courses.length
-              });
-              return prevValues.courseIds !== currentValues.courseIds;
-            }}>
-              {({ getFieldValue }) => {
-                const selectedCourseIds = getFieldValue('courseIds') || [];
-                console.log('当前选中的课程IDs:', selectedCourseIds);
-                console.log('可用课程列表:', courses.map(c => ({ id: c.id, title: c.title })));
-                
-                const selectedCourses = courses.filter(course => 
-                  selectedCourseIds.includes(course.id)
-                );
-                console.log('匹配到的课程:', selectedCourses.map(c => ({ id: c.id, title: c.title })));
-                
-                if (!selectedCourseIds || selectedCourseIds.length === 0) {
-                  return null;
-                }
-                
-                return (
-                  <Form.Item label="已选课程预览">
-                    <div style={{ 
-                      background: '#f5f5f5', 
-                      padding: '12px', 
-                      borderRadius: '6px',
-                      maxHeight: '200px',
-                      overflowY: 'auto'
-                    }}>
-                      {selectedCourses.length === 0 ? (
-                        <div style={{ textAlign: 'center', color: '#999', padding: '20px' }}>
-                          未找到匹配的课程数据
-                          <div style={{ fontSize: '12px', marginTop: '8px' }}>
-                            选中的ID: {selectedCourseIds.join(', ')}
-                          </div>
-                        </div>
-                      ) : (
-                        selectedCourses.map(course => (
-                          <div key={course.id} style={{
-                            background: 'white',
-                            padding: '8px 12px',
-                            marginBottom: '8px',
-                            borderRadius: '4px',
-                            border: '1px solid #e8e8e8'
-                          }}>
-                            <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
-                              {course.title || course.name}
-                            </div>
-                            <div style={{ fontSize: '12px', color: '#666', lineHeight: '1.4' }}>
-                              <span>编号: {course.courseCode || course.course_code || course.id}</span>
-                              <span style={{ margin: '0 8px' }}>|</span>
-                              <span>教师: {course.instructor || course.teacher?.name || '未分配'}</span>
-                              <span style={{ margin: '0 8px' }}>|</span>
-                              <span>学生: {course.students || 0}人</span>
-                            </div>
-                            {course.description && (
-                              <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
-                                {course.description}
-                              </div>
-                            )}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </Form.Item>
-                );
-              }}
-            </Form.Item>
+  const hasFormChanged = () => {
+    const currentValues = form.getFieldsValue();
+    return JSON.stringify(currentValues) !== JSON.stringify(initialValues) ||
+      currentValues.courseIds !== initialValues.courseIds || 
+      currentValues.subjectGradeId !== initialValues.subjectGradeId;
+  };
+
+  if (loading && isEditMode) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '24px', maxWidth: '800px', margin: '0 auto' }}>
+      <Card 
+        title={isEditMode ? '编辑单元' : '创建单元'}
+        extra={
+          <Button onClick={handleCancel}>
+            返回列表
+          </Button>
+        }
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          preserve={false}
+        >
+          {/* 学科年级选择 */}
+          <Card size="small" style={{ marginBottom: 24, backgroundColor: '#f8f9fa' }}>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item
+                  label="年级"
+                  required
+                >
+                  <Select
+                    value={selectedGrade}
+                    onChange={handleGradeChange}
+                    placeholder="选择年级"
+                    disabled={isEditMode}
+                  >
+                    {grades.map(grade => (
+                      <Option key={grade.id} value={grade.id}>
+                        {grade.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item
+                  label="学科"
+                  required
+                >
+                  <Select
+                    value={selectedSubject}
+                    onChange={handleSubjectChange}
+                    placeholder="选择学科"
+                    disabled={isEditMode}
+                  >
+                    {subjects.map(subject => (
+                      <Option key={subject.code} value={subject.code}>
+                        {subject.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+            </Row>
             
-            <Divider orientation="left">样式设置</Divider>
-            
-            <Form.Item
-              name="color"
-              label="主题颜色"
+            {currentSubjectGrade ? (
+              <Tag color="success" style={{ marginTop: 8 }}>
+                {getCurrentDisplayName()} 可用
+              </Tag>
+            ) : selectedSubject && selectedGrade ? (
+              <Tag color="error" style={{ marginTop: 8 }}>
+                {getCurrentDisplayName()} 组合不可用
+              </Tag>
+            ) : null}
+          </Card>
+
+          {/* 单元基本信息 */}
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="title"
+                label="单元名称"
+                rules={[{ required: true, message: '请输入单元名称' }]}
+              >
+                <Input placeholder="输入单元名称" />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="order"
+                label="显示顺序"
+                rules={[{ required: true, message: '请输入显示顺序' }]}
+              >
+                <InputNumber 
+                  min={1} 
+                  style={{ width: '100%' }} 
+                  placeholder="数字越小排序越靠前"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item
+            name="description"
+            label="单元描述"
+          >
+            <TextArea 
+              rows={3} 
+              placeholder="简要描述单元内容和学习目标"
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="courseIds"
+            label="关联课程"
+          >
+            <Select
+              mode="multiple"
+              placeholder="选择包含的课程"
+              allowClear
+              showSearch
+              filterOption={(input, option) =>
+                option?.children?.toString().toLowerCase().includes(input.toLowerCase()) || false
+              }
             >
-              <Input type="color" style={{ width: 100 }} />
-            </Form.Item>
-            
-            <Form.Item
-              name="secondaryColor"
-              label="次要颜色"
-              tooltip="用于渐变效果"
-            >
-              <Input type="color" style={{ width: 100 }} />
-            </Form.Item>
-            
-            <Form.Item
-              name="isPublished"
-              label="发布状态"
-              valuePropName="checked"
-            >
-              <Switch checkedChildren="已发布" unCheckedChildren="草稿" />
-            </Form.Item>
-            
-            <Form.Item>
-              <div className="flex justify-end space-x-2">
-                <Button onClick={() => navigate('/units')}>
+              {courses.map(course => (
+                <Option key={course.id} value={course.id}>
+                  {course.title}
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                name="color"
+                label="主要颜色"
+              >
+                <Input 
+                  type="color" 
+                  style={{ width: '100%', height: 40 }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="secondaryColor"
+                label="次要颜色"
+              >
+                <Input 
+                  type="color" 
+                  style={{ width: '100%', height: 40 }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                name="isPublished"
+                label="发布状态"
+                valuePropName="checked"
+              >
+                <Switch 
+                  checkedChildren="已发布" 
+                  unCheckedChildren="草稿"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Divider />
+
+          <Form.Item>
+            <Row gutter={16}>
+              <Col>
+                <Button 
+                  type="primary" 
+                  htmlType="submit" 
+                  loading={loading}
+                  disabled={!currentSubjectGrade}
+                >
+                  {isEditMode ? '更新单元' : '创建单元'}
+                </Button>
+              </Col>
+              <Col>
+                <Button onClick={handleCancel}>
                   取消
                 </Button>
-                <Button type="primary" htmlType="submit" loading={loading}>
-                  {isEditMode ? '更新' : '创建'}
-                </Button>
-              </div>
-            </Form.Item>
-          </Form>
-        </Spin>
+              </Col>
+            </Row>
+          </Form.Item>
+        </Form>
       </Card>
     </div>
   );

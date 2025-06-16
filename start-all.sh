@@ -205,7 +205,7 @@ check_service_health() {
 echo -e "${YELLOW}   检查服务健康状态...${NC}"
 
 # 检查后端服务 (最重要，给更多时间)
-check_service_health "后端服务器" 3000 15 &
+check_service_health "后端服务器" 3000 20 &
 HEALTH_CHECK_SERVER_PID=$!
 
 # 检查后台管理系统 (可能需要编译)

@@ -18,7 +18,8 @@ import {
   InputNumber,
   Space,
   Tooltip,
-  Popconfirm
+  Popconfirm,
+  Divider
 } from 'antd';
 import { 
   EditOutlined, 
@@ -32,8 +33,9 @@ import {
 } from '@ant-design/icons';
 import { getSubjects } from '../../services/subjectService';
 import type { Subject } from '../../services/subjectService';
+import { getGrades, getGradeSubjects, type Grade, type SubjectGrade } from '../../services/gradeService';
 import { getCoursesBySubject, type Course } from '../../services/courseService';
-import { createUnit, getAllUnits, getUnitsBySubject, updateUnit, deleteUnit, type CreateUnitParams, type UpdateUnitParams, type Unit } from '../../services/unitService';
+import { createUnit, getAllUnits, getUnitsBySubjectGrade, updateUnit, deleteUnit, type CreateUnitParams, type UpdateUnitParams, type Unit } from '../../services/unitService';
 import './SubjectStageUnits.css';
 
 const { Title, Text } = Typography;
@@ -81,7 +83,7 @@ const ColorPicker: React.FC<{
 // 单元表单接口
 interface UnitFormData {
   id?: string;
-  subject: string;
+  subjectGradeId: number;
   title: string;
   description?: string;
   order: number;
@@ -94,7 +96,10 @@ interface UnitFormData {
 const SubjectStageUnits: React.FC = () => {
   const [form] = Form.useForm();
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [grades, setGrades] = useState<Grade[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<string>('');
+  const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
+  const [currentSubjectGrade, setCurrentSubjectGrade] = useState<SubjectGrade | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(false);
@@ -118,21 +123,67 @@ const SubjectStageUnits: React.FC = () => {
     fetchSubjects();
   }, []);
 
-  // 获取选中学科的单元和课程
+  // 获取年级列表
   useEffect(() => {
-    if (selectedSubject) {
-      fetchSubjectData();
-    }
-  }, [selectedSubject]);
+    const fetchGrades = async () => {
+      try {
+        const data = await getGrades();
+        setGrades(data);
+        if (data.length > 0) {
+          setSelectedGrade(data[0].id);
+        }
+      } catch (error) {
+        console.error('获取年级列表失败:', error);
+      }
+    };
+    fetchGrades();
+  }, []);
 
-  const fetchSubjectData = async () => {
-    if (!selectedSubject) return;
-    
+  // 当学科和年级都选择后，查找对应的SubjectGrade关联
+  useEffect(() => {
+    if (selectedSubject && selectedGrade) {
+      findSubjectGrade();
+    }
+  }, [selectedSubject, selectedGrade]);
+
+  const findSubjectGrade = async () => {
+    if (!selectedSubject || !selectedGrade) {
+      setCurrentSubjectGrade(null);
+      setUnits([]);
+      setCourses([]);
+      return;
+    }
+
+    try {
+      // 获取指定年级的所有学科关联
+      const gradeSubjects = await getGradeSubjects(selectedGrade);
+      
+      // 查找当前学科和年级的关联
+      const subjectGrade = gradeSubjects.find(sg => sg.subjectCode === selectedSubject);
+      
+      if (subjectGrade) {
+        setCurrentSubjectGrade(subjectGrade);
+        await fetchSubjectGradeData(subjectGrade.id);
+      } else {
+        setCurrentSubjectGrade(null);
+        setUnits([]);
+        setCourses([]);
+        message.warning(`${getSubjectName(selectedSubject)}在${getGradeName(selectedGrade)}中不可用`);
+      }
+    } catch (error) {
+      console.error('查找学科年级关联失败:', error);
+      setCurrentSubjectGrade(null);
+      setUnits([]);
+      setCourses([]);
+    }
+  };
+
+  const fetchSubjectGradeData = async (subjectGradeId: number) => {
     setLoading(true);
     try {
       const [unitsData, coursesData] = await Promise.all([
-        getUnitsBySubject(selectedSubject),
-        getCoursesBySubject(selectedSubject)
+        getUnitsBySubjectGrade(subjectGradeId),
+        selectedSubject ? getCoursesBySubject(selectedSubject) : Promise.resolve([])
       ]);
       setUnits(unitsData);
       setCourses(coursesData);
@@ -144,10 +195,40 @@ const SubjectStageUnits: React.FC = () => {
     }
   };
 
+  // 获取学科名称
+  const getSubjectName = (subjectCode: string) => {
+    const subject = subjects.find(s => s.code === subjectCode);
+    return subject ? subject.name : subjectCode;
+  };
+
+  // 获取年级名称
+  const getGradeName = (gradeId: number) => {
+    const grade = grades.find(g => g.id === gradeId);
+    return grade ? grade.name : `年级${gradeId}`;
+  };
+
+  // 获取当前显示名称
+  const getCurrentDisplayName = () => {
+    if (!selectedSubject || !selectedGrade) {
+      return '请选择学科和年级';
+    }
+    return `${getSubjectName(selectedSubject)} - ${getGradeName(selectedGrade)}`;
+  };
+
+  // 学科变更处理
+  const handleSubjectChange = (subjectCode: string) => {
+    setSelectedSubject(subjectCode);
+  };
+
+  // 年级变更处理
+  const handleGradeChange = (gradeId: number) => {
+    setSelectedGrade(gradeId);
+  };
+
   // 打开创建模态框
   const showCreateModal = () => {
-    if (!selectedSubject) {
-      message.warning('请先选择学科');
+    if (!currentSubjectGrade) {
+      message.warning('请先选择有效的学科和年级组合');
       return;
     }
     
@@ -167,7 +248,7 @@ const SubjectStageUnits: React.FC = () => {
   const showEditModal = (unit: Unit) => {
     setEditingUnit(unit);
     form.setFieldsValue({
-      subject: unit.subject,
+      subjectGradeId: unit.subjectGradeId,
       title: unit.title,
       description: unit.description || '',
       order: unit.order,
@@ -185,16 +266,16 @@ const SubjectStageUnits: React.FC = () => {
       const values = await form.validateFields();
       setSaving(true);
 
-      // 确保有选中的学科
-      if (!selectedSubject) {
-        message.error('请先选择学科');
+      // 确保有选中的学科年级
+      if (!currentSubjectGrade) {
+        message.error('请先选择有效的学科和年级组合');
         return;
       }
 
       if (editingUnit) {
         // 更新单元
         const updateData: UpdateUnitParams = {
-          subject: selectedSubject,
+          subjectGradeId: currentSubjectGrade.id,
           title: values.title,
           description: values.description,
           order: values.order,
@@ -203,26 +284,20 @@ const SubjectStageUnits: React.FC = () => {
           secondaryColor: values.secondaryColor,
           courseIds: values.courseIds
         };
-
-        const result = await updateUnit(editingUnit.id, updateData);
-        if (result) {
-          message.success('单元更新成功');
-          setModalVisible(false);
-          fetchSubjectData();
-        } else {
-          message.error('更新单元失败');
-        }
+        
+        await updateUnit(editingUnit.id, updateData);
+        message.success('单元更新成功');
       } else {
-        // 创建单元
+        // 创建单元 - 生成ID
         const generateId = () => {
           const timestamp = Date.now().toString(36);
           const random = Math.random().toString(36).substr(2, 5);
-          return `${selectedSubject}-${timestamp}-${random}`;
+          return `${selectedSubject}-grade${selectedGrade}-${timestamp}-${random}`;
         };
-
+        
         const createData: CreateUnitParams = {
           id: generateId(),
-          subject: selectedSubject,
+          subjectGradeId: currentSubjectGrade.id,
           title: values.title,
           description: values.description,
           order: values.order,
@@ -231,20 +306,20 @@ const SubjectStageUnits: React.FC = () => {
           secondaryColor: values.secondaryColor,
           courseIds: values.courseIds
         };
+        
+        await createUnit(createData);
+        message.success('单元创建成功');
+      }
 
-        console.log('创建单元数据:', createData);
-        const result = await createUnit(createData);
-        if (result) {
-          message.success('单元创建成功');
-          setModalVisible(false);
-          fetchSubjectData();
-        } else {
-          message.error('创建单元失败');
-        }
+      setModalVisible(false);
+      form.resetFields();
+      setEditingUnit(null);
+      if (currentSubjectGrade) {
+        await fetchSubjectGradeData(currentSubjectGrade.id);
       }
     } catch (error) {
-      console.error('保存失败:', error);
-      message.error('保存失败');
+      console.error('保存单元失败:', error);
+      message.error('保存单元失败');
     } finally {
       setSaving(false);
     }
@@ -253,320 +328,258 @@ const SubjectStageUnits: React.FC = () => {
   // 删除单元
   const handleDelete = async (unitId: string) => {
     try {
-      const success = await deleteUnit(unitId);
-      if (success) {
-        message.success('单元删除成功');
-        fetchSubjectData();
-      } else {
-        message.error('删除单元失败');
+      await deleteUnit(unitId);
+      message.success('单元删除成功');
+      if (currentSubjectGrade) {
+        await fetchSubjectGradeData(currentSubjectGrade.id);
       }
     } catch (error) {
-      console.error('删除失败:', error);
-      message.error('删除失败');
+      console.error('删除单元失败:', error);
+      message.error('删除单元失败');
     }
   };
 
-  // 获取当前选中的学科
-  const currentSubject = subjects.find(s => s.code === selectedSubject);
-
-  // 表格列定义
-  const columns = [
-    {
-      title: '顺序',
-      dataIndex: 'order',
-      key: 'order',
-      width: 80,
-      sorter: (a: Unit, b: Unit) => a.order - b.order,
-      render: (order: number) => (
-        <Tag color="blue">{order}</Tag>
-      )
-    },
-    {
-      title: '单元名称',
-      dataIndex: 'title',
-      key: 'title',
-      render: (title: string, record: Unit) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div 
-            style={{ 
-              width: 12, 
-              height: 12, 
-              borderRadius: '50%', 
-              backgroundColor: record.color || '#1677ff' 
-            }} 
-          />
-          <span style={{ fontWeight: 500 }}>{title}</span>
-        </div>
-      )
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-      render: (text: string) => text || '-'
-    },
-    {
-      title: '关联课程',
-      key: 'courses',
-      render: (record: Unit) => {
-        const unitCourses = courses.filter(course => 
-          record.courseIds?.includes(course.id)
-        );
-        return (
-          <div>
-            <Text type="secondary">{unitCourses.length} 门课程</Text>
-            {unitCourses.length > 0 && (
-              <div style={{ marginTop: 4 }}>
-                {unitCourses.slice(0, 2).map(course => (
-                  <Tag key={course.id} style={{ margin: '2px' }}>
-                    {course.title}
-                  </Tag>
-                ))}
-                {unitCourses.length > 2 && (
-                  <Tag style={{ margin: '2px' }}>
-                    +{unitCourses.length - 2}
-                  </Tag>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      }
-    },
-    {
-      title: '颜色主题',
-      key: 'colors',
-      width: 120,
-      render: (record: Unit) => (
-        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-          <Tooltip title="主要颜色">
-            <div 
-              style={{ 
-                width: 24, 
-                height: 24, 
-                borderRadius: '4px', 
-                backgroundColor: record.color || '#1677ff',
-                border: '1px solid #ddd'
-              }} 
-            />
-          </Tooltip>
-          <Tooltip title="次要颜色">
-            <div 
-              style={{ 
-                width: 24, 
-                height: 24, 
-                borderRadius: '4px', 
-                backgroundColor: record.secondaryColor || '#f0f9ff',
-                border: '1px solid #ddd'
-              }} 
-            />
-          </Tooltip>
-        </div>
-      )
-    },
-    {
-      title: '状态',
-      dataIndex: 'isPublished',
-      key: 'isPublished',
-      width: 100,
-      render: (isPublished: boolean) => (
-        <Tag color={isPublished ? 'green' : 'orange'}>
-          {isPublished ? '已发布' : '草稿'}
-        </Tag>
-      )
-    },
-    {
-      title: '操作',
-      key: 'actions',
-      width: 150,
-      render: (record: Unit) => (
-        <Space size="small">
-          <Tooltip title="编辑单元">
-            <Button 
-              type="text" 
-              icon={<EditOutlined />} 
-              onClick={() => showEditModal(record)}
-            />
-          </Tooltip>
-          <Popconfirm
-            title="确定删除此单元吗？"
-            description="删除后将无法恢复，关联的课程将被移除。"
-            onConfirm={() => handleDelete(record.id)}
-            okText="确定"
-            cancelText="取消"
-          >
-            <Tooltip title="删除单元">
-              <Button 
-                type="text" 
-                danger 
-                icon={<DeleteOutlined />}
-              />
-            </Tooltip>
-          </Popconfirm>
-        </Space>
-      )
-    }
-  ];
-
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <Title level={2} style={{ margin: 0 }}>
-          <AppstoreOutlined className="mr-2" />
-          单元与课程管理
-        </Title>
+      <div style={{ marginBottom: 24 }}>
+        <Title level={2}>单元管理</Title>
+        <Text type="secondary">管理学科年级的单元内容</Text>
       </div>
 
-      {/* 学科选择器 */}
-      <Card className="mb-6">
-        <div className="subject-selector">
-          <Text strong style={{ marginRight: 16 }}>选择学科：</Text>
-          {subjects.map(subject => (
-            <Tag
-              key={subject.code}
-              className={`subject-tag ${selectedSubject === subject.code ? 'subject-tag-selected' : ''}`}
-              style={{
-                backgroundColor: selectedSubject === subject.code ? subject.color : 'transparent',
-                borderColor: subject.color,
-                color: selectedSubject === subject.code ? '#fff' : subject.color
-              }}
-              onClick={() => setSelectedSubject(subject.code)}
+      {/* 选择器区域 */}
+      <Card style={{ marginBottom: 24 }}>
+        <Space size="large">
+          <div>
+            <Text strong>年级：</Text>
+            <Select
+              value={selectedGrade}
+              onChange={handleGradeChange}
+              style={{ width: 150, marginLeft: 8 }}
+              placeholder="选择年级"
             >
-              <div 
-                className="subject-tag-dot" 
-                style={{ backgroundColor: selectedSubject === subject.code ? '#fff' : subject.color }}
-              />
-              {subject.name}
-            </Tag>
-          ))}
-        </div>
+              {grades.map(grade => (
+                <Option key={grade.id} value={grade.id}>
+                  {grade.name}
+                </Option>
+              ))}
+            </Select>
+          </div>
+          
+          <div>
+            <Text strong>学科：</Text>
+            <Select
+              value={selectedSubject}
+              onChange={handleSubjectChange}
+              style={{ width: 150, marginLeft: 8 }}
+              placeholder="选择学科"
+            >
+              {subjects.map(subject => (
+                <Option key={subject.code} value={subject.code}>
+                  {subject.name}
+                </Option>
+              ))}
+            </Select>
+          </div>
+
+          {currentSubjectGrade && (
+            <div>
+              <Tag color="success">
+                {getCurrentDisplayName()} 可用
+              </Tag>
+            </div>
+          )}
+        </Space>
       </Card>
 
       {/* 单元列表 */}
-      <Card
-        title={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <SettingOutlined />
-            <span>{currentSubject?.name || '未选择学科'} - 单元管理</span>
-            <Tag color={currentSubject?.color}>
-              {units.length} 个单元
-            </Tag>
-          </div>
-        }
-        extra={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={showCreateModal}
-            disabled={!selectedSubject}
-          >
-            新建单元
-          </Button>
-        }
-      >
-        <Table
-          columns={columns}
-          dataSource={units}
-          rowKey="id"
-          loading={loading}
-          pagination={{ 
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total) => `共 ${total} 个单元`
-          }}
-          locale={{
-            emptyText: selectedSubject ? (
-              <Empty 
-                description={`${currentSubject?.name || '当前学科'}暂无单元`}
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
-            ) : (
-              <Empty 
-                description="请先选择学科"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
-            )
-          }}
-        />
-      </Card>
+      {currentSubjectGrade ? (
+        <Card
+          title={
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>
+                <AppstoreOutlined style={{ marginRight: 8 }} />
+                {getCurrentDisplayName()} - 单元列表
+              </span>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={showCreateModal}
+              >
+                创建单元
+              </Button>
+            </div>
+          }
+        >
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '50px 0' }}>
+              <Spin size="large" />
+            </div>
+          ) : units.length === 0 ? (
+            <Empty
+              description="暂无单元数据"
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            />
+          ) : (
+            <Row gutter={[16, 16]}>
+              {units.map((unit) => (
+                <Col key={unit.id} xs={24} sm={12} md={8} lg={6}>
+                  <Card
+                    size="small"
+                    style={{
+                      background: `linear-gradient(135deg, ${unit.color || '#1677ff'} 0%, ${unit.secondaryColor || '#f0f9ff'} 100%)`,
+                      color: '#fff',
+                      border: 'none'
+                    }}
+                    bodyStyle={{ padding: '16px' }}
+                    actions={[
+                      <Tooltip title="编辑">
+                        <EditOutlined onClick={() => showEditModal(unit)} />
+                      </Tooltip>,
+                      <Popconfirm
+                        title="确定删除这个单元吗？"
+                        onConfirm={() => handleDelete(unit.id)}
+                        okText="确定"
+                        cancelText="取消"
+                      >
+                        <Tooltip title="删除">
+                          <DeleteOutlined />
+                        </Tooltip>
+                      </Popconfirm>
+                    ]}
+                  >
+                    <div style={{ marginBottom: 12 }}>
+                      <Text strong style={{ color: '#fff', fontSize: '16px' }}>
+                        {unit.title}
+                      </Text>
+                    </div>
+                    
+                    {unit.description && (
+                      <div style={{ marginBottom: 12 }}>
+                        <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>
+                          {unit.description}
+                        </Text>
+                      </div>
+                    )}
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Tag color={unit.isPublished ? 'success' : 'default'}>
+                        {unit.isPublished ? '已发布' : '未发布'}
+                      </Tag>
+                      <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>
+                        顺序: {unit.order}
+                      </Text>
+                    </div>
+                    
+                    {unit.courseIds && unit.courseIds.length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>
+                          包含 {unit.courseIds.length} 个课程
+                        </Text>
+                      </div>
+                    )}
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          )}
+        </Card>
+      ) : (
+        <Card>
+          <Empty
+            description={
+              selectedSubject && selectedGrade 
+                ? `${getCurrentDisplayName()}组合不可用`
+                : "请选择学科和年级以查看单元"
+            }
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
+        </Card>
+      )}
 
       {/* 创建/编辑模态框 */}
       <Modal
-        title={editingUnit ? '编辑单元' : '新建单元'}
+        title={editingUnit ? '编辑单元' : '创建单元'}
         open={modalVisible}
+        onCancel={() => {
+          setModalVisible(false);
+          form.resetFields();
+          setEditingUnit(null);
+        }}
         onOk={handleSave}
-        onCancel={() => setModalVisible(false)}
         confirmLoading={saving}
-        width={800}
-        maskClosable={false}
+        width={600}
       >
         <Form
           form={form}
           layout="vertical"
+          preserve={false}
         >
-          {/* 显示当前学科 */}
-          <Form.Item label="所属学科">
-            <Input 
-              value={`${currentSubject?.name || ''} (${selectedSubject})`}
-              disabled
-              style={{ 
-                backgroundColor: '#f5f5f5',
-                color: currentSubject?.color || '#1677ff',
-                fontWeight: 500
-              }}
+          <Form.Item
+            name="title"
+            label="单元标题"
+            rules={[{ required: true, message: '请输入单元标题' }]}
+          >
+            <Input placeholder="请输入单元标题" />
+          </Form.Item>
+
+          <Form.Item
+            name="description"
+            label="单元描述"
+          >
+            <TextArea
+              placeholder="请输入单元描述"
+              rows={3}
             />
           </Form.Item>
 
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item
-                name="title"
-                label="单元名称"
-                rules={[{ required: true, message: '请输入单元名称' }]}
-              >
-                <Input placeholder="输入单元名称" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item
                 name="order"
                 label="显示顺序"
                 rules={[{ required: true, message: '请输入显示顺序' }]}
               >
-                <InputNumber 
-                  min={1} 
-                  style={{ width: '100%' }} 
-                  placeholder="数字越小排序越靠前"
-                />
+                <InputNumber min={1} style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="isPublished"
+                label="是否发布"
+                valuePropName="checked"
+              >
+                <Switch />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                name="color"
+                label="主题颜色"
+              >
+                <ColorPicker />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item
+                name="secondaryColor"
+                label="次要颜色"
+              >
+                <ColorPicker />
               </Form.Item>
             </Col>
           </Row>
 
           <Form.Item
-            name="description"
-            label="单元描述"
-          >
-            <TextArea 
-              rows={3} 
-              placeholder="简要描述单元内容和学习目标"
-            />
-          </Form.Item>
-
-          <Form.Item
             name="courseIds"
             label="关联课程"
-            tooltip="选择该单元包含的课程"
           >
             <Select
               mode="multiple"
-              placeholder="选择包含的课程"
+              placeholder="选择关联的课程"
               allowClear
-              showSearch
-              filterOption={(input, option) =>
-                option?.children?.toString().toLowerCase().includes(input.toLowerCase()) || false
-              }
             >
               {courses.map(course => (
                 <Option key={course.id} value={course.id}>
@@ -575,37 +588,6 @@ const SubjectStageUnits: React.FC = () => {
               ))}
             </Select>
           </Form.Item>
-
-          <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item
-                name="color"
-                label="主要颜色"
-              >
-                <ColorPicker />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="secondaryColor"
-                label="次要颜色"
-              >
-                <ColorPicker />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item
-                name="isPublished"
-                label="发布状态"
-                valuePropName="checked"
-              >
-                <Switch 
-                  checkedChildren="已发布" 
-                  unCheckedChildren="草稿"
-                />
-              </Form.Item>
-            </Col>
-          </Row>
         </Form>
       </Modal>
     </div>

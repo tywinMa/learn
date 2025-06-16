@@ -16,10 +16,9 @@ const UserGradeSubjectPreference = require('./UserGradeSubjectPreference');
 const { sequelize } = require('../config/database');
 
 // 定义模型之间的关系
-// 学科与单元之间的关系
-// 使用subject字段作为关联键
-Subject.hasMany(Unit, { foreignKey: 'subject', sourceKey: 'code' });
-Unit.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
+// SubjectGrade与单元之间的关系
+SubjectGrade.hasMany(Unit, { foreignKey: 'subjectGradeId', as: 'units' });
+Unit.belongsTo(SubjectGrade, { foreignKey: 'subjectGradeId', as: 'subjectGrade' });
 
 // 学科与课程之间的关系
 Course.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
@@ -105,8 +104,8 @@ const syncDatabase = async () => {
       await sequelize.query('PRAGMA foreign_keys = OFF;');
     }
 
-    // 首先尝试正常同步
-    await sequelize.sync({ alter: true });
+    // 首先尝试正常同步，不修改现有结构
+    await sequelize.sync();
     console.log('所有模型已同步到数据库');
 
     // 重新启用外键约束检查（仅SQLite）

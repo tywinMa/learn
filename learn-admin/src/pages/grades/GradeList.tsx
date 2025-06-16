@@ -189,6 +189,7 @@ const GradeList: React.FC = () => {
       title: '年级名称',
       dataIndex: 'name',
       key: 'name',
+      width: 120,
       render: (text: string, record: Grade) => (
         <Tag color={LEVEL_COLORS[record.level]} style={{ fontSize: '14px', padding: '4px 8px' }}>
           {text}
@@ -199,11 +200,13 @@ const GradeList: React.FC = () => {
       title: '年级代码',
       dataIndex: 'code',
       key: 'code',
+      width: 120,
     },
     {
       title: '学段',
       dataIndex: 'level',
       key: 'level',
+      width: 80,
       render: (level: keyof typeof LEVEL_MAP) => (
         <Tag color={LEVEL_COLORS[level]}>
           {LEVEL_MAP[level]}
@@ -214,6 +217,7 @@ const GradeList: React.FC = () => {
       title: '年级序号',
       dataIndex: 'levelNumber',
       key: 'levelNumber',
+      width: 120,
       render: (levelNumber: number, record: Grade) => (
         `${LEVEL_MAP[record.level]}${levelNumber}年级`
       )
@@ -222,6 +226,7 @@ const GradeList: React.FC = () => {
       title: '描述',
       dataIndex: 'description',
       key: 'description',
+      width: 200,
       ellipsis: true,
       render: (text: string) => text || '-'
     },
@@ -235,6 +240,7 @@ const GradeList: React.FC = () => {
       title: '状态',
       dataIndex: 'isActive',
       key: 'isActive',
+      width: 80,
       render: (isActive: boolean) => (
         <Tag color={isActive ? 'success' : 'default'}>
           {isActive ? '激活' : '禁用'}
@@ -244,23 +250,30 @@ const GradeList: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 260,
+      fixed: 'right' as const,
       render: (_: any, record: Grade) => (
-        <Space size="small">
-          <Button 
-            type="text" 
-            icon={<LinkOutlined />} 
-            onClick={() => showSubjectModal(record)}
-          >
-            学科关联
-          </Button>
-          <Button 
-            type="text" 
-            icon={<EditOutlined />} 
-            onClick={() => showEditModal(record)}
-          >
-            编辑
-          </Button>
+        <Space size="small" wrap>
+          <Tooltip title="管理该年级的学科关联">
+            <Button 
+              type="text" 
+              icon={<LinkOutlined />} 
+              onClick={() => showSubjectModal(record)}
+              size="small"
+            >
+              学科关联
+            </Button>
+          </Tooltip>
+          <Tooltip title="编辑年级信息">
+            <Button 
+              type="text" 
+              icon={<EditOutlined />} 
+              onClick={() => showEditModal(record)}
+              size="small"
+            >
+              编辑
+            </Button>
+          </Tooltip>
           <Popconfirm
             title="确定删除此年级?"
             description="删除后将无法恢复，可能影响关联的课程。"
@@ -269,14 +282,17 @@ const GradeList: React.FC = () => {
             cancelText="取消"
             icon={<QuestionCircleOutlined style={{ color: 'red' }} />}
           >
-            <Button 
-              type="text" 
-              danger
-              icon={<DeleteOutlined />}
-              loading={deleteLoading === record.id}
-            >
-              删除
-            </Button>
+            <Tooltip title="删除年级">
+              <Button 
+                type="text" 
+                danger
+                icon={<DeleteOutlined />}
+                loading={deleteLoading === record.id}
+                size="small"
+              >
+                删除
+              </Button>
+            </Tooltip>
           </Popconfirm>
         </Space>
       )
@@ -323,7 +339,7 @@ const GradeList: React.FC = () => {
   ];
 
   return (
-    <div>
+    <div style={{ padding: '0 8px' }}>
       <Card
         title="年级管理"
         extra={
@@ -331,12 +347,14 @@ const GradeList: React.FC = () => {
             新增年级
           </Button>
         }
+        style={{ minWidth: '100%', overflowX: 'auto' }}
       >
         <Table
           columns={columns}
           dataSource={grades}
           rowKey="id"
           loading={isLoading}
+          scroll={{ x: 1200, y: 'calc(100vh - 350px)' }}
           pagination={{
             showSizeChanger: true,
             showQuickJumper: true,

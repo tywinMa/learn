@@ -155,13 +155,9 @@ mkdir -p "$SCRIPT_DIR/logs"
 # 清理数据库文件（如果指定了force参数）
 if [ "$FORCE_RESET" = true ]; then
   echo -e "${YELLOW}清理数据库文件...${NC}"
-  if [ -f "/Users/maxin/maxin/learn/learn-server/src/database/learn.sqlite" ]; then
-    rm -rf /Users/maxin/maxin/learn/logs
-    rm -rf /Users/maxin/maxin/learn/learn-server/src/database/learn.sqlite
-    echo -e "${GREEN}数据库文件已删除${NC}"
-  else
-    echo -e "${BLUE}数据库文件不存在，无需删除${NC}"
-  fi
+  rm -rf /Users/maxin/maxin/learn/logs
+  rm -rf /Users/maxin/maxin/learn/learn-server/src/database/learn.sqlite
+  echo -e "${GREEN}数据库文件已删除${NC}"
 fi
 
 # 确保database目录存在

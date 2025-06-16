@@ -4,7 +4,7 @@ import api from './api';
 // 单元类型定义
 export interface Unit {
   id: string;
-  subject: string;
+  subjectGradeId: number; // 改为关联SubjectGrade的ID
   title: string;
   description?: string;
   order: number;
@@ -14,12 +14,31 @@ export interface Unit {
   courseIds?: string[]; // 关联的课程ID列表（Course的id是字符串类型）
   createdAt?: string;
   updatedAt?: string;
+  // 关联信息
+  subjectGrade?: {
+    id: number;
+    subjectCode: string;
+    gradeId: number;
+    subject?: {
+      id: string;
+      code: string;
+      name: string;
+      color: string;
+    };
+    grade?: {
+      id: number;
+      code: string;
+      name: string;
+      level: 'primary' | 'middle' | 'high';
+      levelNumber: number;
+    };
+  };
 }
 
 // 创建单元请求参数类型
 export interface CreateUnitParams {
   id: string;
-  subject: string;
+  subjectGradeId: number; // 改为关联SubjectGrade的ID
   title: string;
   description?: string;
   order?: number;
@@ -31,7 +50,7 @@ export interface CreateUnitParams {
 
 // 更新单元请求参数类型
 export interface UpdateUnitParams {
-  subject?: string;
+  subjectGradeId?: number; // 改为关联SubjectGrade的ID
   title?: string;
   description?: string;
   order?: number;
@@ -73,7 +92,7 @@ export const getAllUnits = async (): Promise<Unit[]> => {
 };
 
 /**
- * 获取学科的所有单元
+ * 获取学科的所有单元 (兼容旧接口)
  * @param subject 学科代码
  */
 export const getUnitsBySubject = async (subject: string): Promise<Unit[]> => {
@@ -92,6 +111,31 @@ export const getUnitsBySubject = async (subject: string): Promise<Unit[]> => {
     }
   } catch (error) {
     console.error(`获取学科(${subject})的单元失败:`, error);
+    message.error('获取单元列表失败');
+    return [];
+  }
+};
+
+/**
+ * 获取学科年级的所有单元
+ * @param subjectGradeId 学科年级关联ID
+ */
+export const getUnitsBySubjectGrade = async (subjectGradeId: number): Promise<Unit[]> => {
+  try {
+    const response = await api({
+      url: `/api/admin/units/subject-grade/${subjectGradeId}`,
+      method: 'GET'
+    });
+    
+    // API拦截器已经处理了err_no检查，直接返回data
+    if (Array.isArray(response)) {
+      return response as Unit[];
+    } else {
+      console.error('API响应格式错误:', response);
+      return [];
+    }
+  } catch (error) {
+    console.error(`获取学科年级(${subjectGradeId})的单元失败:`, error);
     message.error('获取单元列表失败');
     return [];
   }
@@ -207,32 +251,57 @@ export const deleteUnit = async (id: string): Promise<boolean> => {
 };
 
 /**
- * 删除指定学科的所有单元（使用批量删除接口）
+ * 批量删除指定学科的所有单元 (兼容旧接口)
  * @param subject 学科代码
  */
 export const deleteUnitsBySubject = async (subject: string): Promise<boolean> => {
   try {
-    console.log(`开始批量删除学科${subject}的所有单元`);
-    
     const response = await api({
       url: `/api/admin/units/subject/${subject}`,
       method: 'DELETE'
     });
     
     // API拦截器已经处理了err_no检查，直接判断响应
-    if (response && typeof response === 'object') {
-      const { deletedCount } = response as unknown as { deletedCount: number; subject: string };
-      console.log(`学科${subject}批量删除成功，删除了${deletedCount}个单元`);
-      message.success(`成功删除${deletedCount}个单元`);
+    if (response !== undefined) {
+      console.log(`学科${subject}的所有单元删除成功`);
+      message.success('单元删除成功');
       return true;
     } else {
-      console.error('API响应格式错误:', response);
-      message.error('批量删除失败');
+      console.error('API响应数据为空:', response);
+      message.error('删除单元失败');
       return false;
     }
   } catch (error) {
-    console.error(`批量删除学科${subject}的单元失败:`, error);
-    message.error(`删除学科${subject}的单元失败`);
+    console.error(`删除学科${subject}的单元失败:`, error);
+    message.error('删除单元失败');
+    return false;
+  }
+};
+
+/**
+ * 批量删除指定学科年级的所有单元
+ * @param subjectGradeId 学科年级关联ID
+ */
+export const deleteUnitsBySubjectGrade = async (subjectGradeId: number): Promise<boolean> => {
+  try {
+    const response = await api({
+      url: `/api/admin/units/subject-grade/${subjectGradeId}`,
+      method: 'DELETE'
+    });
+    
+    // API拦截器已经处理了err_no检查，直接判断响应
+    if (response !== undefined) {
+      console.log(`学科年级${subjectGradeId}的所有单元删除成功`);
+      message.success('单元删除成功');
+      return true;
+    } else {
+      console.error('API响应数据为空:', response);
+      message.error('删除单元失败');
+      return false;
+    }
+  } catch (error) {
+    console.error(`删除学科年级${subjectGradeId}的单元失败:`, error);
+    message.error('删除单元失败');
     return false;
   }
 }; 

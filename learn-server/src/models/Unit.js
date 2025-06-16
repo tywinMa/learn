@@ -7,12 +7,12 @@ const Unit = sequelize.define('Unit', {
     type: DataTypes.STRING,
     primaryKey: true,
     allowNull: false,
-    comment: '大单元ID，如"math-1"'
+    comment: '大单元ID，如"math-grade1-1"'
   },
-  subject: {
-    type: DataTypes.STRING,
+  subjectGradeId: {
+    type: DataTypes.INTEGER,
     allowNull: false,
-    comment: '学科代码，如math、physics等，用于标识所属学科'
+    comment: '学科年级关联ID，关联SubjectGrade表的id字段'
   },
   title: {
     type: DataTypes.STRING,

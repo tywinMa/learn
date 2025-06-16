@@ -167,6 +167,15 @@ const initSubjects = async () => {
  * 初始化单元和课程数据
  */
 const initUnitsAndCourses = async (subjects) => {
+  // 获取SubjectGrade关联信息
+  const { SubjectGrade, Grade } = require('../models');
+  const subjectGrades = await SubjectGrade.findAll({
+    include: [
+      { model: require('../models').Subject, as: 'subject' },
+      { model: Grade, as: 'grade' }
+    ]
+  });
+  
   const chapterColors = {
     math: [
       { primary: '#58CC02', secondary: '#7FDD33' },
@@ -188,13 +197,16 @@ const initUnitsAndCourses = async (subjects) => {
   const units = [];
   const courses = [];
 
-  // 数学单元和课程
-  const mathSubject = subjects.find(s => s.code === 'math');
-  if (mathSubject) {
+  // 数学单元和课程 - 以初一数学为例
+  const mathGrade7SubjectGrade = subjectGrades.find(sg => 
+    sg.subjectCode === 'math' && sg.grade.code === 'grade7'
+  );
+  
+  if (mathGrade7SubjectGrade) {
     // 数与代数单元
     const algebraUnit = await Unit.create({
-      id: 'math-1',
-      subject: 'math',
+      id: 'math-grade7-1',
+      subjectGradeId: mathGrade7SubjectGrade.id,
       title: '数与代数',
       description: '包含代数基础、一元二次方程、二次函数等内容',
       order: 1,
@@ -263,8 +275,8 @@ const initUnitsAndCourses = async (subjects) => {
 
     // 几何单元
     const geometryUnit = await Unit.create({
-      id: 'math-2',
-      subject: 'math',
+      id: 'math-grade7-2',
+      subjectGradeId: mathGrade7SubjectGrade.id,
       title: '几何',
       description: '包含平面几何、空间几何等内容',
       order: 2,
@@ -308,8 +320,8 @@ const initUnitsAndCourses = async (subjects) => {
 
     // 统计与概率单元
     const statsUnit = await Unit.create({
-      id: 'math-3',
-      subject: 'math',
+      id: 'math-grade7-3',
+      subjectGradeId: mathGrade7SubjectGrade.id,
       title: '统计与概率',
       description: '数据统计和概率计算',
       order: 3,
@@ -352,12 +364,15 @@ const initUnitsAndCourses = async (subjects) => {
     }
   }
 
-  // 物理单元和课程
-  const physicsSubject = subjects.find(s => s.code === 'physics');
-  if (physicsSubject) {
+  // 物理单元和课程 - 以初二物理为例
+  const physicsGrade8SubjectGrade = subjectGrades.find(sg => 
+    sg.subjectCode === 'physics' && sg.grade.code === 'grade8'
+  );
+  
+  if (physicsGrade8SubjectGrade) {
     const mechanicsUnit = await Unit.create({
-      id: 'physics-1',
-      subject: 'physics',
+      id: 'physics-grade8-1',
+      subjectGradeId: physicsGrade8SubjectGrade.id,
       title: '力学',
       description: '力学基础和运动学',
       order: 1,
@@ -392,12 +407,15 @@ const initUnitsAndCourses = async (subjects) => {
     }
   }
 
-  // 化学单元和课程
-  const chemistrySubject = subjects.find(s => s.code === 'chemistry');
-  if (chemistrySubject) {
+  // 化学单元和课程 - 以初三化学为例
+  const chemistryGrade9SubjectGrade = subjectGrades.find(sg => 
+    sg.subjectCode === 'chemistry' && sg.grade.code === 'grade9'
+  );
+  
+  if (chemistryGrade9SubjectGrade) {
     const basicChemUnit = await Unit.create({
-      id: 'chemistry-1',
-      subject: 'chemistry',
+      id: 'chemistry-grade9-1',
+      subjectGradeId: chemistryGrade9SubjectGrade.id,
       title: '化学基础',
       description: '化学基本概念和原理',
       order: 1,
@@ -424,12 +442,15 @@ const initUnitsAndCourses = async (subjects) => {
     }
   }
 
-  // 生物单元和课程
-  const biologySubject = subjects.find(s => s.code === 'biology');
-  if (biologySubject) {
+  // 生物单元和课程 - 以初一生物为例
+  const biologyGrade7SubjectGrade = subjectGrades.find(sg => 
+    sg.subjectCode === 'biology' && sg.grade.code === 'grade7'
+  );
+  
+  if (biologyGrade7SubjectGrade) {
     const cellBioUnit = await Unit.create({
-      id: 'biology-1',
-      subject: 'biology',
+      id: 'biology-grade7-1',
+      subjectGradeId: biologyGrade7SubjectGrade.id,
       title: '细胞生物学',
       description: '细胞的结构和功能',
       order: 1,
