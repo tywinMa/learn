@@ -58,6 +58,5 @@
     "react-test-renderer": "18.3.1",
     "typescript": "^5.3.3"
   },
-  "private": true,
-  "repository": "git@github.com:tywinMa/learn.git"
+  "private": true
 }

@@ -63,7 +63,7 @@ cleanup() {
   fi
   
   # 查找并终止所有占用相关端口的进程
-  PORTS=(3000 5173 5174 8082)
+  PORTS=(3000 5173 8082)
   for PORT in "${PORTS[@]}"; do
     PORT_PIDS=$(lsof -t -i:$PORT 2>/dev/null)
     if [ -n "$PORT_PIDS" ]; then
@@ -91,8 +91,8 @@ show_help() {
   echo ""
   echo -e "${YELLOW}启动的服务:${NC}"
   echo -e "  ${GREEN}后端服务${NC}:     http://localhost:3000 (learn-server)"
-  echo -e "  ${GREEN}后台管理${NC}:     http://localhost:5174 (learn-admin)"
-  echo -e "  ${GREEN}App端${NC}:        http://localhost:8082 (learn)"
+  echo -e "  ${GREEN}后台管理${NC}:     http://localhost:5173 (learn-admin)"
+  echo -e "  ${GREEN}App端${NC}:        http://localhost:8082 (learn-app)"
   echo ""
   echo -e "${YELLOW}注意事项:${NC}"
   echo -e "  - 请确保已安装所有依赖 (npm install)"
@@ -121,7 +121,7 @@ for PROCESS in "${PROCESS_TYPES[@]}"; do
 done
 
 # 清理端口占用
-PORTS=(3000 5173 5174 8082)
+PORTS=(3000 5173 8082)
 for PORT in "${PORTS[@]}"; do
   PORT_PIDS=$(lsof -t -i:$PORT 2>/dev/null)
   if [ -n "$PORT_PIDS" ]; then
@@ -151,8 +151,8 @@ if [ ! -d "learn-admin" ]; then
   exit 1
 fi
 
-if [ ! -d "learn" ]; then
-  echo -e "${RED}错误: learn 目录不存在${NC}"
+if [ ! -d "learn-app" ]; then
+  echo -e "${RED}错误: learn-app 目录不存在${NC}"
   exit 1
 fi
 
@@ -173,9 +173,9 @@ npm run dev > ../logs/admin.log 2>&1 &
 ADMIN_PID=$!
 echo -e "${CYAN}   后台管理PID: $ADMIN_PID${NC}"
 
-# 3. 启动App端 (learn) - 立即启动，不等待
-echo -e "${GREEN}3. 启动App端 (learn)...${NC}"
-cd "$SCRIPT_DIR/learn"
+# 3. 启动App端 (learn-app) - 立即启动，不等待
+echo -e "${GREEN}3. 启动App端 (learn-app)...${NC}"
+cd "$SCRIPT_DIR/learn-app"
 npm run web > ../logs/app.log 2>&1 &
 APP_PID=$!
 echo -e "${CYAN}   App端PID: $APP_PID${NC}"
@@ -209,13 +209,12 @@ check_service_health "后端服务器" 3000 15 &
 HEALTH_CHECK_SERVER_PID=$!
 
 # 检查后台管理系统 (可能需要编译)
-check_service_health "后台管理系统" 5174 20 &
+check_service_health "后台管理系统" 5173 20 &
 HEALTH_CHECK_ADMIN_PID=$!
 
-# 如果5174不响应，检查5173
 (
   sleep 20
-  if ! lsof -i:5174 >/dev/null 2>&1; then
+  if ! lsof -i:5173 >/dev/null 2>&1; then
     check_service_health "后台管理系统" 5173 10
   fi
 ) &
@@ -270,7 +269,7 @@ if [ ${#FAILED_SERVICES[@]} -gt 0 ]; then
   echo ""
   echo -e "${YELLOW}常见解决方案:${NC}"
   echo -e "  1. 检查依赖是否安装: ${CYAN}npm install${NC}"
-  echo -e "  2. 检查端口是否被占用: ${CYAN}lsof -i:3000,5173,5174,8082${NC}"
+  echo -e "  2. 检查端口是否被占用: ${CYAN}lsof -i:3000,5173,8082${NC}"
   echo -e "  3. 重新安装依赖: ${CYAN}rm -rf node_modules && npm install${NC}"
   cleanup
   exit 1
@@ -281,7 +280,7 @@ echo -e "${BLUE}🎉 所有服务启动成功！${NC}"
 echo -e "${GREEN}==============================================${NC}"
 echo -e "${YELLOW}服务地址:${NC}"
 echo -e "  ${GREEN}后端API${NC}:      http://localhost:3000"
-echo -e "  ${GREEN}后台管理${NC}:      http://localhost:5174 (或 5173)"
+echo -e "  ${GREEN}后台管理${NC}:      http://localhost:5173"
 echo -e "  ${GREEN}App端${NC}:         http://localhost:8082"
 echo ""
 echo -e "${YELLOW}日志文件:${NC}"

@@ -135,7 +135,7 @@ for PROCESS in "${PROCESS_TYPES[@]}"; do
 done
 
 # 查找并终止可能的服务器进程
-PORTS=(3000 5173 5174 8082)
+PORTS=(3000 5173 8082)
 for PORT in "${PORTS[@]}"; do
   PORT_PIDS=$(lsof -t -i:$PORT 2>/dev/null)
   if [ -n "$PORT_PIDS" ]; then
@@ -238,15 +238,15 @@ if [ $? -eq 0 ]; then
     
     # 验证目录结构
     cd "$SCRIPT_DIR"
-    if [ ! -d "learn" ]; then
+    if [ ! -d "learn-app" ]; then
         echo -e "${RED}❌ 错误: learn (App) 目录不存在${NC}"
         exit 1
     fi
     
     # 检查App依赖
-    if [ ! -d "learn/node_modules" ]; then
+    if [ ! -d "learn-app/node_modules" ]; then
         echo -e "${YELLOW}⏳ 安装App依赖...${NC}"
-        cd learn
+        cd learn-app
         npm install
         if [ $? -ne 0 ]; then
             echo -e "${RED}❌ App依赖安装失败${NC}"
@@ -266,7 +266,7 @@ if [ $? -eq 0 ]; then
     
     # 启动App端
     echo -e "${BLUE}📱 启动App端...${NC}"
-    cd "$SCRIPT_DIR/learn"
+    cd "$SCRIPT_DIR/learn-app"
     npm run web > ../logs/app.log 2>&1 &
     APP_PID=$!
     
@@ -340,7 +340,7 @@ if [ $? -eq 0 ]; then
         jobs -p | xargs -r kill 2>/dev/null
         
         # 终止指定端口的进程
-        PORTS=(3000 5173 5174)
+        PORTS=(3000 5173 8082)
         for PORT in "${PORTS[@]}"; do
             PORT_PIDS=$(lsof -t -i:$PORT 2>/dev/null)
             if [ -n "$PORT_PIDS" ]; then
@@ -416,7 +416,7 @@ if [ $? -eq 0 ]; then
     
     # 检查两个可能的端口
     (
-      check_service "后台管理系统" 5174 20 || check_service "后台管理系统" 5173 10
+      check_service "后台管理系统" 5173 10
     ) &
     HEALTH_CHECK_ADMIN=$!
     
@@ -437,7 +437,7 @@ if [ $? -eq 0 ]; then
     echo ""
     echo -e "${GREEN}🎉 服务端+后台管理启动完成！${NC}"
     echo -e "${CYAN}服务地址:${NC}"
-    echo -e "  👨‍💼 后台管理: ${YELLOW}http://localhost:5173 或 http://localhost:5174${NC}"
+    echo -e "  👨‍💼 后台管理: ${YELLOW}http://localhost:5173${NC}"
     echo -e "  🔧 后端API: ${YELLOW}http://localhost:3000${NC}"
     echo ""
     echo -e "${YELLOW}💡 使用说明:${NC}"

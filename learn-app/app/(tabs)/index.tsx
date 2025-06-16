@@ -28,7 +28,9 @@ import {
 } from "../services/progressService";
 import { getStudentPoints } from "../services/pointsService";
 import SubjectModal from "@/components/SubjectModal";
+import GradeModal from "@/components/GradeModal";
 import { useSubject, Subject } from "@/hooks/useSubject";
+import { Grade, getUserSubjectGradePreference, setUserPreference } from "../services/gradeService";
 import { API_BASE_URL } from "@/constants/apiConfig";
 import { CircularProgress } from "@/components/CircularProgress";
 
@@ -376,6 +378,10 @@ export default function HomeScreen() {
   const [showSubjectModal, setShowSubjectModal] = useState(false);
   const { currentSubject, setCurrentSubject } = useSubject();
 
+  // 添加年级切换相关状态
+  const [showGradeModal, setShowGradeModal] = useState(false);
+  const [currentGrade, setCurrentGrade] = useState<Grade | null>(null);
+
   // 添加课程数据状态 - 替代硬编码的COURSES
   const [courses, setCourses] = useState<any[]>([]);
 
@@ -439,6 +445,10 @@ export default function HomeScreen() {
         if (savedSubject) {
           console.log("从存储中加载学科:", savedSubject.name);
           setCurrentSubject(savedSubject);
+          
+          // 加载该学科的年级偏好
+          await loadUserGradePreference(savedSubject.code);
+          
           fetchSubjectCourses(savedSubject.code);
         } else {
           // 从服务器获取默认学科(数学)
@@ -448,6 +458,10 @@ export default function HomeScreen() {
             if (result.success && result.data) {
               console.log("从服务器加载默认学科:", result.data.name);
               setCurrentSubject(result.data);
+              
+              // 加载该学科的年级偏好
+              await loadUserGradePreference(result.data.code);
+              
               fetchSubjectCourses(result.data.code);
             } else {
               // 加载失败时使用本地默认值
@@ -467,6 +481,23 @@ export default function HomeScreen() {
 
     initSubject();
   }, []);
+
+  // 加载用户年级偏好
+  const loadUserGradePreference = async (subjectCode: string) => {
+    try {
+      const currentStudentIdStr = await getCurrentStudentIdForProgress();
+      const currentStudentId = parseInt(currentStudentIdStr);
+      
+      const preference = await getUserSubjectGradePreference(currentStudentId, subjectCode);
+      
+      if (preference && preference.grade) {
+        setCurrentGrade(preference.grade);
+        console.log("加载用户年级偏好:", preference.grade.name);
+      }
+    } catch (error) {
+      console.error("加载用户年级偏好失败:", error);
+    }
+  };
 
   // 格式化API数据为前端所需格式
   const formatCoursesData = (apiData: any, subject: any) => {
@@ -554,7 +585,7 @@ export default function HomeScreen() {
   };
 
   // 处理学科切换
-  const handleSubjectSelect = (subject: Subject) => {
+  const handleSubjectSelect = async (subject: Subject) => {
     // 关闭模态框
     setShowSubjectModal(false);
 
@@ -566,23 +597,67 @@ export default function HomeScreen() {
     // 保存学科到上下文和AsyncStorage
     saveCurrentSubject(subject);
 
-    // 弹出一个提示，表示已切换学科
-    Alert.alert("学科已切换", `您已成功切换到${subject.name}学科`, [
-      {
-        text: "好的",
-        style: "default",
-        onPress: () => {
-          // 使用expo-router导航刷新应用
-          router.replace({
-            pathname: "/",
-            params: {
-              refresh: Date.now().toString(),
-              currentSubject: subject.code,
+    try {
+      // 获取当前学生ID
+      const currentStudentIdStr = await getCurrentStudentIdForProgress();
+      const currentStudentId = parseInt(currentStudentIdStr);
+      
+      // 检查用户是否有该学科的年级偏好
+      const preference = await getUserSubjectGradePreference(currentStudentId, subject.code);
+      
+      if (preference && preference.gradeId && preference.grade) {
+        // 如果有年级偏好，直接切换到该年级
+        setCurrentGrade(preference.grade);
+        
+        // 弹出提示并刷新
+        Alert.alert("学科已切换", `您已成功切换到${subject.name}学科，年级：${preference.grade.name}`, [
+          {
+            text: "好的",
+            style: "default",
+            onPress: () => {
+              router.replace({
+                pathname: "/",
+                params: {
+                  refresh: Date.now().toString(),
+                  currentSubject: subject.code,
+                },
+              });
             },
-          });
-        },
-      },
-    ]);
+          },
+        ]);
+      } else {
+        // 如果没有年级偏好，需要用户选择年级
+        Alert.alert(
+          "请选择年级", 
+          `您已切换到${subject.name}学科，请选择要学习的年级`,
+          [
+            {
+              text: "选择年级",
+              style: "default",
+              onPress: () => {
+                setShowGradeModal(true);
+              },
+            },
+          ]
+        );
+      }
+    } catch (error) {
+      console.error("获取用户年级偏好失败:", error);
+      // 如果获取偏好失败，也让用户选择年级
+      Alert.alert(
+        "请选择年级", 
+        `您已切换到${subject.name}学科，请选择要学习的年级`,
+        [
+          {
+            text: "选择年级",
+            style: "default",
+            onPress: () => {
+              setShowGradeModal(true);
+            },
+          },
+        ]
+      );
+    }
 
     // 更新本地状态
     setCurrentSubject(subject);
@@ -591,9 +666,51 @@ export default function HomeScreen() {
     setCurrentUnit(0);
     setCourses([]); // 清空当前课程数据
     setLoadingCourses(true); // 显示加载状态
+  };
 
-    // 获取新学科的课程数据
-    fetchSubjectCourses(subject.code);
+  // 处理年级切换
+  const handleGradeSelect = async (grade: Grade) => {
+    // 关闭模态框
+    setShowGradeModal(false);
+
+    // 如果选择的是当前年级，不做任何操作
+    if (currentGrade && grade.id === currentGrade.id) {
+      return;
+    }
+
+    try {
+      // 获取当前学生ID
+      const currentStudentIdStr = await getCurrentStudentIdForProgress();
+      const currentStudentId = parseInt(currentStudentIdStr);
+      
+      // 保存用户的年级-学科偏好
+      await setUserPreference(currentStudentId, currentSubject.code, grade.id);
+      
+      // 更新当前年级
+      setCurrentGrade(grade);
+
+      // 弹出提示
+      Alert.alert("年级已切换", `您已成功切换到${grade.name}`, [
+        {
+          text: "好的",
+          style: "default",
+          onPress: () => {
+            // 刷新当前学科的课程数据
+            fetchSubjectCourses(currentSubject.code);
+          },
+        },
+      ]);
+
+      // 清空当前数据，准备加载新年级的数据
+      setError(null);
+      setProgressData({});
+      setCurrentUnit(0);
+      setCourses([]);
+      setLoadingCourses(true);
+    } catch (error) {
+      console.error("设置用户年级偏好失败:", error);
+      Alert.alert("切换失败", "年级切换失败，请重试");
+    }
   };
 
   // 分阶段获取用户进度数据和积分
@@ -1027,16 +1144,35 @@ export default function HomeScreen() {
     <RNView style={styles.container}>
       {/* 顶部状态栏 */}
       <RNView style={styles.statsBar}>
-        <TouchableOpacity
-          style={styles.statItem}
-          onPress={() => setShowSubjectModal(true)}
-        >
-          <MaterialCommunityIcons
-            name={currentSubject.iconName as any}
-            size={26}
-            color={currentSubject.color}
-          />
-        </TouchableOpacity>
+        <RNView style={styles.switchContainer}>
+          <TouchableOpacity
+            style={styles.switchButton}
+            onPress={() => setShowSubjectModal(true)}
+          >
+            <MaterialCommunityIcons
+              name={currentSubject.iconName as any}
+              size={24}
+              color={currentSubject.color}
+            />
+            <Text style={[styles.switchLabel, { color: currentSubject.color }]}>
+              学科
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.switchButton}
+            onPress={() => setShowGradeModal(true)}
+          >
+            <MaterialCommunityIcons
+              name="school"
+              size={24}
+              color={currentSubject.color}
+            />
+            <Text style={[styles.switchLabel, { color: currentSubject.color }]}>
+              {currentGrade ? currentGrade.name : '年级'}
+            </Text>
+          </TouchableOpacity>
+        </RNView>
 
         <RNView style={styles.statItem}>
           <RNView style={styles.streakContainer}>
@@ -1067,6 +1203,15 @@ export default function HomeScreen() {
         visible={showSubjectModal}
         onClose={() => setShowSubjectModal(false)}
         onSelectSubject={handleSubjectSelect}
+      />
+
+      {/* 年级切换弹窗 */}
+      <GradeModal
+        visible={showGradeModal}
+        onClose={() => setShowGradeModal(false)}
+        onSelectGrade={handleGradeSelect}
+        currentSubjectCode={currentSubject.code}
+        currentGrade={currentGrade}
       />
 
       {/* 锁定提示tooltip - 关卡左侧显示 */}
@@ -1126,6 +1271,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: "white",
+  },
+  switchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  switchButton: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  switchLabel: {
+    fontSize: 12,
+    fontWeight: "500",
+    marginTop: 2,
   },
   statItem: {
     flexDirection: "row",

@@ -1,5 +1,5 @@
 const { sequelize } = require("../config/database");
-const { Subject, Unit, Course, Exercise, ExerciseGroup, User, KnowledgePoint, Student } = require("../models");
+const { Subject, Unit, Course, Exercise, ExerciseGroup, User, KnowledgePoint, Student, Grade, SubjectGrade } = require("../models");
 
 /**
  * 完整的数据库初始化脚本
@@ -30,44 +30,54 @@ const completeInit = async (options = {}) => {
     const subjects = await initSubjects();
     console.log(`✅ 创建学科: ${subjects.length}个`);
 
-    // 3. 初始化单元数据
+    // 3. 初始化年级数据
+    console.log("\n🏫 初始化年级数据...");
+    const grades = await initGrades();
+    console.log(`✅ 创建年级: ${grades.length}个`);
+
+    // 4. 初始化学科年级关联数据
+    console.log("\n🔗 初始化学科年级关联...");
+    const subjectGrades = await initSubjectGrades(subjects, grades);
+    console.log(`✅ 创建学科年级关联: ${subjectGrades.length}个`);
+
+    // 5. 初始化单元数据
     console.log("\n📖 初始化单元和课程数据...");
     const { units, courses } = await initUnitsAndCourses(subjects);
     console.log(`✅ 创建大单元: ${units.length}个, 课程: ${courses.length}个`);
 
-    // 4. 初始化练习题数据（独立存在，只关联学科）
+    // 6. 初始化练习题数据（独立存在，只关联学科）
     console.log("\n📝 初始化练习题数据...");
     const exercises = await initExercises(subjects);
     console.log(`✅ 创建练习题: ${exercises.length}道`);
 
-    // 5. 初始化习题组数据
+    // 7. 初始化习题组数据
     console.log("\n📋 初始化习题组数据...");
     const exerciseGroups = await initExerciseGroups(subjects, exercises);
     console.log(`✅ 创建习题组: ${exerciseGroups.length}个`);
 
-    // 6. 关联课程和习题组
+    // 8. 关联课程和习题组
     console.log("\n🔗 关联课程和习题组...");
     await linkCoursesWithExerciseGroups(courses, exerciseGroups);
     console.log("✅ 课程习题组关联完成");
 
-    // 7. 初始化课程内容
+    // 9. 初始化课程内容
     console.log("\n📄 初始化课程内容...");
     await initCourseContents(courses);
     console.log("✅ 课程内容初始化完成");
 
-    // 8. 初始化管理员数据
+    // 10. 初始化管理员数据
     if (includeAdminData) {
       console.log("\n👤 初始化管理员数据...");
       const users = await initAdminData();
       console.log(`✅ 创建用户: ${users.length}个`);
     }
 
-    // 9. 初始化测试学生数据
+    // 11. 初始化测试学生数据
     console.log("\n👨‍🎓 初始化测试学生数据...");
     const students = await initStudentData();
     console.log(`✅ 创建学生: ${students.length}个`);
 
-    // 10. 初始化知识点数据
+    // 12. 初始化知识点数据
     if (includeKnowledgePoints) {
       console.log("\n🧠 初始化知识点数据...");
       const knowledgePoints = await initKnowledgePointsData(exercises);
@@ -77,6 +87,8 @@ const completeInit = async (options = {}) => {
     console.log("\n🎉 完整数据库初始化完成！");
     console.log("==============================================");
     console.log(`✓ 学科数据: ${subjects.length}个`);
+    console.log(`✓ 年级数据: ${grades.length}个`);
+    console.log(`✓ 学科年级关联: ${subjectGrades.length}个`);
     console.log(`✓ 大单元: ${units.length}个`);
     console.log(`✓ 课程: ${courses.length}个`);
     console.log(`✓ 练习题: ${exercises.length}道`);
@@ -87,6 +99,8 @@ const completeInit = async (options = {}) => {
 
     return {
       subjects,
+      grades,
+      subjectGrades,
       units,
       courses,
       exercises,
@@ -1237,6 +1251,92 @@ const initKnowledgePointsData = async (exercises) => {
 
   console.log(`创建了${knowledgePoints.length}个知识点`);
   return knowledgePoints;
+};
+
+/**
+ * 初始化年级数据
+ */
+const initGrades = async () => {
+  const gradesData = [
+    // 小学年级 (primary)
+    { code: 'grade1', name: '一年级', level: 'primary', levelNumber: 1, order: 1 },
+    { code: 'grade2', name: '二年级', level: 'primary', levelNumber: 2, order: 2 },
+    { code: 'grade3', name: '三年级', level: 'primary', levelNumber: 3, order: 3 },
+    { code: 'grade4', name: '四年级', level: 'primary', levelNumber: 4, order: 4 },
+    { code: 'grade5', name: '五年级', level: 'primary', levelNumber: 5, order: 5 },
+    { code: 'grade6', name: '六年级', level: 'primary', levelNumber: 6, order: 6 },
+
+    // 初中年级 (middle)
+    { code: 'grade7', name: '初一', level: 'middle', levelNumber: 1, order: 7 },
+    { code: 'grade8', name: '初二', level: 'middle', levelNumber: 2, order: 8 },
+    { code: 'grade9', name: '初三', level: 'middle', levelNumber: 3, order: 9 },
+
+    // 高中年级 (high)
+    { code: 'grade10', name: '高一', level: 'high', levelNumber: 1, order: 10 },
+    { code: 'grade11', name: '高二', level: 'high', levelNumber: 2, order: 11 },
+    { code: 'grade12', name: '高三', level: 'high', levelNumber: 3, order: 12 }
+  ];
+
+  const grades = [];
+  for (const gradeData of gradesData) {
+    const [grade, created] = await Grade.findOrCreate({
+      where: { code: gradeData.code },
+      defaults: gradeData
+    });
+    grades.push(grade);
+    if (created) {
+      console.log(`年级 ${grade.name} 创建成功`);
+    }
+  }
+  return grades;
+};
+
+/**
+ * 初始化学科年级关联数据
+ */
+const initSubjectGrades = async (subjects, grades) => {
+  const subjectGradeRelations = [
+    // 数学：从小学一年级到高中三年级都有
+    { subjectCode: 'math', gradeCodes: ['grade1', 'grade2', 'grade3', 'grade4', 'grade5', 'grade6', 'grade7', 'grade8', 'grade9', 'grade10', 'grade11', 'grade12'] },
+    
+    // 物理：从初二开始
+    { subjectCode: 'physics', gradeCodes: ['grade8', 'grade9', 'grade10', 'grade11', 'grade12'] },
+    
+    // 化学：从初三开始
+    { subjectCode: 'chemistry', gradeCodes: ['grade9', 'grade10', 'grade11', 'grade12'] },
+    
+    // 生物：从初一开始
+    { subjectCode: 'biology', gradeCodes: ['grade7', 'grade8', 'grade9', 'grade10', 'grade11', 'grade12'] }
+  ];
+
+  const subjectGrades = [];
+  let order = 1;
+
+  for (const relation of subjectGradeRelations) {
+    for (const gradeCode of relation.gradeCodes) {
+      const grade = grades.find(g => g.code === gradeCode);
+      if (grade) {
+        const [subjectGrade, created] = await SubjectGrade.findOrCreate({
+          where: { 
+            subjectCode: relation.subjectCode,
+            gradeId: grade.id
+          },
+          defaults: {
+            subjectCode: relation.subjectCode,
+            gradeId: grade.id,
+            order: order++
+          }
+        });
+        subjectGrades.push(subjectGrade);
+        if (created) {
+          const subject = subjects.find(s => s.code === relation.subjectCode);
+          console.log(`学科年级关联创建: ${subject?.name} - ${grade.name}`);
+        }
+      }
+    }
+  }
+
+  return subjectGrades;
 };
 
 // 如果直接运行该文件

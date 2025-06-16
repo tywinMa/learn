@@ -170,6 +170,12 @@ const MainLayout: React.FC = () => {
           onClick: () => navigate("/subjects"),
         },
         {
+          key: "grades",
+          icon: <ReadOutlined />,
+          label: "年级管理",
+          onClick: () => navigate("/grades"),
+        },
+        {
           key: "units",
           icon: <ReadOutlined />,
           label: "单元管理",
@@ -256,6 +262,7 @@ const MainLayout: React.FC = () => {
     if (path.includes("dashboard")) return ["dashboard"];
     if (path.includes("courses")) return ["course-group", "courses"];
     if (path.includes("subjects")) return ["course-group", "subjects"];
+    if (path.includes("grades")) return ["course-group", "grades"];
     if (path.includes("units")) return ["course-group", "units"];
     if (path.includes("exercises")) return ["course-group", "exercise-management", "exercises"];
     if (path.includes("exercise-groups")) return ["course-group", "exercise-management", "exercise-groups"];
@@ -271,6 +278,7 @@ const MainLayout: React.FC = () => {
     if (path.includes("dashboard")) return "仪表盘";
     if (path.includes("courses")) return "课程管理";
     if (path.includes("subjects")) return "学科管理";
+    if (path.includes("grades")) return "年级管理";
     if (path.includes("units")) return "单元管理";
     if (path.includes("exercises")) return "练习题管理";
     if (path.includes("exercise-groups")) return "习题组管理";

@@ -62,6 +62,11 @@ const Course = sequelize.define('Course', {
     allowNull: true,
     defaultValue: [],
     comment: '关联的习题组ID数组'
+  },
+  gradeId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: '年级ID，关联Grade表的id字段'
   }
 }, {
   timestamps: true,

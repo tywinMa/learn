@@ -10,6 +10,9 @@ const User = require('./User');
 const Student = require('./Student');
 const ExerciseGroup = require('./ExerciseGroup');
 const Task = require('./Task');
+const Grade = require('./Grade');
+const SubjectGrade = require('./SubjectGrade');
+const UserGradeSubjectPreference = require('./UserGradeSubjectPreference');
 const { sequelize } = require('../config/database');
 
 // 定义模型之间的关系
@@ -68,6 +71,31 @@ UnitProgress.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
 // Student和AnswerRecord之间的关系
 Student.hasMany(AnswerRecord, { foreignKey: 'studentId', as: 'answerRecords' });
 AnswerRecord.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
+
+// ===== 年级相关的关系 =====
+// Grade和SubjectGrade之间的关系
+Grade.hasMany(SubjectGrade, { foreignKey: 'gradeId', as: 'subjectGrades' });
+SubjectGrade.belongsTo(Grade, { foreignKey: 'gradeId', as: 'grade' });
+
+// Subject和SubjectGrade之间的关系
+Subject.hasMany(SubjectGrade, { foreignKey: 'subjectCode', sourceKey: 'code', as: 'subjectGrades' });
+SubjectGrade.belongsTo(Subject, { foreignKey: 'subjectCode', targetKey: 'code', as: 'subject' });
+
+// Course和Grade之间的关系
+Course.belongsTo(Grade, { foreignKey: 'gradeId', as: 'grade' });
+Grade.hasMany(Course, { foreignKey: 'gradeId', as: 'courses' });
+
+// Student和UserGradeSubjectPreference之间的关系
+Student.hasMany(UserGradeSubjectPreference, { foreignKey: 'studentId', as: 'gradeSubjectPreferences' });
+UserGradeSubjectPreference.belongsTo(Student, { foreignKey: 'studentId', as: 'student' });
+
+// Subject和UserGradeSubjectPreference之间的关系
+Subject.hasMany(UserGradeSubjectPreference, { foreignKey: 'subjectCode', sourceKey: 'code', as: 'gradeSubjectPreferences' });
+UserGradeSubjectPreference.belongsTo(Subject, { foreignKey: 'subjectCode', targetKey: 'code', as: 'subject' });
+
+// Grade和UserGradeSubjectPreference之间的关系
+Grade.hasMany(UserGradeSubjectPreference, { foreignKey: 'gradeId', as: 'gradeSubjectPreferences' });
+UserGradeSubjectPreference.belongsTo(Grade, { foreignKey: 'gradeId', as: 'grade' });
 
 // 同步所有模型到数据库
 const syncDatabase = async () => {
@@ -142,6 +170,9 @@ module.exports = {
   Student,
   ExerciseGroup,
   Task,
+  Grade,
+  SubjectGrade,
+  UserGradeSubjectPreference,
   sequelize,
   syncDatabase
 };

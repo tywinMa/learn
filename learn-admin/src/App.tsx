@@ -14,6 +14,7 @@ import KnowledgePointForm from './pages/knowledgePoints/KnowledgePointForm';
 import StudentList from './pages/students/StudentList';
 import StudentProgress from './pages/students/StudentProgress';
 import SubjectList from './pages/subjects/SubjectList';
+import GradeList from './pages/grades/GradeList';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -78,6 +79,9 @@ function App() {
           
           {/* 学科管理 */}
           <Route path="subjects" element={<SubjectList />} />
+          
+          {/* 年级管理 */}
+          <Route path="grades" element={<GradeList />} />
           
           {/* 系统设置 */}
           <Route path="settings" element={<Settings />} />

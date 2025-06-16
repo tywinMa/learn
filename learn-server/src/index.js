@@ -15,6 +15,7 @@ const unitsRouter = require('./routes/units');
 const knowledgePointsRoutes = require('./routes/knowledgePoints');
 const answerRecordsRoutes = require('./routes/answerRecords');
 const studentsRoutes = require('./routes/students');
+const userPreferenceRoutes = require('./routes/userPreferenceRoutes');
 
 // 导入 admin 端路由
 const adminAuthRoutes = require('./routes/admin/authRoutes');
@@ -28,6 +29,7 @@ const adminUploadRoutes = require('./routes/admin/uploadRoutes');
 const adminSubjectRoutes = require('./routes/admin/subjectRoutes');
 const adminKnowledgePointRoutes = require('./routes/admin/knowledgePointRoutes');
 const adminTaskRoutes = require('./routes/admin/taskRoutes');
+const gradeRoutes = require('./routes/gradeRoutes');
 
 const app = express();
 const PORT = config.port;
@@ -58,6 +60,7 @@ app.use('/api/answer-records', answerRecordsRoutes);
 app.use('/api/knowledge-points', knowledgePointsRoutes);
 app.use('/api/students', studentsRoutes);
 app.use('/api/students', studentPointsRoutes);
+app.use('/api', userPreferenceRoutes);
 
 // Admin端路由 - 以 /api/admin 开头
 app.use('/api/admin/auth', adminAuthRoutes);
@@ -71,6 +74,7 @@ app.use('/api/admin/upload', adminUploadRoutes);
 app.use('/api/admin/subjects', adminSubjectRoutes);
 app.use('/api/admin/knowledge-points', adminKnowledgePointRoutes);
 app.use('/api/admin/tasks', adminTaskRoutes);
+app.use('/api', gradeRoutes);
 
 // 根路由
 app.get('/', (req, res) => {
