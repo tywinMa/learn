@@ -9,6 +9,7 @@ import {
   Modal,
   ScrollView,
   useWindowDimensions,
+  Alert,
 } from "react-native";
 import { Text, View } from "@/components/Themed";
 import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
@@ -100,6 +101,50 @@ interface KnowledgePoint {
   mediaUrl?: string;
 }
 
+// AI讲解按钮组件
+const AIExplanationButtons = () => {
+  const handleAIExplanation = (type: string) => {
+    Alert.alert("提示", "功能待实现", [{ text: "确定", style: "default" }]);
+  };
+
+  return (
+    <RNView style={styles.aiExplanationContainer}>
+      <RNView style={styles.aiExplanationHeader}>
+        <Ionicons name="sparkles" size={16} color="#FF6B35" />
+        <Text style={styles.aiExplanationTitle}>AI智能讲解</Text>
+      </RNView>
+      <RNView style={styles.aiButtonsRow}>
+        <TouchableOpacity
+          style={[styles.aiButton, styles.aiTextButton]}
+          onPress={() => handleAIExplanation("text")}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="document-text-outline" size={18} color="#4A90E2" />
+          <Text style={[styles.aiButtonText, { color: "#4A90E2" }]}>AI文字讲解</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.aiButton, styles.aiVisualButton]}
+          onPress={() => handleAIExplanation("visual")}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="eye-outline" size={18} color="#50C878" />
+          <Text style={[styles.aiButtonText, { color: "#50C878" }]}>AI可视化讲解</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={[styles.aiButton, styles.aiInteractiveButton]}
+          onPress={() => handleAIExplanation("interactive")}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="chatbubbles-outline" size={18} color="#FF6B35" />
+          <Text style={[styles.aiButtonText, { color: "#FF6B35" }]}>AI互动讲解</Text>
+        </TouchableOpacity>
+      </RNView>
+    </RNView>
+  );
+};
+
 // 独立的知识点组件
 const KnowledgePointsSection = ({ knowledgePoints }: { knowledgePoints?: KnowledgePoint[] }) => {
   // 知识点弹窗状态
@@ -111,32 +156,33 @@ const KnowledgePointsSection = ({ knowledgePoints }: { knowledgePoints?: Knowled
     setShowKnowledgeModal(true);
   };
 
-  // 如果没有知识点，返回null
-  if (!knowledgePoints || knowledgePoints.length === 0) {
-    return null;
-  }
-
   return (
     <>
-      <RNView style={styles.knowledgePointsContainer}>
-        <RNView style={styles.knowledgePointsHeader}>
-          <Ionicons name="bulb-outline" size={16} color="#FF9500" />
-          <Text style={styles.knowledgePointsTitle}>相关知识点</Text>
+      {/* AI讲解按钮 - 始终显示 */}
+      <AIExplanationButtons />
+      
+      {/* 相关知识点 - 只有当存在知识点时才显示 */}
+      {knowledgePoints && knowledgePoints.length > 0 && (
+        <RNView style={styles.knowledgePointsContainer}>
+          <RNView style={styles.knowledgePointsHeader}>
+            <Ionicons name="bulb-outline" size={16} color="#FF9500" />
+            <Text style={styles.knowledgePointsTitle}>相关知识点</Text>
+          </RNView>
+          <RNView style={styles.knowledgePointsList}>
+            {knowledgePoints.map((point, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.knowledgePointTag}
+                onPress={() => handleKnowledgePointPress(point)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.knowledgePointText}>{point.title}</Text>
+                <Ionicons name="chevron-forward" size={14} color="#666" />
+              </TouchableOpacity>
+            ))}
+          </RNView>
         </RNView>
-        <RNView style={styles.knowledgePointsList}>
-          {knowledgePoints.map((point, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.knowledgePointTag}
-              onPress={() => handleKnowledgePointPress(point)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.knowledgePointText}>{point.title}</Text>
-              <Ionicons name="chevron-forward" size={14} color="#666" />
-            </TouchableOpacity>
-          ))}
-        </RNView>
-      </RNView>
+      )}
 
       {/* 知识点弹窗 */}
       <KnowledgePointModal
@@ -1515,5 +1561,56 @@ const styles = StyleSheet.create({
     color: "#495057",
     fontWeight: "500",
     marginRight: 4,
+  },
+  // AI讲解按钮样式
+  aiExplanationContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: "white",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#eaeaea",
+  },
+  aiExplanationHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  aiExplanationTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    marginLeft: 8,
+    color: "#444",
+  },
+  aiButtonsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  aiButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    marginHorizontal: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    backgroundColor: "#f8f9fa",
+  },
+  aiTextButton: {
+    borderColor: "#4A90E2",
+  },
+  aiVisualButton: {
+    borderColor: "#50C878",
+  },
+  aiInteractiveButton: {
+    borderColor: "#FF6B35",
+  },
+  aiButtonText: {
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 4,
   },
 });
