@@ -30,6 +30,7 @@ const adminSubjectRoutes = require('./routes/admin/subjectRoutes');
 const adminKnowledgePointRoutes = require('./routes/admin/knowledgePointRoutes');
 const adminTaskRoutes = require('./routes/admin/taskRoutes');
 const gradeRoutes = require('./routes/gradeRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 const app = express();
 const PORT = config.port;
@@ -61,6 +62,7 @@ app.use('/api/knowledge-points', knowledgePointsRoutes);
 app.use('/api/students', studentsRoutes);
 app.use('/api/students', studentPointsRoutes);
 app.use('/api', userPreferenceRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Admin端路由 - 以 /api/admin 开头
 app.use('/api/admin/auth', adminAuthRoutes);

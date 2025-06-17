@@ -59,7 +59,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="practice"
+        name="ai-solve"
         options={{
           title: "",
           tabBarIcon: ({ color, focused }: TabBarIconProps) => (
@@ -67,9 +67,9 @@ export default function TabLayout() {
               <View
                 style={[styles.centerTabCircle, { backgroundColor: focused ? Colors[colorScheme].tint : "#dddddd" }]}
               >
-                <Ionicons name="barbell" size={24} color={focused ? "white" : "#888"} />
+                <Ionicons name="camera" size={24} color={focused ? "white" : "#888"} />
               </View>
-              <Text style={{ color, fontSize: 12, marginTop: 2 }}>练习</Text>
+              <Text style={{ color, fontSize: 12, marginTop: 2 }}>AI解题</Text>
             </View>
           ),
         }}

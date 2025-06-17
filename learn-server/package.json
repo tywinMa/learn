@@ -30,7 +30,9 @@
     "jsonwebtoken": "^9.0.0",
     "morgan": "^1.10.0",
     "multer": "^2.0.0",
+    "openai": "^4.28.0",
     "sequelize": "^6.32.1",
+    "sharp": "^0.33.2",
     "sqlite3": "^5.1.7",
     "uuid": "^11.1.0"
   },
