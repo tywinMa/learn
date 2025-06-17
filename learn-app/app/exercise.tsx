@@ -157,61 +157,115 @@ const ResultFeedback = ({
   explanation,
   onContinue,
   onSubmitAnswer,
+  onSkip,
   hasSubmitted,
+  onOpenDraftPaper,
+  currentIndex,
+  totalCount,
 }: {
   isCorrect: boolean;
   explanation?: string;
   onContinue: () => void;
   onSubmitAnswer?: () => void;
+  onSkip?: () => void;
   hasSubmitted: boolean;
+  onOpenDraftPaper?: () => void;
+  currentIndex: number;
+  totalCount: number;
 }) => {
+  const progressPercentage = totalCount > 0 ? (currentIndex / totalCount) * 100 : 0;
+  
   return (
-    <RNView
-      style={[
-        styles.feedbackContainer,
-        isCorrect ? styles.correctFeedbackContainer : styles.incorrectFeedbackContainer,
-      ]}
-    >
+    <RNView style={styles.feedbackContainer}>
       {hasSubmitted ? (
         // 已提交答案，显示结果反馈
         <>
-          <RNView style={styles.feedbackHeader}>
-            <Ionicons
-              name={isCorrect ? "checkmark-circle" : "close-circle"}
-              size={32}
-              color={isCorrect ? "#58CC02" : "#FF4B4B"}
-            />
-            <Text
-              style={[styles.feedbackHeaderText, isCorrect ? styles.correctFeedbackText : styles.incorrectFeedbackText]}
-            >
-              {isCorrect ? "回答正确！" : "回答错误！"}
-            </Text>
-          </RNView>
-
-          {explanation && (
-            <RNView style={styles.explanationContainer}>
-              <Text style={styles.explanationTitle}>解析：</Text>
-              <HtmlContent 
-                html={explanation} 
-                style={styles.explanationText}
+          <RNView style={[
+            styles.resultContainer,
+            isCorrect ? styles.correctFeedbackContainer : styles.incorrectFeedbackContainer,
+          ]}>
+            <RNView style={styles.feedbackHeader}>
+              <Ionicons
+                name={isCorrect ? "checkmark-circle" : "close-circle"}
+                size={32}
+                color={isCorrect ? "#58CC02" : "#FF4B4B"}
               />
+              <Text
+                style={[styles.feedbackHeaderText, isCorrect ? styles.correctFeedbackText : styles.incorrectFeedbackText]}
+              >
+                {isCorrect ? "回答正确！" : "回答错误！"}
+              </Text>
             </RNView>
-          )}
 
-          <TouchableOpacity
-            style={[styles.continueButton, isCorrect ? styles.correctContinueButton : styles.incorrectContinueButton]}
-            onPress={onContinue}
-          >
-            <Text style={styles.continueButtonText}>继续</Text>
-            <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
-          </TouchableOpacity>
+            {explanation && (
+              <RNView style={styles.explanationContainer}>
+                <Text style={styles.explanationTitle}>解析：</Text>
+                <HtmlContent 
+                  html={explanation} 
+                  style={styles.explanationText}
+                />
+              </RNView>
+            )}
+
+            <TouchableOpacity
+              style={[styles.continueButton, isCorrect ? styles.correctContinueButton : styles.incorrectContinueButton]}
+              onPress={onContinue}
+            >
+              <Text style={styles.continueButtonText}>继续</Text>
+              <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
+            </TouchableOpacity>
+          </RNView>
         </>
       ) : (
-        // 未提交答案，始终显示提交按钮
-        <TouchableOpacity style={styles.confirmSubmitButton} onPress={onSubmitAnswer}>
-          <Text style={styles.confirmSubmitButtonText}>提交答案</Text>
-          <Ionicons name="checkmark-circle" size={20} color="white" style={{ marginLeft: 8 }} />
-        </TouchableOpacity>
+        // 未提交答案，显示底部操作区域
+        <RNView style={styles.bottomActionsContainer}>
+          {/* 画板按钮 */}
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={onOpenDraftPaper}
+          >
+            <RNView style={styles.actionButtonContent}>
+              <Ionicons name="create-outline" size={20} color="#666" />
+              <Text style={styles.actionButtonText}>画板</Text>
+            </RNView>
+          </TouchableOpacity>
+
+          {/* 进度条区域 */}
+          <RNView style={styles.progressSection}>
+            <Text style={styles.progressLabel}>本次测试的进度条：</Text>
+            <RNView style={styles.progressBarContainer}>
+              <RNView style={styles.progressBarBackground}>
+                <RNView 
+                  style={[
+                    styles.progressBarFill, 
+                    { width: `${progressPercentage}%`, backgroundColor: "#58CC02" }
+                  ]} 
+                />
+              </RNView>
+              <Text style={styles.progressPercentText}>{Math.round(progressPercentage)}%</Text>
+            </RNView>
+          </RNView>
+
+          {/* 跳过按钮 */}
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={onSkip}
+          >
+            <RNView style={styles.actionButtonContent}>
+              <Text style={styles.skipButtonText}>跳过</Text>
+            </RNView>
+          </TouchableOpacity>
+
+          {/* 提交按钮 */}
+          <TouchableOpacity 
+            style={styles.submitActionButton} 
+            onPress={onSubmitAnswer}
+          >
+            <RNView style={styles.actionButtonContent}>
+              <Text style={styles.submitButtonText}>提交</Text>
+            </RNView>
+          </TouchableOpacity>
+        </RNView>
       )}
     </RNView>
   );
@@ -790,20 +844,43 @@ export default function PracticeScreen() {
 
   // 处理继续按钮点击
   const handleContinue = () => {
-    // 隐藏反馈内容，但保持反馈区域可见
-    setHasSubmittedAnswer(false);
+    // 记录答题结束时间并计算花费时间
+    const answerEndTime = Date.now();
+    const timeSpent = answerEndTime - practiceStartTime;
 
-    // 如果有下一题，前进到下一题
     if (currentExerciseIndex < exercises.length - 1) {
       setCurrentExerciseIndex(currentExerciseIndex + 1);
+      setHasSubmittedAnswer(false);
     } else {
-      // 如果是最后一题，显示总结
+      // 最后一题，显示总结
       setShowSummary(true);
     }
 
     // 滚动到顶部
     if (scrollViewRef.current) {
       scrollViewRef.current.scrollTo({ y: 0, animated: true });
+    }
+  };
+
+  // 跳过题目处理函数
+  const handleSkip = async () => {
+    if (!exercises[currentExerciseIndex]) return;
+
+    const currentExercise = exercises[currentExerciseIndex];
+    
+    // 将跳过视为回答错误
+    setIsLastAnswerCorrect(false);
+    setAnsweredExercises({
+      ...answeredExercises,
+      [currentExercise.id]: false,
+    });
+    setHasSubmittedAnswer(true);
+
+    // 记录到错题本 - 跳过的题目也记录为错误
+    try {
+      await submitAnswerToServer(currentExercise.id, false, null);
+    } catch (error) {
+      console.error("记录跳过题目失败:", error);
     }
   };
 
@@ -982,7 +1059,11 @@ export default function PracticeScreen() {
                 explanation={currentExercise.explanation}
                 onContinue={handleContinue}
                 onSubmitAnswer={submitConfirmedAnswer}
+                onSkip={handleSkip}
                 hasSubmitted={hasSubmittedAnswer}
+                onOpenDraftPaper={() => setShowDraftPaper(true)}
+                currentIndex={currentExerciseIndex}
+                totalCount={exercises.length}
               />
             )}
 
@@ -1133,11 +1214,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
   },
-  correctFeedbackContainer: {
-    backgroundColor: "rgba(88, 204, 2, 0.1)",
-  },
-  incorrectFeedbackContainer: {
-    backgroundColor: "rgba(255, 75, 75, 0.1)",
+  resultContainer: {
+    width: "100%",
+    backgroundColor: "white",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
   },
   feedbackHeader: {
     flexDirection: "row",
@@ -1148,6 +1230,12 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     marginLeft: 8,
+  },
+  correctFeedbackContainer: {
+    backgroundColor: "rgba(88, 204, 2, 0.1)",
+  },
+  incorrectFeedbackContainer: {
+    backgroundColor: "rgba(255, 75, 75, 0.1)",
   },
   correctFeedbackText: {
     color: "#58CC02",
@@ -1286,21 +1374,64 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  // 确认提交样式
-  confirmSubmitButton: {
+  bottomActionsContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FF9600",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginTop: 8,
+    justifyContent: "space-between",
+    width: "100%",
   },
-  confirmSubmitButtonText: {
-    color: "white",
+  actionButton: {
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  actionButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  actionButtonText: {
     fontSize: 16,
     fontWeight: "600",
+    marginLeft: 8,
+  },
+  progressSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 12,
+  },
+  progressLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginRight: 8,
+  },
+  progressBarContainer: {
+    flex: 1,
+    height: 20,
+    backgroundColor: "#E0E0E0",
+    borderRadius: 10,
+    overflow: "hidden",
+  },
+
+  progressPercentText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+  },
+  skipButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#58CC02",
+  },
+  submitActionButton: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#FF9600",
+  },
+  submitButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "white",
   },
   bonusPointsContainer: {
     flexDirection: "row",
