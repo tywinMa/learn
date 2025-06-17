@@ -366,8 +366,11 @@ export const logout = async (): Promise<void> => {
     await AsyncStorage.multiRemove([
       STORAGE_KEYS.TOKEN,
       STORAGE_KEYS.STUDENT_INFO,
-      STORAGE_KEYS.STUDENT_ID
+      STORAGE_KEYS.STUDENT_ID,
+      'currentSubject', // 清除学科缓存
+      'currentGrade'    // 清除年级缓存
     ]);
+    console.log('✅ 用户登出，已清除所有本地缓存');
   } catch (error) {
     console.error('登出失败:', error);
   }

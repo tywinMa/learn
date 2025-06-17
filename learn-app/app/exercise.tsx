@@ -26,6 +26,7 @@ import { useSubject } from "@/hooks/useSubject";
 import { LinearGradient } from "expo-linear-gradient";
 import { API_BASE_URL } from "@/constants/apiConfig";
 import { KnowledgePointModal } from "./components/KnowledgePointModal";
+import { DraftPaper } from "./components/DraftPaper";
 import RenderHtml from 'react-native-render-html';
 
 // HTML渲染组件 - 支持解析内容的HTML格式
@@ -364,6 +365,7 @@ export default function PracticeScreen() {
   const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false);
   const [unitProgress, setUnitProgress] = useState<UnitProgress | null>(null);
   const [practiceStartTime, setPracticeStartTime] = useState<number>(Date.now());
+  const [showDraftPaper, setShowDraftPaper] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
   // 解析解锁测试参数
@@ -833,44 +835,9 @@ export default function PracticeScreen() {
           // 创建要解锁的单元ID列表
           let unitsToUnlock = [];
 
-          // 获取所有当前学科下的单元
-          const allUnitsResponse = await fetch(`${API_BASE_URL}/api/subjects/${currentSubject}/units`);
-          const allUnitsData = await allUnitsResponse.json();
-
-          if (allUnitsData.success && Array.isArray(allUnitsData.data)) {
-            // 查找所有当前大单元之前的单元
-            for (const unit of allUnitsData.data) {
-              const unitParts = unit.code.split("-");
-              if (unitParts.length === 2) {
-                const unitMainLevel = parseInt(unitParts[0]);
-                if (unitMainLevel < currentMainUnit) {
-                  unitsToUnlock.push(`${currentSubject}-${unit.code}`);
-                }
-              }
-            }
-
-            // 批量解锁所有这些单元
-            if (unitsToUnlock.length > 0) {
-              const batchUnlockResponse = await fetch(`${API_BASE_URL}/api/units/batch-unlock`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  unitIds: unitsToUnlock,
-                  userId: currentStudentId,
-                }),
-              });
-
-              const unlockResult = await batchUnlockResponse.json();
-              console.log("批量解锁结果:", unlockResult);
-
-              if (unlockResult.success) {
-                // 解锁成功，显示提示
-                alert(`恭喜！您已成功解锁${unitsToUnlock.length}个单元！`);
-              }
-            }
-          }
+          // TODO: 在新架构下，解锁逻辑需要基于当前年级重新设计
+          // 当前暂时禁用批量解锁功能，因为新架构要求必须指定年级
+          console.log("批量解锁功能暂时禁用 - 需要基于年级重新设计");
         }
       } catch (error) {
         console.error("解锁前面单元失败:", error);
@@ -935,6 +902,14 @@ export default function PracticeScreen() {
           headerLeft: () => (
             <TouchableOpacity onPress={handleExit} style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+          ),
+          headerRight: () => (
+            <TouchableOpacity 
+              onPress={() => setShowDraftPaper(true)} 
+              style={styles.draftPaperButton}
+            >
+              <Ionicons name="create-outline" size={24} color="#fff" />
             </TouchableOpacity>
           ),
         }}
@@ -1035,6 +1010,13 @@ export default function PracticeScreen() {
         isTestForUnlocking={isTestForUnlocking}
         shouldUnlockPreviousUnits={shouldUnlockPreviousUnits}
       />
+
+      {/* 草稿纸组件 */}
+      <DraftPaper
+        visible={showDraftPaper}
+        onClose={() => setShowDraftPaper(false)}
+        currentExercise={currentExercise}
+      />
     </View>
   );
 }
@@ -1056,6 +1038,9 @@ const styles = StyleSheet.create({
     borderBottomColor: "#eaeaea",
   },
   backButton: {
+    padding: 8,
+  },
+  draftPaperButton: {
     padding: 8,
   },
   headerTitle: {

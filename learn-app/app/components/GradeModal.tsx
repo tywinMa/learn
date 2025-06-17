@@ -66,6 +66,13 @@ const GradeModal = ({ visible, onClose, onSelectGrade, currentSubjectCode, curre
     const isSelected = currentGrade?.id === item.id;
     const levelColor = LEVEL_COLORS[item.level as keyof typeof LEVEL_COLORS];
 
+    // 添加调试信息
+    console.log(`🔍 年级项渲染 - ${item.name}:`, {
+      itemId: item.id,
+      currentGradeId: currentGrade?.id,
+      isSelected
+    });
+
     return (
       <TouchableOpacity
         style={[
@@ -75,7 +82,10 @@ const GradeModal = ({ visible, onClose, onSelectGrade, currentSubjectCode, curre
             backgroundColor: `${levelColor}10` 
           }
         ]}
-        onPress={() => onSelectGrade(item)}
+        onPress={() => {
+          console.log(`🎯 点击了年级: ${item.name} (ID: ${item.id})`);
+          onSelectGrade(item);
+        }}
       >
         <RNView style={[styles.iconContainer, { backgroundColor: levelColor }]}>
           <MaterialCommunityIcons 

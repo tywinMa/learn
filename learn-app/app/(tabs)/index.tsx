@@ -36,6 +36,7 @@ import { CircularProgress } from "@/components/CircularProgress";
 
 // 常量定义
 const CURRENT_SUBJECT_KEY = "currentSubject";
+const CURRENT_GRADE_KEY = "currentGrade";
 const AVERAGE_ITEM_Y_INCREMENT = 120;
 
 /**
@@ -63,6 +64,46 @@ const loadCurrentSubject = async () => {
   } catch (error) {
     console.error("加载学科出错:", error);
     return null;
+  }
+};
+
+/**
+ * 保存当前年级到AsyncStorage
+ */
+const saveCurrentGrade = async (grade: Grade) => {
+  try {
+    await AsyncStorage.setItem(CURRENT_GRADE_KEY, JSON.stringify(grade));
+    console.log("年级已保存:", grade.name);
+  } catch (error) {
+    console.error("保存年级出错:", error);
+  }
+};
+
+/**
+ * 从AsyncStorage加载年级
+ */
+const loadCurrentGrade = async () => {
+  try {
+    const savedGrade = await AsyncStorage.getItem(CURRENT_GRADE_KEY);
+    if (savedGrade) {
+      return JSON.parse(savedGrade);
+    }
+    return null;
+  } catch (error) {
+    console.error("加载年级出错:", error);
+    return null;
+  }
+};
+
+/**
+ * 清除本地存储的学科和年级信息
+ */
+const clearLocalPreferences = async () => {
+  try {
+    await AsyncStorage.multiRemove([CURRENT_SUBJECT_KEY, CURRENT_GRADE_KEY]);
+    console.log("✅ 本地学科和年级偏好已清除");
+  } catch (error) {
+    console.error("清除本地偏好失败:", error);
   }
 };
 
@@ -436,20 +477,22 @@ export default function HomeScreen() {
 
   // 组件挂载后初始化位置数据和加载默认学科课程
   useEffect(() => {
-    // 尝试加载保存的学科或加载默认学科
-    const initSubject = async () => {
+    // 尝试加载保存的学科和年级
+    const initApp = async () => {
       try {
-        // 尝试从本地存储加载
-        const savedSubject = await loadCurrentSubject();
+        let subject;
+        let grade;
+        
+        // 1. 优先从本地存储加载学科和年级
+        const [savedSubject, savedGrade] = await Promise.all([
+          loadCurrentSubject(),
+          loadCurrentGrade()
+        ]);
 
         if (savedSubject) {
-          console.log("从存储中加载学科:", savedSubject.name);
-          setCurrentSubject(savedSubject);
-          
-          // 加载该学科的年级偏好
-          await loadUserGradePreference(savedSubject.code);
-          
-          fetchSubjectCourses(savedSubject.code);
+          console.log("从本地存储加载学科:", savedSubject.name);
+          subject = savedSubject;
+          setCurrentSubject(subject);
         } else {
           // 从服务器获取默认学科(数学)
           const response = await fetch(`${API_BASE_URL}/api/subjects/math`);
@@ -457,33 +500,67 @@ export default function HomeScreen() {
             const result = await response.json();
             if (result.success && result.data) {
               console.log("从服务器加载默认学科:", result.data.name);
-              setCurrentSubject(result.data);
-              
-              // 加载该学科的年级偏好
-              await loadUserGradePreference(result.data.code);
-              
-              fetchSubjectCourses(result.data.code);
-            } else {
-              // 加载失败时使用本地默认值
-              fetchSubjectCourses("math");
+              subject = result.data;
+              setCurrentSubject(subject);
+              // 保存到本地
+              await saveCurrentSubject(subject);
             }
-          } else {
-            // 加载失败时使用本地默认值
-            fetchSubjectCourses("math");
           }
         }
+
+        if (savedGrade) {
+          console.log("从本地存储加载年级:", savedGrade.name);
+          grade = savedGrade;
+          setCurrentGrade(grade);
+        }
+
+        // 2. 如果有学科和年级，直接加载课程数据
+        if (subject && grade) {
+          console.log("✅ 学科和年级都已加载，开始获取课程数据");
+          await fetchSubjectCourses(subject.code, grade);
+          return;
+        }
+
+        // 3. 如果有学科但没有年级，尝试从服务器加载年级偏好
+        if (subject && !grade) {
+          const loadedGrade = await loadUserGradePreference(subject.code);
+          
+          if (loadedGrade) {
+            // 有年级偏好，直接获取数据（传递加载的年级避免状态更新延迟）
+            await fetchSubjectCourses(subject.code, loadedGrade);
+          } else {
+            // 没有年级偏好，提示用户选择年级
+            Alert.alert(
+              "请选择年级", 
+              `欢迎学习${subject.name}，请先选择您的年级`,
+              [
+                {
+                  text: "选择年级",
+                  style: "default",
+                  onPress: () => {
+                    setShowGradeModal(true);
+                  },
+                },
+              ]
+            );
+          }
+        } else if (!subject) {
+          // 如果连学科都没有，使用默认值
+          console.warn("⚠️ 无法加载学科，使用默认值");
+          fetchSubjectCourses("math");
+        }
       } catch (error) {
-        console.error("初始化学科失败:", error);
+        console.error("初始化应用失败:", error);
         // 出错时使用默认值
         fetchSubjectCourses("math");
       }
     };
 
-    initSubject();
+    initApp();
   }, []);
 
   // 加载用户年级偏好
-  const loadUserGradePreference = async (subjectCode: string) => {
+  const loadUserGradePreference = async (subjectCode: string): Promise<Grade | null> => {
     try {
       const currentStudentIdStr = await getCurrentStudentIdForProgress();
       const currentStudentId = parseInt(currentStudentIdStr);
@@ -492,37 +569,82 @@ export default function HomeScreen() {
       
       if (preference && preference.grade) {
         setCurrentGrade(preference.grade);
+        // 同时保存到本地存储
+        await saveCurrentGrade(preference.grade);
         console.log("加载用户年级偏好:", preference.grade.name);
+        return preference.grade;
       }
+      return null;
     } catch (error) {
       console.error("加载用户年级偏好失败:", error);
+      return null;
     }
   };
 
   // 格式化API数据为前端所需格式
   const formatCoursesData = (apiData: any, subject: any) => {
+    console.log("🔄 开始格式化数据");
+    console.log("📥 输入参数:", { apiData, subject, currentGrade });
+    
     // 验证参数
     if (!apiData || !subject) {
-      console.error("格式化课程数据参数无效：", { apiData, subject });
+      console.error("❌ 格式化课程数据参数无效：", { apiData, subject });
       return [];
     }
 
-    const unitsData = apiData.data || apiData;
+    const resultData = apiData.data || apiData;
+    if (!Array.isArray(resultData)) {
+      console.error("❌ API数据格式无效：", { resultData });
+      return [];
+    }
+
+    let unitsData = [];
+
+    // 检查数据结构，判断是否按年级分组
+    if (resultData.length > 0 && resultData[0].grade && resultData[0].units) {
+      // 按年级分组的数据结构（没有传递年级参数时）
+      console.log("🏫 检测到按年级分组的数据结构");
+      
+      // 如果有当前年级，只使用该年级的数据
+      if (currentGrade) {
+        console.log(`🔍 查找年级 ${currentGrade.id} 的数据`);
+        const gradeData = resultData.find(item => item.grade.id === currentGrade.id);
+        if (gradeData) {
+          unitsData = gradeData.units || [];
+          console.log(`✅ 找到年级 ${currentGrade.id} 的数据:`, unitsData);
+        } else {
+          console.warn(`⚠️ 未找到年级 ${currentGrade.id} 的数据`);
+          unitsData = [];
+        }
+      } else {
+        // 如果没有选择年级，使用第一个年级的数据
+        console.warn("⚠️ 未选择年级，使用第一个年级的数据");
+        unitsData = resultData[0]?.units || [];
+      }
+    } else {
+      // 直接的单元数组（传递了年级参数时）
+      console.log("📚 检测到直接的单元数组结构");
+      unitsData = resultData;
+      console.log("📚 单元数据:", unitsData);
+    }
+
     if (!Array.isArray(unitsData)) {
-      console.error("API数据格式无效：", { unitsData });
+      console.error("❌ 单元数据格式无效：", { unitsData });
       return [];
     }
 
-    console.log("使用新的简化API数据结构");
+    console.log(`📊 准备格式化 ${unitsData.length} 个单元`);
 
     // 直接使用API返回的结构化数据，转换为前端格式
     const formattedCourses = unitsData.map((unit: any, index: number) => {
+      console.log(`🔄 格式化单元 ${index + 1}:`, unit.title);
+      
       // 使用大单元的颜色
       const unitColor = unit.color || subject.color;
       const unitSecondaryColor =
         unit.secondaryColor || getLighterColor(unitColor);
 
-      return {
+      const formattedUnit = {
         id: `unit${index + 1}`,
         title: unit.title,
         description: unit.description || `学习${subject.name}基础知识`,
@@ -538,8 +660,12 @@ export default function HomeScreen() {
           };
         }),
       };
+      
+      console.log(`✅ 单元 ${index + 1} 格式化完成:`, formattedUnit);
+      return formattedUnit;
     });
 
+    console.log(`🎉 所有单元格式化完成，共 ${formattedCourses.length} 个`);
     return ensureCoursesColors(formattedCourses);
   };
 
@@ -661,6 +787,8 @@ export default function HomeScreen() {
 
     // 更新本地状态
     setCurrentSubject(subject);
+    // 保存学科到本地存储
+    await saveCurrentSubject(subject);
     setError(null);
     setProgressData({});
     setCurrentUnit(0);
@@ -670,46 +798,57 @@ export default function HomeScreen() {
 
   // 处理年级切换
   const handleGradeSelect = async (grade: Grade) => {
-    // 关闭模态框
-    setShowGradeModal(false);
-
-    // 如果选择的是当前年级，不做任何操作
+    console.log("🎯 开始年级切换:", grade);
+    console.log("🔍 当前年级状态:", currentGrade);
+    
+    // 如果选择的是当前年级，仍然需要关闭模态框并确保状态正确
     if (currentGrade && grade.id === currentGrade.id) {
+      console.log("⚠️ 选择的是当前年级，关闭模态框");
+      setShowGradeModal(false);
       return;
     }
 
     try {
-      // 获取当前学生ID
+      // 先更新UI状态
+      setShowGradeModal(false);
+      setLoadingCourses(true);
+      setError(null);
+      
+      // 立即更新当前年级状态（同步更新）
+      setCurrentGrade(grade);
+      console.log("✅ 年级状态已更新到:", grade.name);
+      
+      // 同时保存到本地存储
+      await saveCurrentGrade(grade);
+      console.log("✅ 年级偏好保存到本地成功");
+
+      // 获取当前学生ID并保存到服务器
       const currentStudentIdStr = await getCurrentStudentIdForProgress();
       const currentStudentId = parseInt(currentStudentIdStr);
       
-      // 保存用户的年级-学科偏好
+      // 保存用户的年级-学科偏好到服务器
       await setUserPreference(currentStudentId, currentSubject.code, grade.id);
+      console.log("✅ 年级偏好保存到服务器成功");
       
-      // 更新当前年级
-      setCurrentGrade(grade);
-
-      // 弹出提示
-      Alert.alert("年级已切换", `您已成功切换到${grade.name}`, [
-        {
-          text: "好的",
-          style: "default",
-          onPress: () => {
-            // 刷新当前学科的课程数据
-            fetchSubjectCourses(currentSubject.code);
-          },
-        },
-      ]);
-
       // 清空当前数据，准备加载新年级的数据
-      setError(null);
       setProgressData({});
       setCurrentUnit(0);
       setCourses([]);
-      setLoadingCourses(true);
+
+      // 立即刷新当前学科的课程数据（传递年级参数以避免状态更新延迟）
+      console.log("🔄 开始加载新年级的数据");
+      await fetchSubjectCourses(currentSubject.code, grade);
+      
+      // 弹出成功提示
+      Alert.alert("年级已切换", `您已成功切换到${grade.name}，正在加载新的学习内容...`);
+      
     } catch (error) {
-      console.error("设置用户年级偏好失败:", error);
-      Alert.alert("切换失败", "年级切换失败，请重试");
+      console.error("❌ 设置用户年级偏好失败:", error);
+      // 如果出错，恢复之前的状态
+      setLoadingCourses(false);
+      // 显示具体的错误信息
+      const errorMessage = error instanceof Error ? error.message : "年级切换失败，请重试";
+      Alert.alert("切换失败", errorMessage);
     }
   };
 
@@ -1087,16 +1226,30 @@ export default function HomeScreen() {
     );
   };
 
-  // 根据学科代码获取该学科的课程单元数据
-  const fetchSubjectCourses = async (subjectCode: string) => {
+  // 根据学科代码获取该学科的课程单元数据 - 必须有年级
+  const fetchSubjectCourses = async (subjectCode: string, grade?: Grade) => {
     setLoadingCourses(true);
     setError(null);
 
     try {
+      // 使用传入的年级参数或当前年级状态
+      const targetGrade = grade || currentGrade;
+      
+      // 必须有年级才能获取单元数据
+      if (!targetGrade) {
+        console.warn("⚠️ 尝试获取课程数据时没有年级信息");
+        setError("请先选择年级");
+        setLoadingCourses(false);
+        return;
+      }
+
+      console.log("🔄 开始获取课程数据:", { subjectCode, gradeId: targetGrade.id, gradeName: targetGrade.name });
+
+      // 构建API URL
+      const apiUrl = `${API_BASE_URL}/api/subjects/${subjectCode}/${targetGrade.id}/units`;
+
       // 获取学科的单元数据
-      const response = await fetch(
-        `${API_BASE_URL}/api/subjects/${subjectCode}/units`
-      );
+      const response = await fetch(apiUrl);
 
       if (!response.ok) {
         throw new Error(`获取${subjectCode}学科单元失败`);
@@ -1105,6 +1258,9 @@ export default function HomeScreen() {
       const result = await response.json();
 
       if (result.success) {
+        console.log("🔍 API返回数据:", JSON.stringify(result, null, 2));
+        console.log("🎯 当前年级:", currentGrade);
+        
         // 获取学科信息
         const subjectResponse = await fetch(
           `${API_BASE_URL}/api/subjects/${subjectCode}`
@@ -1122,9 +1278,11 @@ export default function HomeScreen() {
 
         // 将API返回的数据转换为应用所需的格式
         const formattedCourses = formatCoursesData(result, subject);
+        console.log("📝 格式化后的课程数据:", formattedCourses);
 
         // 确保所有课程都有颜色信息
         const coursesWithColors = ensureCoursesColors(formattedCourses);
+        console.log("🎨 添加颜色后的课程数据:", coursesWithColors);
         setCourses(coursesWithColors);
 
         // 获取该学科下的进度数据
@@ -1154,8 +1312,12 @@ export default function HomeScreen() {
               size={24}
               color={currentSubject.color}
             />
-            <Text style={[styles.switchLabel, { color: currentSubject.color }]}>
-              学科
+            <Text 
+              style={[styles.switchLabel, { color: currentSubject.color }]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {currentSubject ? currentSubject.name : '学科'}
             </Text>
           </TouchableOpacity>
           
@@ -1456,7 +1618,7 @@ const styles = StyleSheet.create({
   },
   fixedBannerContainer: {
     position: "absolute",
-    top: 56,
+    top: 70,
     left: 24,
     right: 24,
     zIndex: 10,
@@ -1676,3 +1838,4 @@ const styles = StyleSheet.create({
     color: "#FF6B35",
   },
 });
+

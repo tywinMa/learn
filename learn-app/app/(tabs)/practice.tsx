@@ -104,7 +104,7 @@ export default function PracticeScreen() {
                       { backgroundColor: lesson.completed ? Colors[colorScheme].success : Colors[colorScheme].accent },
                     ]}
                   >
-                    <Ionicons name={lesson.icon} size={24} color="#fff" />
+                    <Ionicons name={lesson.icon as any} size={24} color="#fff" />
                   </View>
                   <Text style={styles.lessonName}>{lesson.name}</Text>
                   <View style={styles.lessonStatus}>

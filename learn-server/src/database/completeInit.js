@@ -495,10 +495,10 @@ const initExercises = async (subjects) => {
         id: 'math-1-1-1',
         subject: 'math',
         title: '一元二次方程第1题',
-        question: '解下列一元二次方程：x² - 5x + 6 = 0',
-        options: ['x = 2或x = 3', 'x = 1或x = 6', 'x = -2或x = -3', 'x = 0或x = 5'],
+        question: '解下列一元二次方程:<h1>x² - 5x + 6 = 0</h1>',
+        options: ['<h2>x = 2或x = 3</h2>', 'x = 1或x = 6', 'x = -2或x = -3', 'x = 0或x = 5'],
         correctAnswer: 0,
-        explanation: '使用因式分解法：x² - 5x + 6 = (x-2)(x-3) = 0，所以x = 2或x = 3',
+        explanation: '使用因式分解法：<h3>x² - 5x + 6 = (x-2)(x-3) = 0</h3>，所以x = 2或x = 3',
         type: 'choice',
         difficulty: 2
       },

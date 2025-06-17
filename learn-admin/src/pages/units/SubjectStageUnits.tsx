@@ -428,9 +428,18 @@ const SubjectStageUnits: React.FC = () => {
                     style={{
                       background: `linear-gradient(135deg, ${unit.color || '#1677ff'} 0%, ${unit.secondaryColor || '#f0f9ff'} 100%)`,
                       color: '#fff',
-                      border: 'none'
+                      border: 'none',
+                      height: '200px',
+                      display: 'flex',
+                      flexDirection: 'column'
                     }}
-                    bodyStyle={{ padding: '16px' }}
+                    bodyStyle={{ 
+                      padding: '16px',
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between'
+                    }}
                     actions={[
                       <Tooltip title="编辑">
                         <EditOutlined onClick={() => showEditModal(unit)} />
@@ -447,36 +456,60 @@ const SubjectStageUnits: React.FC = () => {
                       </Popconfirm>
                     ]}
                   >
-                    <div style={{ marginBottom: 12 }}>
-                      <Text strong style={{ color: '#fff', fontSize: '16px' }}>
-                        {unit.title}
-                      </Text>
-                    </div>
-                    
-                    {unit.description && (
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                       <div style={{ marginBottom: 12 }}>
-                        <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>
-                          {unit.description}
+                        <Text strong style={{ 
+                          color: '#fff', 
+                          fontSize: '16px',
+                          display: 'block',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {unit.title}
                         </Text>
                       </div>
-                    )}
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Tag color={unit.isPublished ? 'success' : 'default'}>
-                        {unit.isPublished ? '已发布' : '未发布'}
-                      </Tag>
-                      <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>
-                        顺序: {unit.order}
-                      </Text>
+                      
+                      <div style={{ 
+                        marginBottom: 12, 
+                        flex: 1,
+                        minHeight: '32px',
+                        display: 'flex',
+                        alignItems: 'flex-start'
+                      }}>
+                        <Text style={{ 
+                          color: 'rgba(255,255,255,0.8)', 
+                          fontSize: '12px',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          lineHeight: '16px'
+                        }}>
+                          {unit.description || '包含代数基础、一元二次方程、二次函数等内容'}
+                        </Text>
+                      </div>
+                      
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        marginBottom: 8
+                      }}>
+                        <Tag color={unit.isPublished ? 'success' : 'default'}>
+                          {unit.isPublished ? '已发布' : '未发布'}
+                        </Tag>
+                        <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>
+                          顺序: {unit.order}
+                        </Text>
+                      </div>
+                      
+                      <div>
+                        <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>
+                          包含 {unit.courseIds?.length || 0} 个课程
+                        </Text>
+                      </div>
                     </div>
-                    
-                    {unit.courseIds && unit.courseIds.length > 0 && (
-                      <div style={{ marginTop: 8 }}>
-                        <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>
-                          包含 {unit.courseIds.length} 个课程
-                        </Text>
-                      </div>
-                    )}
                   </Card>
                 </Col>
               ))}

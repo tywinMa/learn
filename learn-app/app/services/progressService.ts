@@ -57,10 +57,12 @@ const withTimeout = <T, E extends Error>(promise: Promise<T>, ms: number, timeou
   });
 };
 
-// 获取学科单元列表
-export async function getSubjectUnits(subjectCode: string) {
+// 获取学科单元列表 - 必须传递年级ID
+export async function getSubjectUnits(subjectCode: string, gradeId: number) {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}/units`);
+    const apiUrl = `${API_BASE_URL}/api/subjects/${subjectCode}/${gradeId}/units`;
+
+    const response = await fetch(apiUrl);
 
     if (!response.ok) {
       throw new Error(`获取学科单元列表失败 (HTTP ${response.status})`);
@@ -237,13 +239,13 @@ export async function getMultipleUnitProgress(
   }
 }
 
-// 根据学科获取学生的全部进度数据
-export async function getStudentProgressBySubject(subjectCode: string, studentId?: string) {
+// 根据学科和年级获取学生的进度数据 - 必须传递年级ID
+export async function getStudentProgressBySubject(subjectCode: string, gradeId: number, studentId?: string) {
   try {
     const currentStudentId = studentId || await getCurrentStudentIdForProgress();
-    console.log(`获取学生 ${currentStudentId} 在学科 ${subjectCode} 的进度`);
+    console.log(`获取学生 ${currentStudentId} 在学科 ${subjectCode} 年级 ${gradeId} 的进度`);
     
-    const response = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}/units`);
+    const response = await fetch(`${API_BASE_URL}/api/subjects/${subjectCode}/${gradeId}/units`);
     
     if (!response.ok) {
       throw new Error(`获取学科单元列表失败 (HTTP ${response.status})`);
@@ -253,15 +255,14 @@ export async function getStudentProgressBySubject(subjectCode: string, studentId
     
     if (result.success && result.data) {
       const units = result.data;
-      const unitIds = units.map((unit: any) => `${subjectCode}-${unit.code}`);
+      const unitIds = units.map((unit: any) => unit.id); // 直接使用单元的完整ID
       
       // 批量获取这些单元的进度
       const progressMap = await getMultipleUnitProgress(unitIds);
       
       return units.map((unit: any) => {
-        const unitId = `${subjectCode}-${unit.code}`;
-        const progress = progressMap[unitId] || {
-          unitId,
+        const progress = progressMap[unit.id] || {
+          unitId: unit.id,
           totalExercises: 0,
           completedExercises: 0,
           completionRate: 0,
@@ -278,7 +279,7 @@ export async function getStudentProgressBySubject(subjectCode: string, studentId
       throw new Error(result.message || "获取学科单元列表失败：服务器未返回数据");
     }
   } catch (error) {
-    console.error(`获取学科进度出错 (${subjectCode}):`, error);
+    console.error(`获取学科进度出错 (${subjectCode}, 年级 ${gradeId}):`, error);
     throw error;
   }
 }

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Subject, Unit, Course, Exercise, ExerciseGroup } = require('../models');
+const { Subject, Unit, Course, Exercise, ExerciseGroup, SubjectGrade, Grade } = require('../models');
 const { Op } = require('sequelize');
 
 // 通过课程获取习题数量的辅助函数
@@ -144,10 +144,12 @@ router.get('/:code', async (req, res) => {
   }
 });
 
-// 获取特定学科的单元结构
-router.get('/:code/units', async (req, res) => {
+
+
+// 获取特定学科和年级的单元结构
+router.get('/:code/:gradeId/units', async (req, res) => {
   try {
-    const { code } = req.params;
+    const { code, gradeId } = req.params;
 
     // 查询学科
     const subject = await Subject.findOne({
@@ -161,21 +163,52 @@ router.get('/:code/units', async (req, res) => {
       });
     }
 
-    // 获取该学科的所有大单元
-    const units = await Unit.findAll({
-      where: { subject: subject.code },
-      order: [['order', 'ASC']]
+    // 查找指定学科和年级的关联
+    const subjectGrade = await SubjectGrade.findOne({
+      where: { 
+        subjectCode: code,
+        gradeId: parseInt(gradeId)
+      }
     });
 
-    // 获取该学科的所有小单元
-    const allCourses = await Course.findAll({
-      where: { subject: subject.code }
+    if (!subjectGrade) {
+      return res.json({
+        success: true,
+        data: [],
+        message: `该学科在指定年级下暂无单元内容`
+      });
+    }
+
+    // 获取该学科年级的所有大单元
+    const units = await Unit.findAll({
+      where: { subjectGradeId: subjectGrade.id },
+      include: [{
+        model: SubjectGrade,
+        as: 'subjectGrade',
+        include: [{
+          model: Grade,
+          as: 'grade'
+        }, {
+          model: Subject,
+          as: 'subject'
+        }]
+      }],
+      order: [['order', 'ASC']]
     });
 
     // 构建结构化数据
     const structuredData = await Promise.all(units.map(async unit => {
       // 根据Unit的courseIds数组按顺序获取小单元
       const courseIds = unit.courseIds || [];
+      
+      // 获取所有相关课程
+      const allCourses = await Course.findAll({
+        where: { 
+          id: { [Op.in]: courseIds },
+          subject: code
+        }
+      });
+
       const unitCourses = courseIds.map(courseId => 
         allCourses.find(course => course.id === courseId)
       ).filter(course => course !== undefined);
@@ -204,16 +237,21 @@ router.get('/:code/units', async (req, res) => {
         color: unit.color,
         secondaryColor: unit.secondaryColor,
         exercisesCount: totalExercisesCount,
-        courses: courses
+        courses: courses,
+        subjectGrade: {
+          id: unit.subjectGrade.id,
+          grade: unit.subjectGrade.grade,
+          subject: unit.subjectGrade.subject
+        }
       };
     }));
 
-    res.json({
+    return res.json({
       success: true,
       data: structuredData
     });
   } catch (error) {
-    console.error('获取学科单元出错:', error);
+    console.error('获取学科年级单元出错:', error);
     res.status(500).json({
       success: false,
       message: '服务器错误'
@@ -355,5 +393,7 @@ router.get('/units/:unitId/courses', async (req, res) => {
     });
   }
 });
+
+
 
 module.exports = router; 

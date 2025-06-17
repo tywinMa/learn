@@ -1,4 +1,4 @@
-const { UserGradeSubjectPreference, Grade, Subject, Student } = require('../models');
+const { UserGradeSubjectPreference, Grade, Subject, Student, SubjectGrade } = require('../models');
 
 /**
  * 获取用户的年级学科偏好
