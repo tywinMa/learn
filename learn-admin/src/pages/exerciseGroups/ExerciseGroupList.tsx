@@ -35,8 +35,8 @@ import {
 } from "../../services/exerciseGroupService";
 import { getSubjects } from "../../services/subjectService";
 import { getCourses } from "../../services/courseService";
+import { getGrades } from "../../services/gradeService";
 import { createExercise } from "../../services/exerciseService";
-import { getChoiceExerciseList, getFillBlankExerciseList, getMatchingExerciseList } from "../../services/aiService";
 import { createAIGenerateExerciseGroupTask } from "../../services/taskService";
 
 const { Search } = Input;
@@ -58,6 +58,7 @@ const ExerciseGroupList: React.FC = () => {
   const [aiStep, setAiStep] = useState<"select" | "form">("select");
   const [aiGenerating, setAiGenerating] = useState(false);
   const [courses, setCourses] = useState<any[]>([]);
+  const [grades, setGrades] = useState<any[]>([]);
   const [filteredCourses, setFilteredCourses] = useState<any[]>([]);
   const [selectedSubject, setSelectedSubject] = useState<string>("");
   const [aiForm] = Form.useForm();
@@ -81,6 +82,16 @@ const ExerciseGroupList: React.FC = () => {
       setCourses(courseList || []);
     } catch (error) {
       console.error("获取课程列表失败:", error);
+    }
+  };
+
+  // 获取年级列表
+  const fetchGrades = async () => {
+    try {
+      const gradeList = await getGrades();
+      setGrades(gradeList || []);
+    } catch (error) {
+      console.error("获取年级列表失败:", error);
     }
   };
 
@@ -142,13 +153,14 @@ const ExerciseGroupList: React.FC = () => {
   const handleAiGenerate = async () => {
     try {
       const values = await aiForm.validateFields();
-      const { groupName, subject, type, courseId, relevance, difficulty, questionCount } = values;
+      const { groupName, subject, gradeId, type, courseId, relevance, difficulty, questionCount } = values;
 
       setAiGenerating(true);
 
       console.log("创建AI生成习题组任务，参数:", {
         groupName,
         subject,
+        gradeId,
         type,
         courseId,
         relevance,
@@ -160,6 +172,7 @@ const ExerciseGroupList: React.FC = () => {
       const task = await createAIGenerateExerciseGroupTask({
         groupName,
         subject,
+        gradeId,
         type,
         courseId,
         relevance,
@@ -196,6 +209,7 @@ const ExerciseGroupList: React.FC = () => {
   useEffect(() => {
     fetchSubjects();
     fetchCourses();
+    fetchGrades();
   }, []);
 
   useEffect(() => {
@@ -431,7 +445,7 @@ const ExerciseGroupList: React.FC = () => {
           <div className="py-4">
             <Form form={aiForm} layout="vertical" onFinish={handleAiGenerate}>
               <Row gutter={16}>
-                <Col span={12}>
+                <Col span={8}>
                   <Form.Item
                     label="习题组名称"
                     name="groupName"
@@ -441,12 +455,24 @@ const ExerciseGroupList: React.FC = () => {
                   </Form.Item>
                 </Col>
 
-                <Col span={12}>
+                <Col span={8}>
                   <Form.Item label="选择学科" name="subject" rules={[{ required: true, message: "请选择学科" }]}>
                     <Select placeholder="请选择学科" size="large" onChange={handleSubjectChange}>
                       {subjects.map((subject) => (
                         <Option key={subject.code} value={subject.code}>
                           {subject.name}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
+
+                <Col span={8}>
+                  <Form.Item label="选择年级（可选）" name="gradeId">
+                    <Select placeholder="请选择年级" size="large" allowClear>
+                      {grades.map((grade) => (
+                        <Option key={grade.id} value={grade.id}>
+                          {grade.name}
                         </Option>
                       ))}
                     </Select>

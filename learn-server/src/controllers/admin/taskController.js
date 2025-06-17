@@ -102,7 +102,7 @@ class TaskController {
   static async createAIGenerateExerciseGroupTask(req, res) {
     try {
       const params = req.body;
-      const { groupName, subject, type, courseId, relevance, difficulty, questionCount } = params;
+      const { groupName, subject, gradeId, type, courseId, relevance, difficulty, questionCount } = params;
 
       // 参数验证
       if (!groupName || !subject || !type || !questionCount) {
@@ -135,6 +135,46 @@ class TaskController {
       });
     } catch (error) {
       console.error('创建AI生成习题组任务失败:', error);
+      res.status(500).json({
+        success: false,
+        message: '创建任务失败',
+        error: error.message
+      });
+    }
+  }
+
+  /**
+   * 创建AI生成单个习题任务
+   */
+  static async createAIGenerateSingleExerciseTask(req, res) {
+    try {
+      const params = req.body;
+      const { subject, gradeId, type, courseId, relevance, difficulty } = params;
+
+      // 参数验证
+      if (!subject || !type) {
+        return res.status(400).json({
+          success: false,
+          message: '缺少必要参数：subject, type'
+        });
+      }
+
+      if (!['choice', 'fill_blank', 'matching'].includes(type)) {
+        return res.status(400).json({
+          success: false,
+          message: '不支持的题目类型，单个习题生成仅支持：choice, fill_blank, matching'
+        });
+      }
+
+      const task = await AITaskService.createAIGenerateSingleExerciseTask(params);
+
+      res.json({
+        success: true,
+        data: task,
+        message: '任务创建成功，正在后台执行中...'
+      });
+    } catch (error) {
+      console.error('创建AI生成单个习题任务失败:', error);
       res.status(500).json({
         success: false,
         message: '创建任务失败',

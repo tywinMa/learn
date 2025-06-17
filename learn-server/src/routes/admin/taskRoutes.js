@@ -17,6 +17,9 @@ router.delete('/:id', TaskController.deleteTask);
 // 创建AI生成习题组任务
 router.post('/ai-generate-exercise-group', TaskController.createAIGenerateExerciseGroupTask);
 
+// 创建AI生成单个习题任务
+router.post('/ai-generate-single-exercise', TaskController.createAIGenerateSingleExerciseTask);
+
 // 清理旧任务
 router.post('/cleanup', TaskController.cleanupOldTasks);
 

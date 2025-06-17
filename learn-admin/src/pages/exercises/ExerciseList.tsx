@@ -29,9 +29,10 @@ import {
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { getAllExercises, deleteExercise } from '../../services/exerciseService';
-import { getChoiceExerciseOne, getFillBlankExerciseOne, getMatchingExerciseOne } from '../../services/aiService';
 import { getCourses } from '../../services/courseService';
 import { getSubjects } from '../../services/subjectService';
+import { getGrades } from '../../services/gradeService';
+import { createAIGenerateSingleExerciseTask } from '../../services/taskService';
 import type { Exercise } from '../../services/exerciseService';
 
 const { Option } = Select;
@@ -54,6 +55,7 @@ const ExerciseList: React.FC = () => {
   const [aiStep, setAiStep] = useState<'select' | 'form'>('select');
   const [courses, setCourses] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
+  const [grades, setGrades] = useState<any[]>([]);
   const [aiForm] = Form.useForm();
   
   // 添加课程过滤相关状态
@@ -90,12 +92,14 @@ const ExerciseList: React.FC = () => {
   // 加载课程和学科数据
   const fetchBasicData = useCallback(async () => {
     try {
-      const [coursesData, subjectsData] = await Promise.all([
+      const [coursesData, subjectsData, gradesData] = await Promise.all([
         getCourses(),
-        getSubjects()
+        getSubjects(),
+        getGrades()
       ]);
       setCourses(coursesData || []);
       setSubjects(subjectsData || []);
+      setGrades(gradesData || []);
     } catch (error) {
       console.error('加载基础数据失败:', error);
     }
@@ -162,103 +166,38 @@ const ExerciseList: React.FC = () => {
   const handleAiGenerate = async () => {
     try {
       const values = await aiForm.validateFields();
-      const { subject, type, courseId, relevance, difficulty } = values;
+      const { subject, gradeId, type, courseId, relevance, difficulty } = values;
 
       setAiGenerating(true);
 
-      // 找到选中的课程信息
-      const selectedCourse = courses.find(course => course.id === courseId);
-      const courseName = selectedCourse?.title || '通用课程';
+      console.log("创建AI生成单个习题任务，参数:", {
+        subject,
+        gradeId,
+        type,
+        courseId,
+        relevance,
+        difficulty,
+      });
 
-      // 找到选中的学科信息
-      const selectedSubject = subjects.find(subj => subj.code === subject);
-      const subjectName = selectedSubject?.name || subject;
+      // 创建异步任务
+      const task = await createAIGenerateSingleExerciseTask({
+        subject,
+        gradeId,
+        type,
+        courseId,
+        relevance,
+        difficulty,
+      });
 
-      // 根据题目类型调用不同的AI生成接口
-      let aiResult;
-      if (type === 'choice') {
-        aiResult = await getChoiceExerciseOne(
-          subjectName,
-          courseName,
-          relevance,
-          difficulty
-        );
-      } else if (type === 'fill_blank') {
-        aiResult = await getFillBlankExerciseOne(
-          subjectName,
-          courseName,
-          relevance,
-          difficulty
-        );
-      } else if (type === 'matching') {
-        aiResult = await getMatchingExerciseOne(
-          subjectName,
-          courseName,
-          relevance,
-          difficulty
-        );
-      } else {
-        message.warning(`目前只支持生成选择题、填空题和匹配题`);
-        return;
-      }
+      console.log("任务创建成功:", task);
+      
+      message.success("任务已创建，正在后台生成中，请在任务管理中查看进度");
+      
+      handleAiModalClose();
 
-      if (aiResult) {
-        // 处理不同题型的数据格式
-        let processedData;
-        
-        if (type === 'choice') {
-          // 选择题数据处理
-          processedData = {
-            subject: subject,
-            title: aiResult.title || '',
-            question: aiResult.question || '',
-            type: aiResult.type || 'choice',
-            difficulty: aiResult.difficulty || 2,
-            options: aiResult.options || [],
-            correctAnswer: aiResult.correctAnswer || 0,
-            explanation: aiResult.explanation || '',
-            isAI: true
-          };
-        } else if (type === 'fill_blank') {
-          // 填空题数据处理
-          processedData = {
-            subject: subject,
-            title: aiResult.title || '',
-            question: aiResult.question || '',
-            type: aiResult.type || 'fill_blank',
-            difficulty: aiResult.difficulty || 2,
-            options: null, // 填空题不需要选项
-            correctAnswer: aiResult.correctAnswer || [''], // 填空题答案是数组
-            explanation: aiResult.explanation || '',
-            isAI: true
-          };
-        } else if (type === 'matching') {
-          // 匹配题数据处理 - AI返回的已经是新格式
-          processedData = {
-            subject: subject,
-            title: aiResult.title || '',
-            question: aiResult.question || '',
-            type: aiResult.type || 'matching',
-            difficulty: aiResult.difficulty || 2,
-            options: aiResult.options || { left: [], right: [] }, // 匹配题的options结构
-            correctAnswer: aiResult.correctAnswer || {}, // 匹配题答案是对象格式
-            explanation: aiResult.explanation || '',
-            isAI: true
-          };
-        }
-
-        sessionStorage.setItem('aiGeneratedExercise', JSON.stringify(processedData));
-        
-        message.success('AI生成习题成功，正在跳转到编辑页面...');
-        
-        // 延迟一下再跳转，让用户看到成功消息
-        setTimeout(() => {
-          navigate('/exercises/new');
-        }, 1000);
-      }
     } catch (error) {
-      console.error('AI生成习题失败:', error);
-      message.error('AI生成习题失败，请重试');
+      console.error('创建AI生成单个习题任务失败:', error);
+      message.error('创建任务失败，请重试');
     } finally {
       setAiGenerating(false);
     }
@@ -669,7 +608,7 @@ const ExerciseList: React.FC = () => {
               onFinish={handleAiGenerate}
             >
               <Row gutter={16}>
-                <Col span={12}>
+                <Col span={8}>
                   <Form.Item
                     label="选择学科"
                     name="subject"
@@ -684,8 +623,20 @@ const ExerciseList: React.FC = () => {
                     </Select>
                   </Form.Item>
                 </Col>
+
+                <Col span={8}>
+                  <Form.Item label="选择年级（可选）" name="gradeId">
+                    <Select placeholder="请选择年级" size="large" allowClear>
+                      {grades.map((grade) => (
+                        <Option key={grade.id} value={grade.id}>
+                          {grade.name}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
                 
-                <Col span={12}>
+                <Col span={8}>
                   <Form.Item
                     label="题目类型"
                     name="type"
@@ -702,14 +653,14 @@ const ExerciseList: React.FC = () => {
               </Row>
               
               <Form.Item
-                label="相关课程"
+                label="相关课程（可选）"
                 name="courseId"
-                rules={[{ required: true, message: '请选择相关课程' }]}
               >
                 <Select 
                   placeholder={selectedSubject ? "请选择相关课程" : "请先选择学科"} 
                   size="large"
                   disabled={!selectedSubject}
+                  allowClear
                 >
                   {filteredCourses.map(course => (
                     <Option key={course.id} value={course.id}>
