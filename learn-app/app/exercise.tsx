@@ -101,6 +101,77 @@ interface KnowledgePoint {
   mediaUrl?: string;
 }
 
+// 可汗学院风格的进度条组件
+const KhanStyleProgressBar = ({
+  exercises,
+  currentIndex,
+  answeredExercises,
+  skippedExercises,
+  hasSubmittedAnswer,
+}: {
+  exercises: any[];
+  currentIndex: number;
+  answeredExercises: Record<string, boolean>;
+  skippedExercises: Record<string, boolean>;
+  hasSubmittedAnswer: boolean;
+}) => {
+  const renderProgressDot = (exerciseIndex: number) => {
+    const exercise = exercises[exerciseIndex];
+    if (!exercise) return null;
+
+    const exerciseId = exercise.id;
+    const isAnswered = answeredExercises.hasOwnProperty(exerciseId);
+    const isCorrect = answeredExercises[exerciseId];
+    const isSkipped = skippedExercises[exerciseId];
+    const isCurrent = exerciseIndex === currentIndex;
+
+    // 确定图标和样式
+    let iconName: any = "radio-button-off";
+    let iconColor = "#ccc";
+    let iconSize = 16;
+
+    if (isAnswered && isCorrect && !isSkipped) {
+      // 做对的题目：绿色勾
+      iconName = "checkmark-circle";
+      iconColor = "#58CC02";
+      iconSize = 16;
+    } else if (isSkipped || (isAnswered && !isCorrect && !isSkipped)) {
+      // 跳过的题目或答错的题目：小实心灰色圆圈
+      iconName = "radio-button-on";
+      iconColor = "#999";
+      iconSize = 12;
+    } else if (isCurrent) {
+      // 当前题目：大一点的实心灰色圆圈
+      iconName = "radio-button-on";
+      iconColor = "#666";
+      iconSize = 20;
+    } else {
+      // 待做的题目：空心圆圈
+      iconName = "radio-button-off";
+      iconColor = "#ccc";
+      iconSize = 16;
+    }
+
+    return (
+      <RNView key={exerciseIndex} style={styles.progressDotContainer}>
+        <Ionicons name={iconName} size={iconSize} color={iconColor} />
+      </RNView>
+    );
+  };
+
+  return (
+    <RNView style={styles.khanProgressContainer}>
+      <Text style={styles.khanProgressLabel}>进度：</Text>
+      <RNView style={styles.khanProgressDots}>
+        {exercises.map((_, index) => renderProgressDot(index))}
+      </RNView>
+      <Text style={styles.khanProgressText}>
+        {currentIndex + 1}/{exercises.length}
+      </Text>
+    </RNView>
+  );
+};
+
 // AI讲解按钮组件
 const AIExplanationButtons = () => {
   const handleAIExplanation = (type: string) => {
@@ -208,6 +279,10 @@ const ResultFeedback = ({
   onOpenDraftPaper,
   currentIndex,
   totalCount,
+  exercises,
+  answeredExercises,
+  skippedExercises,
+  exerciseAttempts,
 }: {
   isCorrect: boolean;
   explanation?: string;
@@ -218,6 +293,10 @@ const ResultFeedback = ({
   onOpenDraftPaper?: () => void;
   currentIndex: number;
   totalCount: number;
+  exercises: any[];
+  answeredExercises: Record<string, boolean>;
+  skippedExercises: Record<string, boolean>;
+  exerciseAttempts: Record<string, number>;
 }) => {
   const progressPercentage = totalCount > 0 ? (currentIndex / totalCount) * 100 : 0;
   
@@ -232,18 +311,26 @@ const ResultFeedback = ({
           ]}>
             <RNView style={styles.feedbackHeader}>
               <Ionicons
-                name={isCorrect ? "checkmark-circle" : "close-circle"}
+                name={isCorrect ? "checkmark-circle" : (!isCorrect && (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1 ? "help-circle" : "close-circle")}
                 size={32}
-                color={isCorrect ? "#58CC02" : "#FF4B4B"}
+                color={isCorrect ? "#58CC02" : (!isCorrect && (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1 ? "#FF9600" : "#FF4B4B")}
               />
               <Text
-                style={[styles.feedbackHeaderText, isCorrect ? styles.correctFeedbackText : styles.incorrectFeedbackText]}
+                style={[
+                  styles.feedbackHeaderText, 
+                  isCorrect ? styles.correctFeedbackText : (!isCorrect && (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1 ? styles.gentleFeedbackText : styles.incorrectFeedbackText)
+                ]}
               >
-                {isCorrect ? "回答正确！" : "回答错误！"}
+                {isCorrect 
+                  ? "回答正确！" 
+                  : (!isCorrect && (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1 
+                      ? "不太对，再试一次？" 
+                      : "回答错误！")}
               </Text>
             </RNView>
 
-            {explanation && (
+            {/* 解析只在答对或第二次答错时显示 */}
+            {explanation && (isCorrect || (!isCorrect && (exerciseAttempts[exercises[currentIndex]?.id] || 0) >= 2)) && (
               <RNView style={styles.explanationContainer}>
                 <Text style={styles.explanationTitle}>解析：</Text>
                 <HtmlContent 
@@ -257,8 +344,15 @@ const ResultFeedback = ({
               style={[styles.continueButton, isCorrect ? styles.correctContinueButton : styles.incorrectContinueButton]}
               onPress={onContinue}
             >
-              <Text style={styles.continueButtonText}>继续</Text>
-              <Ionicons name="arrow-forward" size={20} color="white" style={{ marginLeft: 8 }} />
+              <Text style={styles.continueButtonText}>
+                {!isCorrect && (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1 ? "重新尝试" : "继续"}
+              </Text>
+              <Ionicons 
+                name={!isCorrect && (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1 ? "refresh" : "arrow-forward"} 
+                size={20} 
+                color="white" 
+                style={{ marginLeft: 8 }} 
+              />
             </TouchableOpacity>
           </RNView>
         </>
@@ -277,20 +371,13 @@ const ResultFeedback = ({
           </TouchableOpacity>
 
           {/* 进度条区域 */}
-          <RNView style={styles.progressSection}>
-            <Text style={styles.progressLabel}>本次测试的进度条：</Text>
-            <RNView style={styles.progressBarContainer}>
-              <RNView style={styles.progressBarBackground}>
-                <RNView 
-                  style={[
-                    styles.progressBarFill, 
-                    { width: `${progressPercentage}%`, backgroundColor: "#58CC02" }
-                  ]} 
-                />
-              </RNView>
-              <Text style={styles.progressPercentText}>{Math.round(progressPercentage)}%</Text>
-            </RNView>
-          </RNView>
+          <KhanStyleProgressBar
+            exercises={exercises}
+            currentIndex={currentIndex}
+            answeredExercises={answeredExercises}
+            skippedExercises={skippedExercises}
+            hasSubmittedAnswer={hasSubmitted}
+          />
 
           {/* 跳过按钮 */}
           <TouchableOpacity 
@@ -308,7 +395,9 @@ const ResultFeedback = ({
             onPress={onSubmitAnswer}
           >
             <RNView style={styles.actionButtonContent}>
-              <Text style={styles.submitButtonText}>提交</Text>
+              <Text style={styles.submitButtonText}>
+                {(exerciseAttempts[exercises[currentIndex]?.id] || 0) >= 1 ? "再次提交" : "提交"}
+              </Text>
             </RNView>
           </TouchableOpacity>
         </RNView>
@@ -466,7 +555,11 @@ export default function PracticeScreen() {
   const [unitProgress, setUnitProgress] = useState<UnitProgress | null>(null);
   const [practiceStartTime, setPracticeStartTime] = useState<number>(Date.now());
   const [showDraftPaper, setShowDraftPaper] = useState(false);
+  const [skippedExercises, setSkippedExercises] = useState<Record<string, boolean>>({});
+  const [exerciseAttempts, setExerciseAttempts] = useState<Record<string, number>>({});
+  const [showHelpForExercise, setShowHelpForExercise] = useState<Record<string, boolean>>({});
   const scrollViewRef = useRef<ScrollView>(null);
+  const helpSectionRef = useRef<RNView>(null);
 
   // 解析解锁测试参数
   const isTestForUnlocking = params.isUnlockingTest === "true";
@@ -659,9 +752,13 @@ export default function PracticeScreen() {
     const exercise = exercises[currentExerciseIndex];
     if (!exercise) return;
 
+    const currentExerciseId = exercise.id;
+    
+    // 获取当前题目的尝试次数
+    const currentAttempts = exerciseAttempts[currentExerciseId] || 0;
+
     // 如果没有待处理的答案，创建一个默认的空答案
     // 这样即使用户没有做任何选择，也能提交答案（默认为错误）
-    const currentExerciseId = exercise.id;
     let userAnswer: number | number[] | string[] | Record<string, string> = -1; // 默认使用-1，确保不会与任何选项索引匹配
     let hasUserSelection = false; // 标记是否有用户选择
 
@@ -736,11 +833,63 @@ export default function PracticeScreen() {
     // 重要修改：使用课程ID(lessonId)而不是习题的unitId，确保进度记录到正确的课程
     const isCorrect = await processAnswer(currentExerciseId, lessonId, exercise, userAnswer);
 
-    // 更新已答题记录
-    setAnsweredExercises((prev) => ({
+    // 更新尝试次数
+    const newAttempts = currentAttempts + 1;
+    setExerciseAttempts((prev) => ({
       ...prev,
-      [currentExerciseId]: isCorrect,
+      [currentExerciseId]: newAttempts,
     }));
+
+    // 如果答错了
+    if (!isCorrect) {
+      if (newAttempts === 1) {
+        // 第一次答错：显示帮助内容并滚动过去
+        setShowHelpForExercise((prev) => ({
+          ...prev,
+          [currentExerciseId]: true,
+        }));
+        
+        // 延迟滚动，确保内容已渲染
+        setTimeout(() => {
+          if (helpSectionRef.current) {
+            helpSectionRef.current.measureLayout(
+              scrollViewRef.current as any,
+              (x, y) => {
+                scrollViewRef.current?.scrollTo({ y: y - 100, animated: true });
+              },
+              () => {
+                // fallback: 滚动到底部
+                scrollViewRef.current?.scrollToEnd({ animated: true });
+              }
+            );
+          }
+        }, 200);
+        
+        // 设置最后一次答题的结果
+        setIsLastAnswerCorrect(false);
+        
+        // 标记已提交答案
+        setHasSubmittedAnswer(true);
+        
+        // 清空待处理答案，允许用户重新选择
+        setPendingAnswer(null);
+        
+        // 第一次答错不记录到答题记录中，给用户第二次机会
+        return;
+      } else {
+        // 第二次答错：正式记录为错误
+        setAnsweredExercises((prev) => ({
+          ...prev,
+          [currentExerciseId]: false,
+        }));
+      }
+    } else {
+      // 答对了：记录为正确
+      setAnsweredExercises((prev) => ({
+        ...prev,
+        [currentExerciseId]: true,
+      }));
+    }
 
     // 设置最后一次答题的结果
     setIsLastAnswerCorrect(isCorrect);
@@ -890,6 +1039,23 @@ export default function PracticeScreen() {
 
   // 处理继续按钮点击
   const handleContinue = () => {
+    const currentExercise = exercises[currentExerciseIndex];
+    if (!currentExercise) return;
+
+    const currentExerciseId = currentExercise.id;
+    const attempts = exerciseAttempts[currentExerciseId] || 0;
+
+    // 如果是第一次答错，重置状态允许重新答题
+    if (!isLastAnswerCorrect && attempts === 1) {
+      setHasSubmittedAnswer(false);
+      setPendingAnswer(null);
+      // 滚动到顶部让用户重新答题
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: 0, animated: true });
+      }
+      return;
+    }
+
     // 记录答题结束时间并计算花费时间
     const answerEndTime = Date.now();
     const timeSpent = answerEndTime - practiceStartTime;
@@ -897,6 +1063,8 @@ export default function PracticeScreen() {
     if (currentExerciseIndex < exercises.length - 1) {
       setCurrentExerciseIndex(currentExerciseIndex + 1);
       setHasSubmittedAnswer(false);
+      // 清空待处理的答案，为下一题做准备
+      setPendingAnswer(null);
     } else {
       // 最后一题，显示总结
       setShowSummary(true);
@@ -913,6 +1081,12 @@ export default function PracticeScreen() {
     if (!exercises[currentExerciseIndex]) return;
 
     const currentExercise = exercises[currentExerciseIndex];
+    
+    // 标记为跳过
+    setSkippedExercises({
+      ...skippedExercises,
+      [currentExercise.id]: true,
+    });
     
     // 将跳过视为回答错误
     setIsLastAnswerCorrect(false);
@@ -934,8 +1108,12 @@ export default function PracticeScreen() {
   const handleRetry = () => {
     setShowSummary(false);
     setAnsweredExercises({});
+    setSkippedExercises({});
+    setExerciseAttempts({});
+    setShowHelpForExercise({});
     setCurrentExerciseIndex(0);
     setHasSubmittedAnswer(false);
+    setPendingAnswer(null);
   };
 
   // 退出练习返回学习页面
@@ -1110,11 +1288,19 @@ export default function PracticeScreen() {
                 onOpenDraftPaper={() => setShowDraftPaper(true)}
                 currentIndex={currentExerciseIndex}
                 totalCount={exercises.length}
+                exercises={exercises}
+                answeredExercises={answeredExercises}
+                skippedExercises={skippedExercises}
+                exerciseAttempts={exerciseAttempts}
               />
             )}
 
-            {/* 知识点区域 - 始终显示在题目下方 */}
-            <KnowledgePointsSection knowledgePoints={currentExercise.knowledgePoints} />
+            {/* 知识点区域 - 仅在第一次答错后显示 */}
+            {showHelpForExercise[currentExercise.id] && (
+              <RNView ref={helpSectionRef}>
+                <KnowledgePointsSection knowledgePoints={currentExercise.knowledgePoints} />
+              </RNView>
+            )}
           </RNView>
         ) : (
           <RNView style={styles.noExerciseContainer}>
@@ -1288,6 +1474,9 @@ const styles = StyleSheet.create({
   },
   incorrectFeedbackText: {
     color: "#FF4B4B",
+  },
+  gentleFeedbackText: {
+    color: "#FF9600",
   },
   explanationContainer: {
     width: "100%",
@@ -1612,5 +1801,44 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     marginLeft: 4,
+  },
+  // 可汗学院风格进度条样式
+  khanProgressContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: "white",
+    borderRadius: 8,
+    marginVertical: 8,
+  },
+  khanProgressLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginRight: 12,
+  },
+  khanProgressDots: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    flex: 1,
+    paddingHorizontal: 8,
+  },
+  khanProgressText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginLeft: 12,
+    minWidth: 50,
+    textAlign: "right",
+  },
+  progressDotContainer: {
+    marginHorizontal: 3,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 24,
+    minHeight: 24,
   },
 });
