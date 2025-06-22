@@ -16,7 +16,11 @@ import { Ionicons, FontAwesome5 } from "@expo/vector-icons";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
-import { getCurrentStudentIdForProgress, getStudentUnitProgress, type UnitProgress } from "./services/progressService";
+import {
+  getCurrentStudentIdForProgress,
+  getStudentUnitProgress,
+  type UnitProgress,
+} from "./services/progressService";
 // 导入工具函数，添加新的 processAnswer 函数
 import { processAnswer } from "./utils/exerciseUtils";
 import { MasteryIndicator } from "./components/MasteryIndicator";
@@ -28,45 +32,45 @@ import { LinearGradient } from "expo-linear-gradient";
 import { API_BASE_URL } from "@/constants/apiConfig";
 import { KnowledgePointModal } from "./components/KnowledgePointModal";
 import { DraftPaper } from "./components/DraftPaper";
-import RenderHtml from 'react-native-render-html';
+import RenderHtml from "react-native-render-html";
 
 // HTML渲染组件 - 支持解析内容的HTML格式
 const HtmlContent = ({ html, style }: { html: string; style?: any }) => {
   const { width } = useWindowDimensions();
-  
+
   // 检查是否包含HTML标签
   const hasHtmlTags = /<[^>]*>/g.test(html);
-  
+
   if (!hasHtmlTags) {
     // 没有HTML标签，直接使用Text组件
     return <Text style={style}>{html}</Text>;
   }
-  
+
   // 有HTML标签，使用RenderHtml组件
   const tagsStyles = {
     body: {
-      color: style?.color || '#444',
+      color: style?.color || "#444",
       fontSize: style?.fontSize || 15,
-      fontFamily: style?.fontFamily || 'System',
+      fontFamily: style?.fontFamily || "System",
       lineHeight: style?.lineHeight || 22,
     },
     p: {
       marginVertical: 4,
     },
     strong: {
-      fontWeight: 'bold' as const,
+      fontWeight: "bold" as const,
     },
     em: {
-      fontStyle: 'italic' as const,
+      fontStyle: "italic" as const,
     },
     code: {
-      fontFamily: 'monospace',
-      backgroundColor: '#f5f5f5',
+      fontFamily: "monospace",
+      backgroundColor: "#f5f5f5",
       padding: 2,
       borderRadius: 3,
     },
     pre: {
-      backgroundColor: '#f5f5f5',
+      backgroundColor: "#f5f5f5",
       padding: 8,
       borderRadius: 5,
       marginVertical: 8,
@@ -80,13 +84,13 @@ const HtmlContent = ({ html, style }: { html: string; style?: any }) => {
       lineHeight: 1,
     },
   };
-  
+
   return (
     <RenderHtml
       contentWidth={width - 64} // 减去更多的padding
       source={{ html }}
       tagsStyles={tagsStyles}
-      systemFonts={['System']}
+      systemFonts={["System"]}
       enableExperimentalMarginCollapsing={true}
     />
   );
@@ -161,13 +165,9 @@ const KhanStyleProgressBar = ({
 
   return (
     <RNView style={styles.khanProgressContainer}>
-      <Text style={styles.khanProgressLabel}>进度：</Text>
       <RNView style={styles.khanProgressDots}>
         {exercises.map((_, index) => renderProgressDot(index))}
       </RNView>
-      <Text style={styles.khanProgressText}>
-        {currentIndex + 1}/{exercises.length}
-      </Text>
     </RNView>
   );
 };
@@ -191,25 +191,31 @@ const AIExplanationButtons = () => {
           activeOpacity={0.7}
         >
           <Ionicons name="document-text-outline" size={18} color="#4A90E2" />
-          <Text style={[styles.aiButtonText, { color: "#4A90E2" }]}>AI文字讲解</Text>
+          <Text style={[styles.aiButtonText, { color: "#4A90E2" }]}>
+            AI文字讲解
+          </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[styles.aiButton, styles.aiVisualButton]}
           onPress={() => handleAIExplanation("visual")}
           activeOpacity={0.7}
         >
           <Ionicons name="eye-outline" size={18} color="#50C878" />
-          <Text style={[styles.aiButtonText, { color: "#50C878" }]}>AI可视化讲解</Text>
+          <Text style={[styles.aiButtonText, { color: "#50C878" }]}>
+            AI可视化讲解
+          </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={[styles.aiButton, styles.aiInteractiveButton]}
           onPress={() => handleAIExplanation("interactive")}
           activeOpacity={0.7}
         >
           <Ionicons name="chatbubbles-outline" size={18} color="#FF6B35" />
-          <Text style={[styles.aiButtonText, { color: "#FF6B35" }]}>AI互动讲解</Text>
+          <Text style={[styles.aiButtonText, { color: "#FF6B35" }]}>
+            AI互动讲解
+          </Text>
         </TouchableOpacity>
       </RNView>
     </RNView>
@@ -217,9 +223,14 @@ const AIExplanationButtons = () => {
 };
 
 // 独立的知识点组件
-const KnowledgePointsSection = ({ knowledgePoints }: { knowledgePoints?: KnowledgePoint[] }) => {
+const KnowledgePointsSection = ({
+  knowledgePoints,
+}: {
+  knowledgePoints?: KnowledgePoint[];
+}) => {
   // 知识点弹窗状态
-  const [selectedKnowledgePoint, setSelectedKnowledgePoint] = useState<KnowledgePoint | null>(null);
+  const [selectedKnowledgePoint, setSelectedKnowledgePoint] =
+    useState<KnowledgePoint | null>(null);
   const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
 
   const handleKnowledgePointPress = (knowledgePoint: KnowledgePoint) => {
@@ -231,7 +242,7 @@ const KnowledgePointsSection = ({ knowledgePoints }: { knowledgePoints?: Knowled
     <>
       {/* AI讲解按钮 - 始终显示 */}
       <AIExplanationButtons />
-      
+
       {/* 相关知识点 - 只有当存在知识点时才显示 */}
       {knowledgePoints && knowledgePoints.length > 0 && (
         <RNView style={styles.knowledgePointsContainer}>
@@ -298,108 +309,154 @@ const ResultFeedback = ({
   skippedExercises: Record<string, boolean>;
   exerciseAttempts: Record<string, number>;
 }) => {
-  const progressPercentage = totalCount > 0 ? (currentIndex / totalCount) * 100 : 0;
-  
+  const progressPercentage =
+    totalCount > 0 ? (currentIndex / totalCount) * 100 : 0;
+
   return (
     <RNView style={styles.feedbackContainer}>
       {hasSubmitted ? (
         // 已提交答案，显示结果反馈
         <>
-          <RNView style={[
-            styles.resultContainer,
-            isCorrect ? styles.correctFeedbackContainer : styles.incorrectFeedbackContainer,
-          ]}>
+          <RNView
+            style={[
+              styles.resultContainer,
+              isCorrect
+                ? styles.correctFeedbackContainer
+                : styles.incorrectFeedbackContainer,
+            ]}
+          >
             <RNView style={styles.feedbackHeader}>
               <Ionicons
-                name={isCorrect ? "checkmark-circle" : (!isCorrect && (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1 ? "help-circle" : "close-circle")}
+                name={
+                  isCorrect
+                    ? "checkmark-circle"
+                    : !isCorrect &&
+                      (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1
+                    ? "help-circle"
+                    : "close-circle"
+                }
                 size={32}
-                color={isCorrect ? "#58CC02" : (!isCorrect && (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1 ? "#FF9600" : "#FF4B4B")}
+                color={
+                  isCorrect
+                    ? "#58CC02"
+                    : !isCorrect &&
+                      (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1
+                    ? "#FF9600"
+                    : "#FF4B4B"
+                }
               />
               <Text
                 style={[
-                  styles.feedbackHeaderText, 
-                  isCorrect ? styles.correctFeedbackText : (!isCorrect && (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1 ? styles.gentleFeedbackText : styles.incorrectFeedbackText)
+                  styles.feedbackHeaderText,
+                  isCorrect
+                    ? styles.correctFeedbackText
+                    : !isCorrect &&
+                      (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1
+                    ? styles.gentleFeedbackText
+                    : styles.incorrectFeedbackText,
                 ]}
               >
-                {isCorrect 
-                  ? "回答正确！" 
-                  : (!isCorrect && (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1 
-                      ? "不太对，再试一次？" 
-                      : "回答错误！")}
+                {isCorrect
+                  ? "回答正确！"
+                  : !isCorrect &&
+                    (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1
+                  ? "不太对，再试一次？"
+                  : "回答错误！"}
               </Text>
             </RNView>
 
             {/* 解析只在答对或第二次答错时显示 */}
-            {explanation && (isCorrect || (!isCorrect && (exerciseAttempts[exercises[currentIndex]?.id] || 0) >= 2)) && (
-              <RNView style={styles.explanationContainer}>
-                <Text style={styles.explanationTitle}>解析：</Text>
-                <HtmlContent 
-                  html={explanation} 
-                  style={styles.explanationText}
-                />
-              </RNView>
-            )}
+            {explanation &&
+              (isCorrect ||
+                (!isCorrect &&
+                  (exerciseAttempts[exercises[currentIndex]?.id] || 0) >=
+                    2)) && (
+                <RNView style={styles.explanationContainer}>
+                  <Text style={styles.explanationTitle}>解析：</Text>
+                  <HtmlContent
+                    html={explanation}
+                    style={styles.explanationText}
+                  />
+                </RNView>
+              )}
 
             <TouchableOpacity
-              style={[styles.continueButton, isCorrect ? styles.correctContinueButton : styles.incorrectContinueButton]}
+              style={[
+                styles.continueButton,
+                isCorrect
+                  ? styles.correctContinueButton
+                  : styles.incorrectContinueButton,
+              ]}
               onPress={onContinue}
             >
               <Text style={styles.continueButtonText}>
-                {!isCorrect && (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1 ? "重新尝试" : "继续"}
+                {!isCorrect &&
+                (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1
+                  ? "重新尝试"
+                  : "继续"}
               </Text>
-              <Ionicons 
-                name={!isCorrect && (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1 ? "refresh" : "arrow-forward"} 
-                size={20} 
-                color="white" 
-                style={{ marginLeft: 8 }} 
+              <Ionicons
+                name={
+                  !isCorrect &&
+                  (exerciseAttempts[exercises[currentIndex]?.id] || 0) === 1
+                    ? "refresh"
+                    : "arrow-forward"
+                }
+                size={20}
+                color="white"
+                style={{ marginLeft: 8 }}
               />
             </TouchableOpacity>
           </RNView>
         </>
       ) : (
         // 未提交答案，显示底部操作区域
-        <RNView style={styles.bottomActionsContainer}>
-          {/* 画板按钮 */}
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={onOpenDraftPaper}
-          >
-            <RNView style={styles.actionButtonContent}>
-              <Ionicons name="create-outline" size={20} color="#666" />
-              <Text style={styles.actionButtonText}>画板</Text>
-            </RNView>
-          </TouchableOpacity>
+        <RNView style={styles.bottomActionsWrapper}>
+          {/* 第一行：进度条、跳过按钮、提交按钮 */}
+          <RNView style={styles.bottomActionsContainer}>
+            {/* 进度条区域 */}
+            <KhanStyleProgressBar
+              exercises={exercises}
+              currentIndex={currentIndex}
+              answeredExercises={answeredExercises}
+              skippedExercises={skippedExercises}
+              hasSubmittedAnswer={hasSubmitted}
+            />
 
-          {/* 进度条区域 */}
-          <KhanStyleProgressBar
-            exercises={exercises}
-            currentIndex={currentIndex}
-            answeredExercises={answeredExercises}
-            skippedExercises={skippedExercises}
-            hasSubmittedAnswer={hasSubmitted}
-          />
+            {/* 跳过按钮 */}
+            <TouchableOpacity style={styles.actionButton} onPress={onSkip}>
+              <RNView style={styles.actionButtonContent}>
+                <Text style={styles.skipButtonText}>跳过</Text>
+              </RNView>
+            </TouchableOpacity>
 
-          {/* 跳过按钮 */}
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={onSkip}
-          >
-            <RNView style={styles.actionButtonContent}>
-              <Text style={styles.skipButtonText}>跳过</Text>
-            </RNView>
-          </TouchableOpacity>
+            {/* 提交按钮 */}
+            <TouchableOpacity
+              style={styles.submitActionButton}
+              onPress={onSubmitAnswer}
+            >
+              <RNView style={styles.actionButtonContent}>
+                <Text style={styles.submitButtonText}>
+                  {(exerciseAttempts[exercises[currentIndex]?.id] || 0) >= 1
+                    ? "再次提交"
+                    : "提交"}
+                </Text>
+              </RNView>
+            </TouchableOpacity>
+          </RNView>
 
-          {/* 提交按钮 */}
-          <TouchableOpacity 
-            style={styles.submitActionButton} 
-            onPress={onSubmitAnswer}
-          >
-            <RNView style={styles.actionButtonContent}>
-              <Text style={styles.submitButtonText}>
-                {(exerciseAttempts[exercises[currentIndex]?.id] || 0) >= 1 ? "再次提交" : "提交"}
-              </Text>
-            </RNView>
-          </TouchableOpacity>
+          {/* 第二行：画板按钮 */}
+          <RNView style={styles.draftPaperButtonContainer}>
+            <TouchableOpacity
+              style={styles.draftPaperActionButton}
+              onPress={onOpenDraftPaper}
+            >
+              <RNView style={styles.actionButtonContent}>
+                <Ionicons name="create-outline" size={20} color="#666" />
+                <Text style={styles.actionButtonText}>画板</Text>
+              </RNView>
+            </TouchableOpacity>
+          </RNView>
         </RNView>
       )}
     </RNView>
@@ -447,21 +504,21 @@ const SummaryModal = ({
   const renderCrown = () => {
     if (isFullCompletion) {
       return (
-        <FontAwesome5 
-          name="crown" 
-          size={48} 
-          color="#FFD700" 
-          solid 
+        <FontAwesome5
+          name="crown"
+          size={48}
+          color="#FFD700"
+          solid
           style={{ marginVertical: 16 }}
         />
       );
     } else if (completionRate >= 0.6) {
       return (
-        <FontAwesome5 
-          name="crown" 
-          size={36} 
-          color="#FF9800" 
-          solid 
+        <FontAwesome5
+          name="crown"
+          size={36}
+          color="#FF9800"
+          solid
           style={{ marginVertical: 16 }}
         />
       );
@@ -470,7 +527,12 @@ const SummaryModal = ({
   };
 
   return (
-    <Modal animationType="fade" transparent={true} visible={visible} onRequestClose={onExit}>
+    <Modal
+      animationType="fade"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onExit}
+    >
       <RNView style={styles.modalOverlay}>
         <RNView style={styles.modalContent}>
           <Text style={styles.modalTitle}>练习完成！</Text>
@@ -481,10 +543,14 @@ const SummaryModal = ({
               总题数：<Text style={styles.summaryHighlight}>{totalCount}</Text>
             </Text>
             <Text style={styles.summaryDetail}>
-              答对题数：<Text style={styles.summaryHighlight}>{correctCount}</Text>
+              答对题数：
+              <Text style={styles.summaryHighlight}>{correctCount}</Text>
             </Text>
             <Text style={styles.summaryDetail}>
-              正确率：<Text style={styles.summaryHighlight}>{Math.round(completionRate * 100)}%</Text>
+              正确率：
+              <Text style={styles.summaryHighlight}>
+                {Math.round(completionRate * 100)}%
+              </Text>
             </Text>
 
             {totalPoints > 0 && (
@@ -492,10 +558,12 @@ const SummaryModal = ({
                 <FontAwesome5 name="gem" size={16} color="#1CB0F6" solid />
                 <RNView style={styles.pointsDetailContainer}>
                   <Text style={styles.bonusPointsText}>
-                    获得积分：<Text style={styles.bonusPointsValue}>{totalPoints}</Text>
+                    获得积分：
+                    <Text style={styles.bonusPointsValue}>{totalPoints}</Text>
                   </Text>
                   <Text style={styles.pointsBreakdown}>
-                    基础积分：{basePoints} {bonusPoints > 0 ? `+ 额外奖励：${bonusPoints}` : ""}
+                    基础积分：{basePoints}{" "}
+                    {bonusPoints > 0 ? `+ 额外奖励：${bonusPoints}` : ""}
                   </Text>
                 </RNView>
               </RNView>
@@ -511,18 +579,28 @@ const SummaryModal = ({
             </RNView>
           )}
 
-          {isTestForUnlocking && shouldUnlockPreviousUnits && completionRate >= 0.6 && (
-            <RNView style={styles.unlockMessage}>
-              <Ionicons name="flag" size={18} color="#FF9600" />
-              <Text style={[styles.unlockText, { color: "#FF9600" }]}>恭喜！您将解锁所有之前的单元</Text>
-            </RNView>
-          )}
+          {isTestForUnlocking &&
+            shouldUnlockPreviousUnits &&
+            completionRate >= 0.6 && (
+              <RNView style={styles.unlockMessage}>
+                <Ionicons name="flag" size={18} color="#FF9600" />
+                <Text style={[styles.unlockText, { color: "#FF9600" }]}>
+                  恭喜！您将解锁所有之前的单元
+                </Text>
+              </RNView>
+            )}
 
           <RNView style={styles.modalButtons}>
-            <TouchableOpacity style={[styles.modalButton, styles.retryButton]} onPress={onRetry}>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.retryButton]}
+              onPress={onRetry}
+            >
               <Text style={styles.modalButtonText}>重新练习</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.modalButton, styles.exitButton]} onPress={onExit}>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.exitButton]}
+              onPress={onExit}
+            >
               <Text style={styles.modalButtonText}>完成</Text>
             </TouchableOpacity>
           </RNView>
@@ -544,7 +622,9 @@ export default function PracticeScreen() {
   const [showSummary, setShowSummary] = useState(false);
   const [showFeedback, setShowFeedback] = useState(true); // 始终显示反馈区域
   const [isLastAnswerCorrect, setIsLastAnswerCorrect] = useState(false);
-  const [answeredExercises, setAnsweredExercises] = useState<Record<string, boolean>>({});
+  const [answeredExercises, setAnsweredExercises] = useState<
+    Record<string, boolean>
+  >({});
   const [pendingAnswer, setPendingAnswer] = useState<{
     exerciseId: string;
     optionIndex?: number;
@@ -553,11 +633,19 @@ export default function PracticeScreen() {
   } | null>(null);
   const [hasSubmittedAnswer, setHasSubmittedAnswer] = useState(false);
   const [unitProgress, setUnitProgress] = useState<UnitProgress | null>(null);
-  const [practiceStartTime, setPracticeStartTime] = useState<number>(Date.now());
+  const [practiceStartTime, setPracticeStartTime] = useState<number>(
+    Date.now()
+  );
   const [showDraftPaper, setShowDraftPaper] = useState(false);
-  const [skippedExercises, setSkippedExercises] = useState<Record<string, boolean>>({});
-  const [exerciseAttempts, setExerciseAttempts] = useState<Record<string, number>>({});
-  const [showHelpForExercise, setShowHelpForExercise] = useState<Record<string, boolean>>({});
+  const [skippedExercises, setSkippedExercises] = useState<
+    Record<string, boolean>
+  >({});
+  const [exerciseAttempts, setExerciseAttempts] = useState<
+    Record<string, number>
+  >({});
+  const [showHelpForExercise, setShowHelpForExercise] = useState<
+    Record<string, boolean>
+  >({});
   const scrollViewRef = useRef<ScrollView>(null);
   const helpSectionRef = useRef<RNView>(null);
 
@@ -584,9 +672,11 @@ export default function PracticeScreen() {
   // 假定lessonId已包含学科前缀，不再需要格式化
 
   // 获取其他参数用于界面显示
-  const unitTitle = typeof params.unitTitle === "string" ? params.unitTitle : "练习";
+  const unitTitle =
+    typeof params.unitTitle === "string" ? params.unitTitle : "练习";
   const color = typeof params.color === "string" ? params.color : "#5EC0DE";
-  const secondaryColor = typeof params.secondaryColor === "string" ? params.secondaryColor : color;
+  const secondaryColor =
+    typeof params.secondaryColor === "string" ? params.secondaryColor : color;
 
   // 获取练习题
   const fetchExercises = async () => {
@@ -650,7 +740,9 @@ export default function PracticeScreen() {
             });
 
             if (activityResponse.ok) {
-              console.log(`成功记录用户练习活动: ${actualUnitId}（课程ID: ${lessonId}）`);
+              console.log(
+                `成功记录用户练习活动: ${actualUnitId}（课程ID: ${lessonId}）`
+              );
 
               // 获取并保存当前单元的进度数据
               try {
@@ -699,7 +791,9 @@ export default function PracticeScreen() {
 
     // 组件卸载时记录总练习时间
     return () => {
-      const totalPracticeTime = Math.floor((Date.now() - practiceStartTime) / 1000);
+      const totalPracticeTime = Math.floor(
+        (Date.now() - practiceStartTime) / 1000
+      );
       // 仅当练习时间超过5秒时才记录
       if (totalPracticeTime > 5 && currentStudentId) {
         console.log(`用户练习了 ${totalPracticeTime} 秒`);
@@ -708,16 +802,19 @@ export default function PracticeScreen() {
         const unitIdForRecord = actualUnitId !== "" ? actualUnitId : lessonId;
 
         // 发送最终练习时间统计
-        fetch(`${API_BASE_URL}/api/answer-records/${currentStudentId}/increment-practice/${unitIdForRecord}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            activityType: "practice_end", // 明确标识活动类型
-            timeSpent: totalPracticeTime, // 使用与服务器端匹配的字段名
-          }),
-        }).catch((err) => {
+        fetch(
+          `${API_BASE_URL}/api/answer-records/${currentStudentId}/increment-practice/${unitIdForRecord}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              activityType: "practice_end", // 明确标识活动类型
+              timeSpent: totalPracticeTime, // 使用与服务器端匹配的字段名
+            }),
+          }
+        ).catch((err) => {
           console.error("记录最终练习时间失败:", err);
         });
       }
@@ -726,7 +823,8 @@ export default function PracticeScreen() {
 
   // 计算正确答题数
   const getCorrectCount = () => {
-    return Object.values(answeredExercises).filter((isCorrect) => isCorrect).length;
+    return Object.values(answeredExercises).filter((isCorrect) => isCorrect)
+      .length;
   };
 
   // 处理答题
@@ -736,7 +834,9 @@ export default function PracticeScreen() {
     matchingAnswers?: number[],
     fillBlankAnswers?: string[]
   ) => {
-    console.log(`接收到用户答案: exerciseId=${exerciseId}, optionIndex=${optionIndex}`);
+    console.log(
+      `接收到用户答案: exerciseId=${exerciseId}, optionIndex=${optionIndex}`
+    );
 
     // 保存临时答案，等待确认
     setPendingAnswer({
@@ -753,7 +853,7 @@ export default function PracticeScreen() {
     if (!exercise) return;
 
     const currentExerciseId = exercise.id;
-    
+
     // 获取当前题目的尝试次数
     const currentAttempts = exerciseAttempts[currentExerciseId] || 0;
 
@@ -775,16 +875,24 @@ export default function PracticeScreen() {
           // 用户未选择，使用一个肯定错误的答案
           userAnswer = exercise.correctAnswer !== -1 ? -1 : -2; // 确保与正确答案不同
         }
-      } else if (exercise.type === "fill_blank" && pendingAnswer.fillBlankAnswers) {
+      } else if (
+        exercise.type === "fill_blank" &&
+        pendingAnswer.fillBlankAnswers
+      ) {
         // 填空题：明确处理填空题答案
         userAnswer = pendingAnswer.fillBlankAnswers;
         hasUserSelection = true;
         console.log("提交填空题答案:", userAnswer);
-      } else if (exercise.type === "matching" && pendingAnswer.matchingAnswers) {
+      } else if (
+        exercise.type === "matching" &&
+        pendingAnswer.matchingAnswers
+      ) {
         // 匹配题：将数组格式转换为对象格式
         const matchingPairs = pendingAnswer.matchingAnswers;
-        const allMatched = Array.isArray(matchingPairs) && matchingPairs.every(pair => pair !== -1);
-        
+        const allMatched =
+          Array.isArray(matchingPairs) &&
+          matchingPairs.every((pair) => pair !== -1);
+
         if (allMatched) {
           // 将数组格式转换为对象格式
           const matchingObj: Record<string, string> = {};
@@ -793,7 +901,7 @@ export default function PracticeScreen() {
               matchingObj[leftIndex.toString()] = rightIndex.toString();
             }
           });
-          
+
           userAnswer = matchingObj;
           hasUserSelection = true;
           console.log("提交匹配题答案:", userAnswer);
@@ -809,10 +917,16 @@ export default function PracticeScreen() {
       console.log("用户没有选择答案，使用默认错误答案");
 
       // 根据题型创建默认的空答案
-      if (exercise.type === "matching" && Array.isArray(exercise.options?.left)) {
+      if (
+        exercise.type === "matching" &&
+        Array.isArray(exercise.options?.left)
+      ) {
         // 匹配题默认答案使用对象格式，空对象表示没有匹配
         userAnswer = {};
-      } else if (exercise.type === "fill_blank" && Array.isArray(exercise.correctAnswer)) {
+      } else if (
+        exercise.type === "fill_blank" &&
+        Array.isArray(exercise.correctAnswer)
+      ) {
         // 填空题默认全部为空字符串
         userAnswer = Array(exercise.correctAnswer.length).fill("");
       } else if (exercise.type === "choice") {
@@ -831,7 +945,12 @@ export default function PracticeScreen() {
 
     // 使用统一处理函数判断答案正确性
     // 重要修改：使用课程ID(lessonId)而不是习题的unitId，确保进度记录到正确的课程
-    const isCorrect = await processAnswer(currentExerciseId, lessonId, exercise, userAnswer);
+    const isCorrect = await processAnswer(
+      currentExerciseId,
+      lessonId,
+      exercise,
+      userAnswer
+    );
 
     // 更新尝试次数
     const newAttempts = currentAttempts + 1;
@@ -848,7 +967,7 @@ export default function PracticeScreen() {
           ...prev,
           [currentExerciseId]: true,
         }));
-        
+
         // 延迟滚动，确保内容已渲染
         setTimeout(() => {
           if (helpSectionRef.current) {
@@ -864,16 +983,16 @@ export default function PracticeScreen() {
             );
           }
         }, 200);
-        
+
         // 设置最后一次答题的结果
         setIsLastAnswerCorrect(false);
-        
+
         // 标记已提交答案
         setHasSubmittedAnswer(true);
-        
+
         // 清空待处理答案，允许用户重新选择
         setPendingAnswer(null);
-        
+
         // 第一次答错不记录到答题记录中，给用户第二次机会
         return;
       } else {
@@ -920,14 +1039,20 @@ export default function PracticeScreen() {
         }
       }
     }
-    
+
     // 如果没有用户答案，使用默认错误答案
     if (userAnswerForServer === undefined || userAnswerForServer === null) {
       if (exercise.type === "choice") {
         userAnswerForServer = -1; // 默认错误答案
-      } else if (exercise.type === "fill_blank" && Array.isArray(exercise.correctAnswer)) {
+      } else if (
+        exercise.type === "fill_blank" &&
+        Array.isArray(exercise.correctAnswer)
+      ) {
         userAnswerForServer = exercise.correctAnswer.map(() => "");
-      } else if (exercise.type === "matching" && Array.isArray(exercise.options?.left)) {
+      } else if (
+        exercise.type === "matching" &&
+        Array.isArray(exercise.options?.left)
+      ) {
         userAnswerForServer = {}; // 空对象表示没有匹配
       }
     }
@@ -940,26 +1065,31 @@ export default function PracticeScreen() {
   };
 
   // 提交答题结果到服务器
-  const submitAnswerToServer = async (exerciseId: string, isCorrect: boolean, userAnswer?: number | number[] | string[] | Record<string, string> | null) => {
+  const submitAnswerToServer = async (
+    exerciseId: string,
+    isCorrect: boolean,
+    userAnswer?: number | number[] | string[] | Record<string, string> | null
+  ) => {
     try {
       // 使用新的AnswerRecord API端点
       const studentId = await getCurrentStudentIdForProgress();
       const apiUrl = `${API_BASE_URL}/api/answer-records/${studentId}/submit`;
-      const currentExercise = exercises.find(ex => ex.id === exerciseId);
-      
+      const currentExercise = exercises.find((ex) => ex.id === exerciseId);
+
       // 计算响应时间 (秒)
       const responseTime = Math.floor(Math.random() * 10000) + 2000; // 模拟2-12秒的响应时间
-      
+
       // 生成或获取会话ID
-      let sessionId = sessionStorage?.getItem('currentSessionId');
+      let sessionId = sessionStorage?.getItem("currentSessionId");
       if (!sessionId) {
-        sessionId = Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9);
-        sessionStorage?.setItem('currentSessionId', sessionId);
+        sessionId =
+          Date.now().toString() + "_" + Math.random().toString(36).substr(2, 9);
+        sessionStorage?.setItem("currentSessionId", sessionId);
       }
-      
+
       // 重要修改：使用课程ID(lessonId)而不是习题的unitId，确保进度记录到正确的课程
       const actualUnitId = lessonId;
-      
+
       // 记录提交的答题结果
       console.log(
         `提交答题结果: 练习ID=${exerciseId}, 课程ID=${actualUnitId}, 习题原unitId=${currentExercise?.unitId}, 是否正确=${isCorrect}, 响应时间=${responseTime}ms`
@@ -972,22 +1102,24 @@ export default function PracticeScreen() {
         answer: userAnswer, // 只传递答案，让服务器验证
         responseTime: Math.floor(responseTime / 1000), // 转换为秒
         sessionId,
-        practiceMode: isTestForUnlocking ? 'unlock_test' : 'normal',
+        practiceMode: isTestForUnlocking ? "unlock_test" : "normal",
         hintsUsed: 0, // 当前版本未实现提示功能
         helpRequested: false, // 当前版本未实现帮助功能
         confidence: null, // 可以后续添加用户信心度收集
         knowledgePointsViewed: [], // 可以记录用户查看的知识点
         deviceInfo: {
-          platform: 'mobile', // 可以通过Platform.OS获取
-          userAgent: navigator?.userAgent || 'unknown',
-          screenSize: `${Dimensions.get('window').width}x${Dimensions.get('window').height}`
-        }
+          platform: "mobile", // 可以通过Platform.OS获取
+          userAgent: navigator?.userAgent || "unknown",
+          screenSize: `${Dimensions.get("window").width}x${
+            Dimensions.get("window").height
+          }`,
+        },
       };
 
-      console.log('答题请求数据:', {
+      console.log("答题请求数据:", {
         exerciseId,
         answer: userAnswer,
-        unitId: actualUnitId
+        unitId: actualUnitId,
       });
 
       const response = await fetch(apiUrl, {
@@ -1016,7 +1148,10 @@ export default function PracticeScreen() {
                   totalExercises: exercises.length,
                   completedExercises: getCorrectCount() + (isCorrect ? 1 : 0),
                   completionRate:
-                    exercises.length > 0 ? (getCorrectCount() + (isCorrect ? 1 : 0)) / exercises.length : 0,
+                    exercises.length > 0
+                      ? (getCorrectCount() + (isCorrect ? 1 : 0)) /
+                        exercises.length
+                      : 0,
                   stars: 0,
                   unlockNext: false,
                 };
@@ -1024,9 +1159,18 @@ export default function PracticeScreen() {
               return {
                 ...prev,
                 masteryLevel: data.data.masteryLevel,
-                correctCount: data.data.correctCount !== undefined ? data.data.correctCount : prev.correctCount,
-                incorrectCount: data.data.incorrectCount !== undefined ? data.data.incorrectCount : prev.incorrectCount,
-                totalAnswerCount: data.data.totalAnswers !== undefined ? data.data.totalAnswers : prev.totalAnswerCount,
+                correctCount:
+                  data.data.correctCount !== undefined
+                    ? data.data.correctCount
+                    : prev.correctCount,
+                incorrectCount:
+                  data.data.incorrectCount !== undefined
+                    ? data.data.incorrectCount
+                    : prev.incorrectCount,
+                totalAnswerCount:
+                  data.data.totalAnswers !== undefined
+                    ? data.data.totalAnswers
+                    : prev.totalAnswerCount,
               };
             });
           }
@@ -1081,13 +1225,13 @@ export default function PracticeScreen() {
     if (!exercises[currentExerciseIndex]) return;
 
     const currentExercise = exercises[currentExerciseIndex];
-    
+
     // 标记为跳过
     setSkippedExercises({
       ...skippedExercises,
       [currentExercise.id]: true,
     });
-    
+
     // 将跳过视为回答错误
     setIsLastAnswerCorrect(false);
     setAnsweredExercises({
@@ -1122,7 +1266,14 @@ export default function PracticeScreen() {
     const correctCount = getCorrectCount();
     const totalCount = exercises.length;
     const completionRate = totalCount > 0 ? correctCount / totalCount : 0;
-    const earnedStars = completionRate >= 0.8 ? 3 : completionRate >= 0.6 ? 2 : completionRate > 0 ? 1 : 0;
+    const earnedStars =
+      completionRate >= 0.8
+        ? 3
+        : completionRate >= 0.6
+        ? 2
+        : completionRate > 0
+        ? 1
+        : 0;
 
     // 如果这是解锁测试，并且需要解锁之前的单元，并且获得了至少1星
     if (isTestForUnlocking && shouldUnlockPreviousUnits && earnedStars >= 1) {
@@ -1184,7 +1335,8 @@ export default function PracticeScreen() {
   const currentExercise = exercises[currentExerciseIndex];
 
   // 计算进度
-  const progress = exercises.length > 0 ? (currentExerciseIndex + 1) / exercises.length : 0;
+  const progress =
+    exercises.length > 0 ? (currentExerciseIndex + 1) / exercises.length : 0;
 
   return (
     <View style={styles.container}>
@@ -1206,8 +1358,8 @@ export default function PracticeScreen() {
             </TouchableOpacity>
           ),
           headerRight: () => (
-            <TouchableOpacity 
-              onPress={() => setShowDraftPaper(true)} 
+            <TouchableOpacity
+              onPress={() => setShowDraftPaper(true)}
               style={styles.draftPaperButton}
             >
               <Ionicons name="create-outline" size={24} color="#fff" />
@@ -1223,7 +1375,10 @@ export default function PracticeScreen() {
           <RNView
             style={[
               styles.progressBarFill,
-              { width: `${progress * 100}%`, backgroundColor: typeof color === "string" ? color : "#5EC0DE" },
+              {
+                width: `${progress * 100}%`,
+                backgroundColor: typeof color === "string" ? color : "#5EC0DE",
+              },
             ]}
           />
         </RNView>
@@ -1246,16 +1401,34 @@ export default function PracticeScreen() {
         ) : error ? (
           <RNView style={styles.errorContainer}>
             <Ionicons
-              name={error.includes("完成了所有练习题") ? "checkmark-circle" : "alert-circle"}
+              name={
+                error.includes("完成了所有练习题")
+                  ? "checkmark-circle"
+                  : "alert-circle"
+              }
               size={24}
               color={error.includes("完成了所有练习题") ? "#58CC02" : "red"}
             />
-            <Text style={[styles.errorText, error.includes("完成了所有练习题") && styles.successText]}>{error}</Text>
-            <TouchableOpacity
-              style={[styles.retryButton, error.includes("完成了所有练习题") && styles.successButton]}
-              onPress={error.includes("完成了所有练习题") ? handleExit : fetchExercises}
+            <Text
+              style={[
+                styles.errorText,
+                error.includes("完成了所有练习题") && styles.successText,
+              ]}
             >
-              <Text style={styles.modalButtonText}>{error.includes("完成了所有练习题") ? "返回课程" : "重试"}</Text>
+              {error}
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.retryButton,
+                error.includes("完成了所有练习题") && styles.successButton,
+              ]}
+              onPress={
+                error.includes("完成了所有练习题") ? handleExit : fetchExercises
+              }
+            >
+              <Text style={styles.modalButtonText}>
+                {error.includes("完成了所有练习题") ? "返回课程" : "重试"}
+              </Text>
             </TouchableOpacity>
           </RNView>
         ) : currentExercise ? (
@@ -1267,7 +1440,8 @@ export default function PracticeScreen() {
               userAnswers={
                 answeredExercises.hasOwnProperty(currentExercise.id)
                   ? {
-                      [currentExercise.id]: answeredExercises[currentExercise.id],
+                      [currentExercise.id]:
+                        answeredExercises[currentExercise.id],
                     }
                   : {}
               }
@@ -1298,7 +1472,9 @@ export default function PracticeScreen() {
             {/* 知识点区域 - 仅在第一次答错后显示 */}
             {showHelpForExercise[currentExercise.id] && (
               <RNView ref={helpSectionRef}>
-                <KnowledgePointsSection knowledgePoints={currentExercise.knowledgePoints} />
+                <KnowledgePointsSection
+                  knowledgePoints={currentExercise.knowledgePoints}
+                />
               </RNView>
             )}
           </RNView>
@@ -1609,11 +1785,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  bottomActionsWrapper: {
+    width: "100%",
+  },
   bottomActionsContainer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     width: "100%",
+  },
+  draftPaperButtonContainer: {
+    width: "100%",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  draftPaperActionButton: {
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    backgroundColor: "#f8f9fa",
+    borderWidth: 1,
+    borderColor: "#dee2e6",
+    minWidth: 100,
   },
   actionButton: {
     padding: 12,

@@ -229,8 +229,8 @@ export default function StudyScreen() {
     setVideoStatus(status);
   };
 
-  // 获取视频内容
-  const videoContents = learningContents.filter((content) => content.type === "video");
+  // 获取视频内容，添加安全检查防止 undefined 错误
+  const videoContents = (learningContents || []).filter((content) => content.type === "video");
 
   return (
     <View style={styles.container}>
@@ -329,8 +329,8 @@ export default function StudyScreen() {
           <RNView style={styles.contentContainer}>
             <Text style={[styles.sectionTitle, { color: primaryColor }]}>本节内容</Text>
 
-            {learningContents.length > 0 ? (
-              learningContents.map((content) => (
+            {(learningContents || []).length > 0 ? (
+              (learningContents || []).map((content) => (
                 <RNView key={content.id} style={styles.contentItem}>
                   <Text style={[styles.contentTitle, { color: primaryColor }]}>{content.title}</Text>
                   {content.type === "text" && (
@@ -346,11 +346,11 @@ export default function StudyScreen() {
             )}
 
             {/* 例题资源部分 */}
-            {exampleContents.length > 0 && (
+            {(exampleContents || []).length > 0 && (
               <RNView style={styles.exampleSection}>
                 <Text style={[styles.sectionTitle, { color: primaryColor }]}>例题讲解</Text>
                 <RNView style={styles.exampleGrid}>
-                  {exampleContents.map((example, index) => (
+                  {(exampleContents || []).map((example, index) => (
                     <RNView key={example.id} style={styles.exampleItem}>
                       {example.type === "video" && example.mediaUrl && (
                         <TouchableOpacity
