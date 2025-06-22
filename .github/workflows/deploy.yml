@@ -57,7 +57,9 @@ jobs:
           cd ${{ secrets.PROJECT_PATH || '/var/www/learn' }}
 
           # 启动服务
+          chmod +x ./reset-data.sh
           chmod +x ./start-all.sh
+          ./reset-data.sh
           pm2 start ./start-all.sh
 
 
