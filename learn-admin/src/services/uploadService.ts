@@ -93,6 +93,7 @@ export const uploadVideo = async (file: File): Promise<string | null> => {
  */
 export const uploadCourseCover = async (file: File): Promise<string | null> => {
   try {
+    console.log('开始上传课程封面:', file.name, file.type, file.size);
     const formData = new FormData();
     formData.append('cover', file);
 
@@ -106,15 +107,25 @@ export const uploadCourseCover = async (file: File): Promise<string | null> => {
     });
 
     // 添加详细日志调试
-    console.log('上传课程封面响应:', JSON.stringify(response, null, 2));
+    console.log('上传课程封面完整响应:', response);
+    console.log('响应类型:', typeof response);
+    console.log('响应键:', response ? Object.keys(response) : 'null');
 
     // 处理多级嵌套的响应结构
-    if (response && response.err_no === 0 && response.data) {
+    if (response && response.err_no === 0 && response.data && response.data.url) {
+      console.log('找到URL:', response.data.url);
       return response.data.url;
-    } else if (response && response.data && response.data.data) {
+    } else if (response && response.data && response.data.data && response.data.data.url) {
       // 处理可能的data嵌套
+      console.log('在嵌套data中找到URL:', response.data.data.url);
       return response.data.data.url;
+    } else if (response && response.url) {
+      // 直接在响应根目录查找URL
+      console.log('在响应根目录找到URL:', response.url);
+      return response.url;
     }
+    
+    console.error('无法在响应中找到有效的URL:', response);
     return null;
   } catch (error) {
     console.error('上传课程封面失败:', error);
@@ -130,6 +141,7 @@ export const uploadCourseCover = async (file: File): Promise<string | null> => {
  */
 export const uploadCourseVideo = async (file: File): Promise<string | null> => {
   try {
+    console.log('开始上传课程视频:', file.name, file.type, file.size);
     const formData = new FormData();
     formData.append('video', file);
 
@@ -143,15 +155,25 @@ export const uploadCourseVideo = async (file: File): Promise<string | null> => {
     });
 
     // 添加详细日志调试
-    console.log('上传课程视频响应:', JSON.stringify(response, null, 2));
+    console.log('上传课程视频完整响应:', response);
+    console.log('响应类型:', typeof response);
+    console.log('响应键:', response ? Object.keys(response) : 'null');
 
     // 处理多级嵌套的响应结构
-    if (response && response.err_no === 0 && response.data) {
+    if (response && response.err_no === 0 && response.data && response.data.url) {
+      console.log('找到URL:', response.data.url);
       return response.data.url;
-    } else if (response && response.data && response.data.data) {
+    } else if (response && response.data && response.data.data && response.data.data.url) {
       // 处理可能的data嵌套
+      console.log('在嵌套data中找到URL:', response.data.data.url);
       return response.data.data.url;
+    } else if (response && response.url) {
+      // 直接在响应根目录查找URL
+      console.log('在响应根目录找到URL:', response.url);
+      return response.url;
     }
+    
+    console.error('无法在响应中找到有效的URL:', response);
     return null;
   } catch (error) {
     console.error('上传课程视频失败:', error);

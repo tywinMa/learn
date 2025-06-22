@@ -48,6 +48,8 @@ interface CourseFormData {
   exerciseGroupIds?: string[];
   students?: number;
   media?: UploadFile[];
+  exampleMedia?: Array<{type: 'image' | 'video', url: string}>;
+  exampleMediaFiles?: UploadFile[];
 }
 
 // LaTeX语法示例
@@ -81,8 +83,11 @@ const CourseForm: React.FC = () => {
   const [html, setHtml] = useState('');
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [sources, setSources] = useState<Array<{type: 'image' | 'video', url: string}>>([]);
+  const [exampleFileList, setExampleFileList] = useState<UploadFile[]>([]);
+  const [exampleMedia, setExampleMedia] = useState<Array<{type: 'image' | 'video', url: string}>>([]);
   const isEditing = !!id;
   const [uploading, setUploading] = useState(false);
+  const [uploadingExample, setUploadingExample] = useState(false);
   
   // 用于跟踪当前加载的学科，避免重复请求
   const currentLoadingSubjectRef = useRef<string | null>(null);
@@ -238,6 +243,23 @@ const CourseForm: React.FC = () => {
         setFileList(files as UploadFile[]);
       }
       
+      // 如果有例题媒体资源，设置exampleMedia和文件列表
+      if (course.exampleMedia && course.exampleMedia.length > 0) {
+        setExampleMedia(course.exampleMedia);
+        
+        // 为每个exampleMedia创建一个文件项
+        const exampleFiles = course.exampleMedia.map((media, index) => ({
+          uid: `-example-${index + 1}`,
+          name: `example-media-${index + 1}.${media.type === 'image' ? 'jpg' : 'mp4'}`,
+          status: 'done',
+          url: media.url,
+          type: media.type === 'image' ? 'image/jpeg' : 'video/mp4',
+          thumbUrl: media.type === 'image' ? media.url : undefined,
+        }));
+        
+        setExampleFileList(exampleFiles as UploadFile[]);
+      }
+      
       message.success('课程数据加载成功');
     } catch (error) {
       console.error('加载课程数据失败:', error);
@@ -310,8 +332,10 @@ const CourseForm: React.FC = () => {
       const formattedValues = {
         ...values,
         content: html, // 确保编辑器的HTML内容保存到content字段
-        // 使用收集的sources数组
+        // 使用收集的sources数组（普通媒体资源）
         sources,
+        // 使用收集的exampleMedia数组（例题媒体资源）
+        exampleMedia,
         // 使用subjectName字段作为学科分类，将由服务层转换为subjectId
         subjectName: values.subject,
         // 使用exerciseGroupIds字段
@@ -339,8 +363,16 @@ const CourseForm: React.FC = () => {
         subjectName: formattedValues.subjectName,
         contentLength: formattedValues.content?.length || 0,
         exerciseGroupIds: formattedValues.exerciseGroupIds,
-        sourcesCount: formattedValues.sources?.length || 0
+        sourcesCount: formattedValues.sources?.length || 0,
+        exampleMediaCount: formattedValues.exampleMedia?.length || 0
       }));
+      
+      // 单独输出例题媒体资源数据用于调试
+      if (formattedValues.exampleMedia && formattedValues.exampleMedia.length > 0) {
+        console.log('例题媒体资源数据:', formattedValues.exampleMedia);
+      } else {
+        console.log('没有例题媒体资源数据');
+      }
       
       let result;
       if (isEditing && id) {
@@ -479,6 +511,64 @@ const CourseForm: React.FC = () => {
     // 如果还有文件，则更新sources
     if (updatedSources.length > 0) {
       setSources(updatedSources);
+    }
+  };
+
+  // 例题媒体文件上传变更处理
+  const handleExampleFileChange = (info: UploadChangeParam<UploadFile>) => {
+    // 直接设置文件列表
+    setExampleFileList(info.fileList);
+    
+    // 处理上传中状态
+    if (info.file.status === 'uploading') {
+      setUploadingExample(true);
+      return;
+    }
+    
+    // 处理上传完成后的状态
+    if (info.file.status === 'done') {
+      setUploadingExample(false);
+      
+      // 如果服务器返回了URL，则添加到exampleMedia数组
+      if (info.file.response && info.file.response.data && info.file.response.data.url) {
+        const url = info.file.response.data.url;
+        const type = info.file.type?.startsWith('image/') ? 'image' : 'video';
+        
+        // 添加新的例题媒体资源到exampleMedia数组，避免重复
+        if (!exampleMedia.some(media => media.url === url)) {
+          setExampleMedia(prev => [...prev, { type, url }]);
+          message.success(`例题${type === 'image' ? '图片' : '视频'}上传成功`);
+        }
+      }
+    }
+    
+    // 处理上传失败的情况
+    if (info.file.status === 'error') {
+      setUploadingExample(false);
+      message.error('例题媒体文件上传失败');
+    }
+    
+    // 处理移除文件的情况
+    if (info.file.status === 'removed') {
+      // 从exampleMedia数组中移除对应项
+      const removedFileUrl = info.file.url || (info.file.response?.data?.url);
+      if (removedFileUrl) {
+        setExampleMedia(prev => prev.filter(item => item.url !== removedFileUrl));
+      }
+    }
+    
+    // 同步fileList到exampleMedia
+    const updatedExampleMedia = info.fileList
+      .filter(file => file.status === 'done' && (file.url || (file.response?.data?.url)))
+      .map(file => {
+        const url = file.url || file.response?.data?.url;
+        const type = file.type?.startsWith('image/') ? 'image' as const : 'video' as const;
+        return { type, url };
+      });
+    
+    // 如果还有文件，则更新exampleMedia
+    if (updatedExampleMedia.length > 0) {
+      setExampleMedia(updatedExampleMedia);
     }
   };
 
@@ -694,7 +784,7 @@ const CourseForm: React.FC = () => {
                 name="sources"
                 label="课程封面图片/视频"
                 extra="支持上传多个图片或视频文件作为课程媒体资源"
-                className="mb-0"
+                className="mb-6"
               >
                 <Dragger 
                   fileList={fileList}
@@ -711,6 +801,31 @@ const CourseForm: React.FC = () => {
                   <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
                   <p className="ant-upload-hint">
                     支持多个图片或视频上传，推荐图片尺寸: 1280x720px，大小不超过20MB
+                  </p>
+                </Dragger>
+              </Form.Item>
+              
+              <Form.Item
+                name="exampleMedia"
+                label="例题媒体资源"
+                extra="支持上传例题相关的图片或视频文件，将在学习内容结束后展示"
+                className="mb-0"
+              >
+                <Dragger 
+                  fileList={exampleFileList}
+                  onChange={handleExampleFileChange}
+                  multiple={true}
+                  listType="picture"
+                  accept=".jpg,.jpeg,.png,.gif,.mp4,.webm"
+                  customRequest={customUpload}
+                  showUploadList={{ showRemoveIcon: true }}
+                >
+                  <p className="ant-upload-drag-icon">
+                    {uploadingExample ? <LoadingOutlined /> : <InboxOutlined />}
+                  </p>
+                  <p className="ant-upload-text">点击或拖拽例题文件到此区域上传</p>
+                  <p className="ant-upload-hint">
+                    支持多个例题图片或视频上传，推荐视频尺寸: 1280x720px，大小不超过20MB
                   </p>
                 </Dragger>
               </Form.Item>

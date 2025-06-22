@@ -5,8 +5,8 @@ const { v4: uuidv4 } = require('uuid');
 
 // 确保上传目录存在
 const createUploadDirs = () => {
-  const imageDir = path.join(__dirname, '../../dist/uploads/images');
-  const videoDir = path.join(__dirname, '../../dist/uploads/videos');
+  const imageDir = path.join(__dirname, '../../uploads/images');
+  const videoDir = path.join(__dirname, '../../uploads/videos');
   
   if (!fs.existsSync(imageDir)) {
     fs.mkdirSync(imageDir, { recursive: true });
@@ -26,8 +26,8 @@ const storage = multer.diskStorage({
     // 根据文件类型决定存储位置
     const isImage = file.mimetype.startsWith('image/');
     const uploadDir = isImage 
-      ? path.join(__dirname, '../../dist/uploads/images')
-      : path.join(__dirname, '../../dist/uploads/videos');
+      ? path.join(__dirname, '../../uploads/images')
+      : path.join(__dirname, '../../uploads/videos');
     
     cb(null, uploadDir);
   },

@@ -13,6 +13,7 @@ export interface Course {
   description?: string;
   content?: string;
   sources?: Array<{ type: "image" | "video"; url: string }>;
+  exampleMedia?: Array<{ type: "image" | "video"; url: string }>; // 例题媒体资源
   courseCode?: string;
   exerciseGroupIds?: string[]; // 关联习题组ID列表
   coverImage?: string; // 课程封面图片
@@ -42,6 +43,7 @@ interface BackendCourse {
   updatedAt?: string;
   sources?: Array<{ type: "image" | "video"; url: string }>;
   media?: Array<{ type: "image" | "video"; url: string }>;
+  exampleMedia?: Array<{ type: "image" | "video"; url: string }>; // 例题媒体资源
   subject?: string; // 学科代码，如'math'
   Subject?: { id: string; name: string; code: string }; // 学科详细信息对象
   teacher?: { id: string; name: string };
@@ -88,6 +90,8 @@ const transformBackendCourse = (course: BackendCourse): Course => {
     createdAt: course.createdAt || course.created_at || course.updatedAt || new Date().toISOString(),
     // 媒体资源
     sources: course.media || course.sources || [],
+    // 例题媒体资源
+    exampleMedia: course.exampleMedia || [],
     // 关联习题组ID列表
     exerciseGroupIds: course.exerciseGroupIds || course.exercise_group_ids || [],
     // 保留原始字段用于类型兼容
@@ -157,6 +161,8 @@ export const getCourses = async (): Promise<Course[]> => {
           createdAt: course.createdAt || course.created_at || course.updatedAt || new Date().toISOString(),
           // 媒体资源
           sources: course.media || course.sources || [],
+          // 例题媒体资源
+          exampleMedia: course.exampleMedia || [],
           // 关联习题组ID列表
           exerciseGroupIds: course.exerciseGroupIds || course.exercise_group_ids || [],
           // 保留原始字段用于类型兼容
@@ -306,6 +312,7 @@ export const createCourse = async (courseData: Omit<Course, "id">): Promise<Cour
       content: courseData.content, // 确保将content字段包含在API请求中
       subject: subject.code, // 后端期望学科代码，不是学科ID
       media: courseData.sources || [], // 后端期望media字段，不是sources
+      exampleMedia: (courseData as any).exampleMedia || [], // 处理例题媒体资源
       exerciseGroupIds: courseData.exerciseGroupIds || [], // 使用习题组ID列表
       teacherId: null, // 暂不设置教师
     };
@@ -354,6 +361,7 @@ export const updateCourse = async (id: string, courseData: Partial<Course>): Pro
       description: courseData.description,
       content: courseData.content,
       media: courseData.sources, // 后端期望media字段，不是sources
+      exampleMedia: (courseData as any).exampleMedia, // 处理例题媒体资源
       exerciseGroupIds: courseData.exerciseGroupIds,
     };
 
@@ -409,6 +417,13 @@ export const updateCourse = async (id: string, courseData: Partial<Course>): Pro
     // 调试：显示完整的URL和请求数据
     console.log(`发送PUT请求到: ${API_ENDPOINTS.COURSES}/${id}`);
     console.log("请求数据:", JSON.stringify(apiData, null, 2));
+    
+    // 特别调试例题媒体资源
+    if (apiData.exampleMedia) {
+      console.log("例题媒体资源即将发送到后端:", apiData.exampleMedia);
+    } else {
+      console.log("没有例题媒体资源数据发送到后端");
+    }
 
     // 发送API请求
     try {

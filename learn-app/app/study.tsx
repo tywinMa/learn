@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   StyleSheet,
   ScrollView,
@@ -7,12 +7,12 @@ import {
   Dimensions,
   StatusBar,
   ActivityIndicator,
-  FlatList,
   Image,
 } from "react-native";
 import { Text, View } from "@/components/Themed";
 import { Ionicons } from "@expo/vector-icons";
 import { Video, ResizeMode } from "expo-av";
+import { VideoPlayer } from "./components/VideoPlayer";
 // TypeScript暂时忽略 expo-router 导出错误
 // @ts-ignore
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
@@ -38,11 +38,10 @@ export default function StudyScreen() {
   const [studentPoints, setStudentPoints] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [learningContents, setLearningContents] = React.useState<any[]>([]);
+  const [exampleContents, setExampleContents] = React.useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [currentStudentId, setCurrentStudentId] = useState<string>("");
   const screenWidth = Dimensions.get("window").width;
-  const flatListRef = useRef<FlatList>(null);
 
   // 获取颜色参数并提供默认值
   const primaryColor = Array.isArray(color) ? color[0] : color || "#5EC0DE";
@@ -80,6 +79,7 @@ export default function StudyScreen() {
           // 处理新的数据结构
           const unitData = data.data;
           const contentItems = [];
+          const exampleItems: any[] = [];
           
           // 如果有内容，添加为文本类型项
           if (unitData.content) {
@@ -109,9 +109,27 @@ export default function StudyScreen() {
             });
           }
           
+          // 如果有例题媒体内容，将每个例题媒体添加为单独的项
+          if (unitData.exampleMedia && Array.isArray(unitData.exampleMedia)) {
+            unitData.exampleMedia.forEach((media: { title?: string; url: string; type: string; metadata?: any }, index: number) => {
+              exampleItems.push({
+                id: `${unitData.id}-example-${index}`,
+                unitId: unitData.id,
+                title: media.title || `例题 ${index + 1}`,
+                content: '',
+                mediaUrl: media.url,
+                order: index + 1,
+                type: media.type,
+                metadata: media.metadata
+              });
+            });
+          }
+          
           // 按order字段排序
           const sortedContents = contentItems.sort((a, b) => a.order - b.order);
+          const sortedExamples = exampleItems.sort((a, b) => a.order - b.order);
           setLearningContents(sortedContents);
+          setExampleContents(sortedExamples);
         } else {
           setError(data.message || "获取学习内容失败");
         }
@@ -211,49 +229,6 @@ export default function StudyScreen() {
     setVideoStatus(status);
   };
 
-  // 切换到下一个视频
-  const handleNextVideo = () => {
-    if (currentVideoIndex < learningContents.length - 1) {
-      setCurrentVideoIndex(currentVideoIndex + 1);
-      flatListRef.current?.scrollToIndex({
-        index: currentVideoIndex + 1,
-        animated: true,
-      });
-    }
-  };
-
-  // 切换到上一个视频
-  const handlePrevVideo = () => {
-    if (currentVideoIndex > 0) {
-      setCurrentVideoIndex(currentVideoIndex - 1);
-      flatListRef.current?.scrollToIndex({
-        index: currentVideoIndex - 1,
-        animated: true,
-      });
-    }
-  };
-
-  // 渲染视频项
-  const renderVideoItem = ({ item, index }: { item: any; index: number }) => (
-    <RNView style={styles.videoContainer}>
-      <Video
-        source={{ uri: item.mediaUrl }}
-        style={{ width: screenWidth, height: screenWidth * 0.56 }}
-        useNativeControls
-        resizeMode={ResizeMode.CONTAIN}
-        onPlaybackStatusUpdate={handleVideoStatusUpdate}
-      />
-      <LinearGradient
-        colors={[primaryColor, secondaryCol]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.videoTitleGradient}
-      >
-        <Text style={styles.videoTitleText}>{item.title}</Text>
-      </LinearGradient>
-    </RNView>
-  );
-
   // 获取视频内容
   const videoContents = learningContents.filter((content) => content.type === "video");
 
@@ -324,62 +299,31 @@ export default function StudyScreen() {
         </View>
       ) : (
         <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 30 }}>
-          {videoContents.length > 0 ? (
-            <>
-              <FlatList
-                ref={flatListRef}
-                data={videoContents}
-                renderItem={renderVideoItem}
-                keyExtractor={(item) => item.id.toString()}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onMomentumScrollEnd={(event) => {
-                  const newIndex = Math.round(event.nativeEvent.contentOffset.x / screenWidth);
-                  setCurrentVideoIndex(newIndex);
-                }}
-              />
-
-              <RNView style={styles.videoControls}>
-                <TouchableOpacity
-                  style={[
-                    styles.videoControlButton,
-                    {
-                      backgroundColor: currentVideoIndex === 0 ? "#f0f0f0" : primaryColor,
-                    },
-                    currentVideoIndex === 0 && styles.disabledButton,
-                  ]}
-                  onPress={handlePrevVideo}
-                  disabled={currentVideoIndex === 0}
-                >
-                  <Ionicons name="chevron-back" size={24} color={currentVideoIndex === 0 ? "#ccc" : "#fff"} />
-                </TouchableOpacity>
-
-                <Text style={styles.videoCounter}>
-                  {currentVideoIndex + 1} / {videoContents.length}
-                </Text>
-
-                <TouchableOpacity
-                  style={[
-                    styles.videoControlButton,
-                    {
-                      backgroundColor: currentVideoIndex === videoContents.length - 1 ? "#f0f0f0" : primaryColor,
-                    },
-                    currentVideoIndex === videoContents.length - 1 && styles.disabledButton,
-                  ]}
-                  onPress={handleNextVideo}
-                  disabled={currentVideoIndex === videoContents.length - 1}
-                >
-                  <Ionicons
-                    name="chevron-forward"
-                    size={24}
-                    color={currentVideoIndex === videoContents.length - 1 ? "#ccc" : "#fff"}
-                  />
-                </TouchableOpacity>
+          {/* 主要媒体资源部分 - Grid布局 */}
+          {videoContents.length > 0 && (
+            <RNView style={styles.contentContainer}>
+              <Text style={[styles.sectionTitle, { color: primaryColor, marginTop: 0 }]}>学习视频</Text>
+              <RNView style={styles.mediaGrid}>
+                {videoContents.map((video, index) => (
+                  <RNView key={video.id} style={styles.mediaItem}>
+                    <TouchableOpacity
+                      style={styles.mediaVideoContainer}
+                      onPress={() => {
+                        // 可以添加视频播放逻辑或导航到全屏播放
+                      }}
+                    >
+                                             <VideoPlayer
+                        source={{ uri: video.mediaUrl }}
+                        title={video.title}
+                        style={styles.mediaVideo}
+                        primaryColor={primaryColor}
+                        onPlaybackStatusUpdate={handleVideoStatusUpdate}
+                      />
+                    </TouchableOpacity>
+                  </RNView>
+                ))}
               </RNView>
-            </>
-          ) : (
-            <Text style={styles.noContentText}>暂无视频内容</Text>
+            </RNView>
           )}
 
           <RNView style={styles.contentContainer}>
@@ -399,6 +343,47 @@ export default function StudyScreen() {
               ))
             ) : (
               <Text style={styles.lessonContent}>暂无学习内容，请联系管理员添加。</Text>
+            )}
+
+            {/* 例题资源部分 */}
+            {exampleContents.length > 0 && (
+              <RNView style={styles.exampleSection}>
+                <Text style={[styles.sectionTitle, { color: primaryColor }]}>例题讲解</Text>
+                <RNView style={styles.exampleGrid}>
+                  {exampleContents.map((example, index) => (
+                    <RNView key={example.id} style={styles.exampleItem}>
+                      {example.type === "video" && example.mediaUrl && (
+                        <TouchableOpacity
+                          style={styles.exampleVideoContainer}
+                          onPress={() => {
+                            // 可以添加视频播放逻辑或导航到全屏播放
+                          }}
+                        >
+                          <VideoPlayer
+                            source={{ uri: example.mediaUrl }}
+                            title={example.title}
+                            style={styles.exampleVideo}
+                            primaryColor={primaryColor}
+                            onPlaybackStatusUpdate={handleVideoStatusUpdate}
+                          />
+                        </TouchableOpacity>
+                      )}
+                      {example.type === "image" && example.mediaUrl && (
+                        <TouchableOpacity style={styles.exampleVideoContainer}>
+                          <Image 
+                            source={{ uri: example.mediaUrl }} 
+                            style={styles.exampleVideo} 
+                            resizeMode="cover" 
+                          />
+                          <RNView style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 8 }}>
+                            <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600', textShadowColor: 'rgba(0, 0, 0, 0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 2 }}>{example.title}</Text>
+                          </RNView>
+                        </TouchableOpacity>
+                      )}
+                    </RNView>
+                  ))}
+                </RNView>
+              </RNView>
             )}
 
             <TouchableOpacity
@@ -436,36 +421,28 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  videoContainer: {
-    backgroundColor: "black",
-    width: Dimensions.get("window").width,
-  },
-  videoTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    padding: 12,
-    backgroundColor: "#fff",
-    color: "#333",
-  },
-  videoControls: {
+  // 主要媒体资源Grid布局样式
+  mediaGrid: {
     flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 12,
-    backgroundColor: "#fff",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 10,
   },
-  videoControlButton: {
-    padding: 8,
-    borderRadius: 20,
+  mediaItem: {
+    width: (Dimensions.get("window").width - 60) / 2, // 一行两个，减去padding和间距
   },
-  disabledButton: {
-    opacity: 0.5,
+  mediaVideoContainer: {
+    position: "relative",
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#000",
   },
-  videoCounter: {
-    marginHorizontal: 16,
-    fontSize: 14,
-    color: "#666",
+  mediaVideo: {
+    width: "100%",
+    height: 120,
+    borderRadius: 12,
   },
+
   contentContainer: {
     padding: 20,
   },
@@ -514,12 +491,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#666",
   },
-  noContentText: {
-    textAlign: "center",
-    padding: 20,
-    fontSize: 16,
-    color: "#666",
-  },
+
   contentImage: {
     width: Dimensions.get("window").width - 40,
     height: Dimensions.get("window").width * 0.56,
@@ -549,14 +521,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  videoTitleGradient: {
-    padding: 10,
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
+
+  exampleSection: {
+    marginTop: 30,
   },
-  videoTitleText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#fff",
+  exampleGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    gap: 10,
   },
+  exampleItem: {
+    width: (Dimensions.get("window").width - 60) / 2, // 一行两个，减去padding和间距
+  },
+  exampleVideoContainer: {
+    position: "relative",
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#000",
+  },
+  exampleVideo: {
+    width: "100%",
+    height: 120,
+    borderRadius: 12,
+  },
+
 });

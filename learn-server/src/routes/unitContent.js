@@ -19,7 +19,7 @@ router.get('/:courseId', async (req, res) => {
 
     // 查询课程学习内容
     const course = await Course.findByPk(courseId, {
-      attributes: ['id', 'title', 'content', 'media', 'subject', 'description']
+      attributes: ['id', 'title', 'content', 'media', 'exampleMedia', 'subject', 'description']
     });
 
     if (!course) {
@@ -44,6 +44,7 @@ router.get('/:courseId', async (req, res) => {
         title: course.title,
         content: course.content,
         media: course.media || [],
+        exampleMedia: course.exampleMedia || [],
         subject: course.subject,
         description: course.description
       }
@@ -61,7 +62,7 @@ router.get('/:courseId', async (req, res) => {
 router.put('/:courseId', async (req, res) => {
   try {
     const { courseId } = req.params;
-    const { content, media } = req.body;
+    const { content, media, exampleMedia } = req.body;
 
     const course = await Course.findByPk(courseId);
 
@@ -75,7 +76,8 @@ router.put('/:courseId', async (req, res) => {
     // 更新课程学习内容
     await course.update({
       content: content !== undefined ? content : course.content,
-      media: media !== undefined ? media : course.media
+      media: media !== undefined ? media : course.media,
+      exampleMedia: exampleMedia !== undefined ? exampleMedia : course.exampleMedia
     });
 
     res.json({
@@ -86,6 +88,7 @@ router.put('/:courseId', async (req, res) => {
         title: course.title,
         content: course.content,
         media: course.media,
+        exampleMedia: course.exampleMedia,
         subject: course.subject,
         description: course.description
       }
