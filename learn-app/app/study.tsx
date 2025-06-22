@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   exampleItem: {
-    width: (Dimensions.get("window").width - 60) / 2, // 一行两个，减去padding和间距
+    width: (Dimensions.get("window").width - 70) / 2, // 一行两个，减去padding和间距
   },
   exampleVideoContainer: {
     position: "relative",

@@ -44,8 +44,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControlsOverlay, setShowControlsOverlay] = useState(showControlsInitially);
   const [volume, setVolume] = useState(1.0);
+  const [screenData, setScreenData] = useState(Dimensions.get('window'));
   const controlsOpacity = useSharedValue(showControlsInitially ? 1 : 0);
   const hideControlsTimeout = useRef<NodeJS.Timeout>();
+
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener('change', ({ window }) => {
+      setScreenData(window);
+    });
+    return () => subscription?.remove();
+  }, []);
 
   // 格式化时间
   const formatTime = (milliseconds: number) => {
@@ -116,8 +124,12 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // 全屏切换
   const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen);
+    const newFullscreenState = !isFullscreen;
+    setIsFullscreen(newFullscreenState);
     showControlsFunc();
+    
+    // 可以在这里添加屏幕方向控制逻辑
+    // 例如：进入全屏时自动横屏，退出全屏时恢复竖屏
   };
 
   // 点击视频区域显示/隐藏控制栏
@@ -152,7 +164,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         {title && <Text style={styles.videoTitle}>{title}</Text>}
         {isFullscreen && (
           <TouchableOpacity
-            style={styles.controlButton}
+            style={[styles.controlButton, styles.exitFullscreenButton]}
             onPress={toggleFullscreen}
           >
             <Ionicons name="contract" size={24} color="#fff" />
@@ -168,7 +180,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
         >
           <Ionicons
             name={status.isPlaying ? "pause" : "play"}
-            size={32}
+            size={24}
             color="#fff"
           />
         </TouchableOpacity>
@@ -231,9 +243,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
               <TouchableOpacity
                 style={styles.controlButton}
                 onPress={toggleFullscreen}
+                activeOpacity={0.7}
               >
                 <Ionicons name="expand" size={20} color="#fff" />
               </TouchableOpacity>
+            )}
+            {isFullscreen && screenData.width > screenData.height && (
+              <RNView style={styles.landscapeIndicator}>
+                <Text style={styles.landscapeText}>横屏模式</Text>
+              </RNView>
             )}
           </RNView>
         </RNView>
@@ -271,8 +289,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       <Modal
         visible={isFullscreen}
         animationType="fade"
-        supportedOrientations={['landscape', 'portrait']}
+        supportedOrientations={['landscape-left', 'landscape-right', 'portrait']}
         onRequestClose={() => setIsFullscreen(false)}
+        presentationStyle="fullScreen"
       >
         <StatusBar hidden />
         {renderVideoPlayer(styles.fullscreenContainer)}
@@ -294,6 +313,8 @@ const styles = StyleSheet.create({
   fullscreenContainer: {
     flex: 1,
     backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   videoTouchArea: {
     flex: 1,
@@ -331,9 +352,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   playButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.9)',
@@ -388,5 +409,21 @@ const styles = StyleSheet.create({
   controlButton: {
     padding: 8,
     marginHorizontal: 4,
+  },
+  exitFullscreenButton: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 20,
+  },
+  landscapeIndicator: {
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  landscapeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
   },
 });
