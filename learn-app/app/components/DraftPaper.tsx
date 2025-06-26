@@ -159,7 +159,7 @@ export const DraftPaper: React.FC<DraftPaperProps> = ({
     const newPath: DrawingPath = {
       id: Date.now().toString(),
       pathData,
-      color: '#2E3A59',
+      color: '#FFFFFF',
       strokeWidth: 2,
     };
     
@@ -329,7 +329,7 @@ export const DraftPaper: React.FC<DraftPaperProps> = ({
                     {currentPath.length > 0 && (
                       <Path
                         d={generatePathData(currentPath)}
-                        stroke="#2E3A59"
+                        stroke="#FFFFFF"
                         strokeWidth={2}
                         fill="none"
                         strokeLinecap="round"
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
   },
   paper: {
     flex: 1,
-    backgroundColor: '#FEFDF7', // 淡黄色纸张背景
+    backgroundColor: 'rgba(40, 40, 40, 0.8)', // 半透明灰黑色背景
     position: 'relative',
   },
   gridBackground: {
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     // 网格背景可以通过图片或SVG实现，这里简化处理
     borderWidth: 1,
-    borderColor: '#E8E8E8',
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   hint: {
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
