@@ -43,24 +43,44 @@ jobs:
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
           # 清理pm2进程
-          pm2 delete all
+          pm2 delete all || true
 
-          # 安装依赖
-          cd ./learn-server
-          npm install --legacy-peer-deps
-          cd ${{ secrets.PROJECT_PATH || '/var/www/learn' }}
+          # 1. 构建前端项目
+          echo "📦 开始构建前端项目..."
+          
+          # 构建learn-admin项目
           cd ./learn-admin
           npm install --legacy-peer-deps
+          npm run build
+          echo "✅ learn-admin构建完成"
+          
+          # 构建learn-app项目
           cd ${{ secrets.PROJECT_PATH || '/var/www/learn' }}
           cd ./learn-app
           npm install --legacy-peer-deps
+          npm run build
+          echo "✅ learn-app构建完成"
+          
+          # 安装后端依赖
           cd ${{ secrets.PROJECT_PATH || '/var/www/learn' }}
+          cd ./learn-server
+          npm install --legacy-peer-deps
+          echo "✅ learn-server依赖安装完成"
 
-          # 启动服务
-          chmod +x ./reset-data.sh
-          chmod +x ./start-all.sh
-          ./reset-data.sh
-          pm2 start ./start-all.sh
+          # 2. 使用pm2启动服务
+          echo "🚀 使用pm2启动服务..."
+          
+          # 启动learn-admin预览服务 (端口5173)
+          cd ${{ secrets.PROJECT_PATH || '/var/www/learn' }}/learn-admin
+          pm2 start npm --name "learn-admin" -- run preview -- --port 5173 --host 0.0.0.0
+          
+          # 启动learn-server后端服务 (端口3000)
+          cd ${{ secrets.PROJECT_PATH || '/var/www/learn' }}/learn-server  
+          pm2 start npm --name "learn-server" -- run start
+          
+          # 保存pm2配置
+          pm2 save
+          pm2 startup
 
 
           echo "🎉 部署完成！"
