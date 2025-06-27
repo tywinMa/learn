@@ -20,6 +20,7 @@ FORCE_RESET=true
 START_ALL=false
 START_APP=false
 START_ADMIN=false
+ADMIN_ONLY=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -47,8 +48,12 @@ while [[ $# -gt 0 ]]; do
       NO_KNOWLEDGE=true
       shift
       ;;
-    -f|--force)
+    -f|    --force)
       FORCE_RESET=true
+      shift
+      ;;
+    --admin-only)
+      ADMIN_ONLY=true
       shift
       ;;
     -h|--help)
@@ -78,6 +83,7 @@ if [ "$HELP_MODE" = true ]; then
   echo -e "  ./reset-data.sh --start-admin   # 完整重置数据并启动服务端+后台管理 (完整写法)"
   echo -e "  ./reset-data.sh --no-admin      # 重置数据但不包含管理员数据"
   echo -e "  ./reset-data.sh --no-knowledge  # 重置数据但不包含知识点数据"
+  echo -e "  ./reset-data.sh --admin-only    # 仅初始化管理员数据(生产环境推荐)"
   echo -e "  ./reset-data.sh --force         # 强制重建数据库表结构"
   echo -e "  ./reset-data.sh --help          # 显示此帮助信息"
   echo ""
@@ -88,6 +94,7 @@ if [ "$HELP_MODE" = true ]; then
   echo -e "  ${GREEN}-b, --start-admin${NC}:  重置完成后自动启动服务端+后台管理"
   echo -e "  ${GREEN}--no-admin${NC}:         不初始化管理员和教师账户"
   echo -e "  ${GREEN}--no-knowledge${NC}:     不初始化知识点数据"
+  echo -e "  ${GREEN}--admin-only${NC}:       仅初始化管理员数据，不包含其他业务数据(生产环境推荐)"
   echo -e "  ${GREEN}--force${NC}:            强制重建数据库表（删除所有数据）"
   echo -e "  ${GREEN}-h, --help${NC}:         显示此帮助信息"
   echo ""
@@ -101,6 +108,7 @@ if [ "$HELP_MODE" = true ]; then
   echo -e "  ./reset-data.sh -s --no-admin   # 重置App端数据和知识点，不包含管理员，并启动所有服务"
   echo -e "  ./reset-data.sh -a --force      # 强制重建数据库并启动服务端+App端"
   echo -e "  ./reset-data.sh -b --no-knowledge # 重置基础数据，不包含知识点，并启动服务端+后台管理"
+  echo -e "  ./reset-data.sh --admin-only -b # 生产环境部署：只初始化管理员并启动服务端+后台管理"
   echo ""
   exit 0
 fi
@@ -108,8 +116,14 @@ fi
 # 显示重置模式
 echo -e "${GREEN}🔄 Learn 项目数据重置${NC}"
 echo -e "${YELLOW}配置:${NC}"
-echo -e "  - 包含管理员数据: $([ "$NO_ADMIN" = false ] && echo "是" || echo "否")"
-echo -e "  - 包含知识点数据: $([ "$NO_KNOWLEDGE" = false ] && echo "是" || echo "否")"
+if [ "$ADMIN_ONLY" = true ]; then
+  echo -e "  - ${CYAN}仅初始化管理员模式${NC} (生产环境推荐)"
+  echo -e "  - 包含管理员数据: 是"
+  echo -e "  - 包含业务数据: 否"
+else
+  echo -e "  - 包含管理员数据: $([ "$NO_ADMIN" = false ] && echo "是" || echo "否")"
+  echo -e "  - 包含知识点数据: $([ "$NO_KNOWLEDGE" = false ] && echo "是" || echo "否")"
+fi
 echo -e "  - 强制重建数据库: $([ "$FORCE_RESET" = true ] && echo "是" || echo "否")"
 echo -e "  - 启动模式: $([ "$START_ALL" = true ] && echo "启动所有服务" || ([ "$START_APP" = true ] && echo "服务端+App端" || ([ "$START_ADMIN" = true ] && echo "服务端+后台管理" || ([ "$RUN_SERVER" = true ] && echo "仅启动后端" || echo "不启动服务"))))"
 echo ""
@@ -165,7 +179,10 @@ mkdir -p src/database
 
 # 构建初始化命令参数
 INIT_ARGS=""
-if [ "$NO_ADMIN" = true ]; then
+if [ "$ADMIN_ONLY" = true ]; then
+  # 仅初始化管理员模式：不包含业务数据，只包含管理员
+  INIT_ARGS="$INIT_ARGS --admin-only"
+elif [ "$NO_ADMIN" = true ]; then
   INIT_ARGS="$INIT_ARGS --no-admin"
 fi
 if [ "$NO_KNOWLEDGE" = true ]; then

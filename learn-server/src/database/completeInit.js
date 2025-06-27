@@ -9,12 +9,20 @@ const completeInit = async (options = {}) => {
   const { 
     includeAdminData = true,
     includeKnowledgePoints = true,
-    force = true 
+    force = true,
+    adminOnly = false
   } = options;
   
   try {
-    console.log("🚀 开始完整数据库初始化...");
-    console.log(`配置: Admin数据=${includeAdminData}, 知识点=${includeKnowledgePoints}, 强制重建=${force}`);
+    console.log("🚀 开始数据库初始化...");
+    
+    if (adminOnly) {
+      console.log("🔐 仅管理员模式 - 生产环境推荐配置");
+      console.log(`配置: 仅管理员=${adminOnly}, 强制重建=${force}`);
+    } else {
+      console.log("📚 完整初始化模式 - 开发测试环境");
+      console.log(`配置: Admin数据=${includeAdminData}, 知识点=${includeKnowledgePoints}, 强制重建=${force}`);
+    }
 
     // 1. 同步数据库模型
     if (force) {
@@ -25,77 +33,102 @@ const completeInit = async (options = {}) => {
       console.log("✅ 数据库表结构已同步");
     }
 
-    // 2. 初始化学科数据
-    console.log("\n📚 初始化学科数据...");
-    const subjects = await initSubjects();
-    console.log(`✅ 创建学科: ${subjects.length}个`);
+    let subjects = [];
+    let grades = [];
+    let subjectGrades = [];
+    let units = [];
+    let courses = [];
+    let exercises = [];
+    let exerciseGroups = [];
 
-    // 3. 初始化年级数据
-    console.log("\n🏫 初始化年级数据...");
-    const grades = await initGrades();
-    console.log(`✅ 创建年级: ${grades.length}个`);
-
-    // 4. 初始化学科年级关联数据
-    console.log("\n🔗 初始化学科年级关联...");
-    const subjectGrades = await initSubjectGrades(subjects, grades);
-    console.log(`✅ 创建学科年级关联: ${subjectGrades.length}个`);
-
-    // 5. 初始化单元数据
-    console.log("\n📖 初始化单元和课程数据...");
-    const { units, courses } = await initUnitsAndCourses(subjects);
-    console.log(`✅ 创建大单元: ${units.length}个, 课程: ${courses.length}个`);
-
-    // 6. 初始化练习题数据（独立存在，只关联学科）
-    console.log("\n📝 初始化练习题数据...");
-    const exercises = await initExercises(subjects);
-    console.log(`✅ 创建练习题: ${exercises.length}道`);
-
-    // 7. 初始化习题组数据
-    console.log("\n📋 初始化习题组数据...");
-    const exerciseGroups = await initExerciseGroups(subjects, exercises);
-    console.log(`✅ 创建习题组: ${exerciseGroups.length}个`);
-
-    // 8. 关联课程和习题组
-    console.log("\n🔗 关联课程和习题组...");
-    await linkCoursesWithExerciseGroups(courses, exerciseGroups);
-    console.log("✅ 课程习题组关联完成");
-
-    // 9. 初始化课程内容
-    console.log("\n📄 初始化课程内容...");
-    await initCourseContents(courses);
-    console.log("✅ 课程内容初始化完成");
-
-    // 10. 初始化管理员数据
-    if (includeAdminData) {
+    if (adminOnly) {
+      // 仅管理员模式：只初始化基础表结构和管理员数据
       console.log("\n👤 初始化管理员数据...");
       const users = await initAdminData();
-      console.log(`✅ 创建用户: ${users.length}个`);
+      console.log(`✅ 创建管理员用户: ${users.length}个`);
+      
+      console.log("\n🎉 仅管理员初始化完成！");
+      console.log("==============================================");
+      console.log("✓ 数据库表结构已创建");
+      console.log(`✓ 管理员账户: ${users.length}个`);
+      console.log("==============================================");
+      console.log("💡 生产环境部署完成，可以通过管理后台添加业务数据");
+    } else {
+      // 完整模式：初始化所有数据
+      // 2. 初始化学科数据
+      console.log("\n📚 初始化学科数据...");
+      subjects = await initSubjects();
+      console.log(`✅ 创建学科: ${subjects.length}个`);
+
+      // 3. 初始化年级数据
+      console.log("\n🏫 初始化年级数据...");
+      grades = await initGrades();
+      console.log(`✅ 创建年级: ${grades.length}个`);
+
+      // 4. 初始化学科年级关联数据
+      console.log("\n🔗 初始化学科年级关联...");
+      subjectGrades = await initSubjectGrades(subjects, grades);
+      console.log(`✅ 创建学科年级关联: ${subjectGrades.length}个`);
+
+      // 5. 初始化单元数据
+      console.log("\n📖 初始化单元和课程数据...");
+      const unitsAndCourses = await initUnitsAndCourses(subjects);
+      units = unitsAndCourses.units;
+      courses = unitsAndCourses.courses;
+      console.log(`✅ 创建大单元: ${units.length}个, 课程: ${courses.length}个`);
+
+      // 6. 初始化练习题数据（独立存在，只关联学科）
+      console.log("\n📝 初始化练习题数据...");
+      exercises = await initExercises(subjects);
+      console.log(`✅ 创建练习题: ${exercises.length}道`);
+
+      // 7. 初始化习题组数据
+      console.log("\n📋 初始化习题组数据...");
+      exerciseGroups = await initExerciseGroups(subjects, exercises);
+      console.log(`✅ 创建习题组: ${exerciseGroups.length}个`);
+
+      // 8. 关联课程和习题组
+      console.log("\n🔗 关联课程和习题组...");
+      await linkCoursesWithExerciseGroups(courses, exerciseGroups);
+      console.log("✅ 课程习题组关联完成");
+
+      // 9. 初始化课程内容
+      console.log("\n📄 初始化课程内容...");
+      await initCourseContents(courses);
+      console.log("✅ 课程内容初始化完成");
+
+      // 10. 初始化管理员数据
+      if (includeAdminData) {
+        console.log("\n👤 初始化管理员数据...");
+        const users = await initAdminData();
+        console.log(`✅ 创建用户: ${users.length}个`);
+      }
+
+      // 11. 初始化测试学生数据
+      console.log("\n👨‍🎓 初始化测试学生数据...");
+      const students = await initStudentData();
+      console.log(`✅ 创建学生: ${students.length}个`);
+
+      // 12. 初始化知识点数据
+      if (includeKnowledgePoints) {
+        console.log("\n🧠 初始化知识点数据...");
+        const knowledgePoints = await initKnowledgePointsData(exercises);
+        console.log(`✅ 创建知识点: ${knowledgePoints.length}个`);
+      }
+
+            console.log("\n🎉 完整数据库初始化完成！");
+      console.log("==============================================");
+      console.log(`✓ 学科数据: ${subjects.length}个`);
+      console.log(`✓ 年级数据: ${grades.length}个`);
+      console.log(`✓ 学科年级关联: ${subjectGrades.length}个`);
+      console.log(`✓ 大单元: ${units.length}个`);
+      console.log(`✓ 课程: ${courses.length}个`);
+      console.log(`✓ 练习题: ${exercises.length}道`);
+      console.log(`✓ 习题组: ${exerciseGroups.length}个`);
+      if (includeAdminData) console.log(`✓ 用户账户: 3个`);
+      if (includeKnowledgePoints) console.log(`✓ 知识点: 很多个`);
+      console.log("==============================================");
     }
-
-    // 11. 初始化测试学生数据
-    console.log("\n👨‍🎓 初始化测试学生数据...");
-    const students = await initStudentData();
-    console.log(`✅ 创建学生: ${students.length}个`);
-
-    // 12. 初始化知识点数据
-    if (includeKnowledgePoints) {
-      console.log("\n🧠 初始化知识点数据...");
-      const knowledgePoints = await initKnowledgePointsData(exercises);
-      console.log(`✅ 创建知识点: ${knowledgePoints.length}个`);
-    }
-
-    console.log("\n🎉 完整数据库初始化完成！");
-    console.log("==============================================");
-    console.log(`✓ 学科数据: ${subjects.length}个`);
-    console.log(`✓ 年级数据: ${grades.length}个`);
-    console.log(`✓ 学科年级关联: ${subjectGrades.length}个`);
-    console.log(`✓ 大单元: ${units.length}个`);
-    console.log(`✓ 课程: ${courses.length}个`);
-    console.log(`✓ 练习题: ${exercises.length}道`);
-    console.log(`✓ 习题组: ${exerciseGroups.length}个`);
-    if (includeAdminData) console.log(`✓ 用户账户: 3个`);
-    if (includeKnowledgePoints) console.log(`✓ 知识点: 很多个`);
-    console.log("==============================================");
 
     return {
       subjects,
@@ -1366,7 +1399,8 @@ if (require.main === module) {
   const options = {
     includeAdminData: !args.includes('--no-admin'),
     includeKnowledgePoints: !args.includes('--no-knowledge'),
-    force: args.includes('--force')
+    force: args.includes('--force'),
+    adminOnly: args.includes('--admin-only')
   };
   
   completeInit(options)

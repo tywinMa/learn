@@ -37,6 +37,10 @@ jobs:
           # 拉取最新代码
           git pull origin main
 
+
+          chmod +x ./reset-data.sh
+          ./reset-data.sh --admin-only
+
           # 设置Node.js环境
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
