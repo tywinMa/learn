@@ -47,7 +47,7 @@ app.use(morgan('dev'));
 
 // 静态文件服务
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-app.use(express.static(path.join(__dirname, '../../dist')));
+app.use(express.static(path.join(__dirname, '../../learn-app/dist')));
 
 // 添加CORS预检请求处理
 app.options('*', cors());
