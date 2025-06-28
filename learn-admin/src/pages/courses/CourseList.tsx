@@ -309,14 +309,7 @@ const CourseList: React.FC = () => {
         <>
           <Row gutter={[16, 16]}>
             {paginatedCourses.map(course => {
-              // 提取习题组信息（如果有）
-              let exerciseGroupInfo = null;
-              if (course.exerciseGroups && course.exerciseGroups.length > 0) {
-                exerciseGroupInfo = {
-                  count: course.exerciseGroups.length,
-                  names: course.exerciseGroups.map(group => group.name).join(', ')
-                };
-              }
+              // 删除习题组相关显示逻辑
               
               return (
                 <Col xs={24} sm={12} md={8} lg={6} key={course.id}>
@@ -384,15 +377,7 @@ const CourseList: React.FC = () => {
                           <ClockCircleOutlined className="mr-1" />创建于 {formatDate(course.createdAt)}
                         </div>
                         
-                        {/* 关联习题组信息 */}
-                        {exerciseGroupInfo && (
-                          <div className="w-full flex items-center">
-                            <QuestionCircleOutlined className="mr-1" />
-                            <span className="text-gray-600 truncate">
-                              {exerciseGroupInfo.count}个习题组: {exerciseGroupInfo.names}
-                            </span>
-                          </div>
-                        )}
+
                       </div>
                     </div>
 

@@ -4,7 +4,7 @@ import api from "./api";
 export type TaskStatus = "pending" | "running" | "success" | "failed";
 
 // 任务类型
-export type TaskType = "ai_generate_exercise_group" | "ai_generate_single_exercise";
+export type TaskType = "ai_generate_single_exercise";
 
 // 任务接口
 export interface Task {
@@ -77,22 +77,7 @@ export const getTaskStats = async (): Promise<TaskStats> => {
   return response.data;
 };
 
-/**
- * 创建AI生成习题组任务
- */
-export const createAIGenerateExerciseGroupTask = async (params: {
-  groupName: string;
-  subject: string;
-  gradeId?: number;
-  type: string;
-  courseId?: string;
-  relevance?: string;
-  difficulty?: number;
-  questionCount: number;
-}): Promise<Task> => {
-  const response = await api.post("/api/admin/tasks/ai-generate-exercise-group", params);
-  return response.data;
-};
+
 
 /**
  * 创建AI生成单个习题任务
@@ -158,8 +143,6 @@ export const getTaskStatusText = (status: TaskStatus): string => {
  */
 export const getTaskTypeText = (type: TaskType): string => {
   switch (type) {
-    case "ai_generate_exercise_group":
-      return "AI生成习题组";
     case "ai_generate_single_exercise":
       return "AI生成单个习题";
     default:

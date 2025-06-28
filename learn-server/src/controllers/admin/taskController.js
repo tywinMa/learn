@@ -96,52 +96,7 @@ class TaskController {
     }
   }
 
-  /**
-   * 创建AI生成习题组任务
-   */
-  static async createAIGenerateExerciseGroupTask(req, res) {
-    try {
-      const params = req.body;
-      const { groupName, subject, gradeId, type, courseId, relevance, difficulty, questionCount } = params;
 
-      // 参数验证
-      if (!groupName || !subject || !type || !questionCount) {
-        return res.status(400).json({
-          success: false,
-          message: '缺少必要参数：groupName, subject, type, questionCount'
-        });
-      }
-
-      if (!['choice', 'fill_blank', 'matching', 'mixed'].includes(type)) {
-        return res.status(400).json({
-          success: false,
-          message: '不支持的题目类型'
-        });
-      }
-
-      if (questionCount < 1 || questionCount > 50) {
-        return res.status(400).json({
-          success: false,
-          message: '题目数量必须在1-50之间'
-        });
-      }
-
-      const task = await AITaskService.createAIGenerateExerciseGroupTask(params);
-
-      res.json({
-        success: true,
-        data: task,
-        message: '任务创建成功，正在后台执行中...'
-      });
-    } catch (error) {
-      console.error('创建AI生成习题组任务失败:', error);
-      res.status(500).json({
-        success: false,
-        message: '创建任务失败',
-        error: error.message
-      });
-    }
-  }
 
   /**
    * 创建AI生成单个习题任务

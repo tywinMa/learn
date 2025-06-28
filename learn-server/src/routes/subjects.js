@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Subject, Unit, Course, Exercise, ExerciseGroup, SubjectGrade, Grade } = require('../models');
+const { Subject, Unit, Course, Exercise, SubjectGrade, Grade } = require('../models');
 const { Op } = require('sequelize');
 
 // 通过课程获取习题数量的辅助函数
@@ -12,33 +12,17 @@ const getExerciseCountByCourse = async (courseId) => {
       return 0;
     }
     
-    const exerciseGroupIds = course.exerciseGroupIds || [];
-    if (exerciseGroupIds.length === 0) {
+    const exerciseIds = course.exerciseIds || [];
+    if (exerciseIds.length === 0) {
       // 回退到原有逻辑：直接统计unitId关联的习题
       return await Exercise.count({
         where: { unitId: courseId }
       });
     }
     
-    // 获取习题组
-    const exerciseGroups = await ExerciseGroup.findAll({
-      where: { 
-        id: { [Op.in]: exerciseGroupIds },
-        isActive: true
-      }
-    });
-    
-    // 合并所有习题组的习题ID并去重
-    const exerciseIdsFromGroups = exerciseGroups.flatMap(group => group.exerciseIds || []);
-    const allExerciseIds = [...new Set(exerciseIdsFromGroups)];
-    
-    if (allExerciseIds.length === 0) {
-      return 0;
-    }
-    
     // 统计习题数量
     return await Exercise.count({
-      where: { id: { [Op.in]: allExerciseIds } }
+      where: { id: { [Op.in]: exerciseIds } }
     });
   } catch (error) {
     console.error('通过课程获取习题数量出错:', error);

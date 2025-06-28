@@ -288,32 +288,17 @@ class AnswerRecordService {
    */
   static async updateUnitProgress(studentId, unitId, isCorrect, responseTime, pointsEarned) {
     // 首先获取当前单元的总题目数
-    const { Course, ExerciseGroup, Exercise } = require('../models');
+    const { Course, Exercise } = require('../models');
     
     // 获取课程信息
     const course = await Course.findByPk(unitId);
     let totalExercises = 0;
     let allExerciseIds = [];
     
-    if (course && course.exerciseGroupIds && course.exerciseGroupIds.length > 0) {
-      // 获取所有关联的习题组
-      const exerciseGroups = await ExerciseGroup.findAll({
-        where: { 
-          id: { [Op.in]: course.exerciseGroupIds },
-          isActive: true
-        }
-      });
-
-      // 收集所有练习题ID
-      for (const group of exerciseGroups) {
-        if (group.exerciseIds && Array.isArray(group.exerciseIds)) {
-          allExerciseIds.push(...group.exerciseIds);
-        }
-      }
-      
-      // 去重并计算总数
-      const uniqueExerciseIds = [...new Set(allExerciseIds)];
-      totalExercises = uniqueExerciseIds.length;
+    if (course && course.exerciseIds && course.exerciseIds.length > 0) {
+      // 直接使用课程关联的习题ID
+      allExerciseIds = course.exerciseIds;
+      totalExercises = allExerciseIds.length;
     }
     
     // 计算当前已完成的题目数（基于正确答题记录）

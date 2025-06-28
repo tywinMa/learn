@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Op } = require('sequelize');
 const AnswerRecordService = require('../services/answerRecordService');
-const { AnswerRecord, Exercise, UnitProgress, Student, Course, ExerciseGroup, sequelize } = require('../models');
+const { AnswerRecord, Exercise, UnitProgress, Student, Course, sequelize } = require('../models');
 
 /**
  * 获取课程关联的练习题
@@ -13,34 +13,13 @@ async function getExercisesByCourse(courseId) {
   try {
     // 获取课程信息
     const course = await Course.findByPk(courseId);
-    if (!course || !course.exerciseGroupIds || course.exerciseGroupIds.length === 0) {
+    if (!course || !course.exerciseIds || course.exerciseIds.length === 0) {
       return [];
     }
 
-    // 获取所有关联的习题组
-    const exerciseGroups = await ExerciseGroup.findAll({
-      where: { 
-        id: { [Op.in]: course.exerciseGroupIds },
-        isActive: true
-      }
-    });
-
-    // 收集所有练习题ID
-    const allExerciseIds = [];
-    for (const group of exerciseGroups) {
-      if (group.exerciseIds && Array.isArray(group.exerciseIds)) {
-        allExerciseIds.push(...group.exerciseIds);
-      }
-    }
-
-    // 去重并获取练习题
-    const uniqueExerciseIds = [...new Set(allExerciseIds)];
-    if (uniqueExerciseIds.length === 0) {
-      return [];
-    }
-
+    // 直接获取练习题
     const exercises = await Exercise.findAll({
-      where: { id: { [Op.in]: uniqueExerciseIds } },
+      where: { id: { [Op.in]: course.exerciseIds } },
       attributes: ['id']
     });
 

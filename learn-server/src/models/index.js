@@ -8,7 +8,7 @@ const AnswerRecord = require('./AnswerRecord');
 const KnowledgePoint = require('./KnowledgePoint');
 const User = require('./User');
 const Student = require('./Student');
-const ExerciseGroup = require('./ExerciseGroup');
+
 const Task = require('./Task');
 const Grade = require('./Grade');
 const SubjectGrade = require('./SubjectGrade');
@@ -28,9 +28,7 @@ Subject.hasMany(Course, { foreignKey: 'subject', sourceKey: 'code' });
 Exercise.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 Subject.hasMany(Exercise, { foreignKey: 'subject', sourceKey: 'code' });
 
-// 学科与习题组之间的关系
-ExerciseGroup.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
-Subject.hasMany(ExerciseGroup, { foreignKey: 'subject', sourceKey: 'code' });
+
 
 // 学科与知识点之间的关系
 KnowledgePoint.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
@@ -167,7 +165,6 @@ module.exports = {
   KnowledgePoint,
   User,
   Student,
-  ExerciseGroup,
   Task,
   Grade,
   SubjectGrade,

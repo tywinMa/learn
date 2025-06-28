@@ -1,4 +1,4 @@
-const { Course, Subject, User, Exercise, ExerciseGroup } = require('../../models');
+const { Course, Subject, User, Exercise } = require('../../models');
 const { Op } = require('sequelize');
 
 
@@ -98,32 +98,18 @@ const getCourseById = async (req, res) => {
     
     const courseData = course.toJSON();
     
-    // 获取关联的习题组详情（包含习题）
-    const exerciseGroupIds = courseData.exerciseGroupIds || [];
-    let exerciseGroups = [];
+    // 获取关联的习题详情
+    const exerciseIds = courseData.exerciseIds || [];
     let exercises = [];
     
-    if (exerciseGroupIds.length > 0) {
-      exerciseGroups = await ExerciseGroup.findAll({
-        where: { 
-          id: { [Op.in]: exerciseGroupIds },
-          isActive: true
-        },
-        attributes: ['id', 'name', 'description', 'exerciseIds']
+    if (exerciseIds.length > 0) {
+      exercises = await Exercise.findAll({
+        where: { id: { [Op.in]: exerciseIds } },
+        attributes: ['id', 'title', 'type', 'difficulty', 'question', 'options', 'correctAnswer', 'explanation'],
+        order: [['id', 'ASC']]
       });
-      
-      // 获取所有关联习题的详情，去重
-      const allExerciseIds = [...new Set(exerciseGroups.flatMap(group => group.exerciseIds || []))];
-      if (allExerciseIds.length > 0) {
-        exercises = await Exercise.findAll({
-          where: { id: { [Op.in]: allExerciseIds } },
-          attributes: ['id', 'title', 'type', 'difficulty'],
-          order: [['id', 'ASC']]
-        });
-      }
     }
     
-    courseData.exerciseGroups = exerciseGroups;
     courseData.exercises = exercises;
     
     res.json({
@@ -190,7 +176,7 @@ const createCourse = async (req, res) => {
       position = 'default',
       media = [],
       exampleMedia = [],
-      exerciseGroupIds = []
+      exerciseIds = []
     } = req.body;
     
     // 获取当前用户信息（通过auth中间件设置）
@@ -240,18 +226,17 @@ const createCourse = async (req, res) => {
       }
     }
     
-    // 验证习题组是否存在
-    if (exerciseGroupIds.length > 0) {
-      const exerciseGroups = await ExerciseGroup.findAll({
+    // 验证习题是否存在
+    if (exerciseIds.length > 0) {
+      const exercises = await Exercise.findAll({
         where: { 
-          id: { [Op.in]: exerciseGroupIds },
-          isActive: true
+          id: { [Op.in]: exerciseIds }
         }
       });
-      if (exerciseGroups.length !== exerciseGroupIds.length) {
+      if (exercises.length !== exerciseIds.length) {
         return res.status(400).json({
           err_no: 400, 
-          message: '部分习题组不存在或已禁用',
+          message: '部分习题不存在',
           data: null
         });
       }
@@ -270,7 +255,7 @@ const createCourse = async (req, res) => {
       media,
       exampleMedia,
       teacherId,
-      exerciseGroupIds
+      exerciseIds
     };
     
     const course = await Course.create(courseData);
@@ -320,7 +305,7 @@ const updateCourse = async (req, res) => {
       media,
       exampleMedia,
       teacherId,
-      exerciseGroupIds
+      exerciseIds
     } = req.body;
     
     const course = await Course.findByPk(id);
@@ -357,18 +342,17 @@ const updateCourse = async (req, res) => {
       }
     }
     
-    // 验证习题组是否存在（如果更改了）
-    if (exerciseGroupIds && exerciseGroupIds.length > 0) {
-      const exerciseGroups = await ExerciseGroup.findAll({
+    // 验证习题是否存在（如果更改了）
+    if (exerciseIds && exerciseIds.length > 0) {
+      const exercises = await Exercise.findAll({
         where: { 
-          id: { [Op.in]: exerciseGroupIds },
-          isActive: true
+          id: { [Op.in]: exerciseIds }
         }
       });
-      if (exerciseGroups.length !== exerciseGroupIds.length) {
+      if (exercises.length !== exerciseIds.length) {
         return res.status(400).json({
           err_no: 400, 
-          message: '部分习题组不存在或已禁用',
+          message: '部分习题不存在',
           data: null
         });
       }
@@ -386,7 +370,7 @@ const updateCourse = async (req, res) => {
     if (media !== undefined) updateData.media = media;
     if (exampleMedia !== undefined) updateData.exampleMedia = exampleMedia;
     if (teacherId !== undefined) updateData.teacherId = teacherId;
-    if (exerciseGroupIds !== undefined) updateData.exerciseGroupIds = exerciseGroupIds;
+    if (exerciseIds !== undefined) updateData.exerciseIds = exerciseIds;
     
     // 调试：输出例题媒体资源的更新情况
     console.log('后端收到的例题媒体资源数据:', exampleMedia);
@@ -441,10 +425,6 @@ const deleteCourse = async (req, res) => {
       });
     }
     
-    // 注意：课程现在是独立存在的，Exercise模型没有unitId字段
-    // 如果需要检查关联，应该检查是否有Unit引用了这个课程ID
-    // 这里先简化处理，允许直接删除
-    
     await course.destroy();
     
     res.json({
@@ -455,7 +435,7 @@ const deleteCourse = async (req, res) => {
   } catch (error) {
     console.error('删除课程错误:', error);
     res.status(500).json({
-      err_no: 500,
+      err_no: 500, 
       message: '服务器错误', 
       error: error.message
     });

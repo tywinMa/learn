@@ -62,11 +62,11 @@ const Course = sequelize.define('Course', {
     allowNull: true,
     comment: '教师ID，用于管理端'
   },
-  exerciseGroupIds: {
+  exerciseIds: {
     type: DataTypes.JSON,
     allowNull: true,
     defaultValue: [],
-    comment: '关联的习题组ID数组'
+    comment: '关联的习题ID数组'
   },
   gradeId: {
     type: DataTypes.INTEGER,

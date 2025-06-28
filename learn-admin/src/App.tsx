@@ -7,8 +7,7 @@ import UnitForm from './pages/units/UnitForm';
 import SubjectStageUnits from './pages/units/SubjectStageUnits';
 import ExerciseList from './pages/exercises/ExerciseList';
 import ExerciseForm from './pages/exercises/ExerciseForm';
-import ExerciseGroupList from './pages/exerciseGroups/ExerciseGroupList';
-import ExerciseGroupForm from './pages/exerciseGroups/ExerciseGroupForm';
+
 import KnowledgePointList from './pages/knowledgePoints/KnowledgePointList';
 import KnowledgePointForm from './pages/knowledgePoints/KnowledgePointForm';
 import StudentList from './pages/students/StudentList';
@@ -58,11 +57,7 @@ function App() {
           </Route>
           
           {/* 习题组管理 */}
-          <Route path="exercise-groups">
-            <Route index element={<ExerciseGroupList />} />
-            <Route path="new" element={<ExerciseGroupForm />} />
-            <Route path=":id/edit" element={<ExerciseGroupForm />} />
-          </Route>
+          
           
           {/* 知识点管理 */}
           <Route path="knowledge-points">

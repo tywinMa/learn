@@ -1,9 +1,9 @@
 const { sequelize } = require("../config/database");
-const { Subject, Unit, Course, Exercise, ExerciseGroup, User, KnowledgePoint, Student, Grade, SubjectGrade } = require("../models");
+const { Subject, Unit, Course, Exercise, User, KnowledgePoint, Student, Grade, SubjectGrade } = require("../models");
 
 /**
  * 完整的数据库初始化脚本
- * 基于新架构：习题独立存在只关联学科，通过习题组组织，课程通过exerciseGroupIds关联习题组
+ * 基于新架构：习题独立存在只关联学科，课程直接通过exerciseIds关联习题
  */
 const completeInit = async (options = {}) => {
   const { 
@@ -50,34 +50,29 @@ const completeInit = async (options = {}) => {
     const exercises = await initExercises(subjects);
     console.log(`✅ 创建练习题: ${exercises.length}道`);
 
-    // 7. 初始化习题组数据
-    console.log("\n📋 初始化习题组数据...");
-    const exerciseGroups = await initExerciseGroups(subjects, exercises);
-    console.log(`✅ 创建习题组: ${exerciseGroups.length}个`);
+    // 7. 关联课程和习题
+    console.log("\n🔗 关联课程和习题...");
+    await linkCoursesWithExercises(courses, exercises);
+    console.log("✅ 课程习题关联完成");
 
-    // 8. 关联课程和习题组
-    console.log("\n🔗 关联课程和习题组...");
-    await linkCoursesWithExerciseGroups(courses, exerciseGroups);
-    console.log("✅ 课程习题组关联完成");
-
-    // 9. 初始化课程内容
+    // 8. 初始化课程内容
     console.log("\n📄 初始化课程内容...");
     await initCourseContents(courses);
     console.log("✅ 课程内容初始化完成");
 
-    // 10. 初始化管理员数据
+    // 9. 初始化管理员数据
     if (includeAdminData) {
       console.log("\n👤 初始化管理员数据...");
       const users = await initAdminData();
       console.log(`✅ 创建用户: ${users.length}个`);
     }
 
-    // 11. 初始化测试学生数据
+    // 10. 初始化测试学生数据
     console.log("\n👨‍🎓 初始化测试学生数据...");
     const students = await initStudentData();
     console.log(`✅ 创建学生: ${students.length}个`);
 
-    // 12. 初始化知识点数据
+    // 11. 初始化知识点数据
     if (includeKnowledgePoints) {
       console.log("\n🧠 初始化知识点数据...");
       const knowledgePoints = await initKnowledgePointsData(exercises);
@@ -92,7 +87,6 @@ const completeInit = async (options = {}) => {
     console.log(`✓ 大单元: ${units.length}个`);
     console.log(`✓ 课程: ${courses.length}个`);
     console.log(`✓ 练习题: ${exercises.length}道`);
-    console.log(`✓ 习题组: ${exerciseGroups.length}个`);
     if (includeAdminData) console.log(`✓ 用户账户: 3个`);
     if (includeKnowledgePoints) console.log(`✓ 知识点: 很多个`);
     console.log("==============================================");
@@ -104,7 +98,6 @@ const completeInit = async (options = {}) => {
       units,
       courses,
       exercises,
-      exerciseGroups,
       success: true
     };
     
@@ -223,7 +216,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '一元二次方程', 
         description: '一元二次方程的解法和应用',
         unitType: 'normal',
-        exerciseGroupIds: ['group-math-1-1']
+        exerciseIds: ['math-1', 'math-2', 'math-3']
       },
       { 
         id: 'math-1-2', 
@@ -231,7 +224,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '因式分解', 
         description: '多项式的因式分解方法',
         unitType: 'normal',
-        exerciseGroupIds: ['group-math-1-2']
+        exerciseIds: ['math-4', 'math-5']
       },
       { 
         id: 'math-1-3', 
@@ -239,7 +232,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '配方法', 
         description: '使用配方法解一元二次方程',
         unitType: 'normal',
-        exerciseGroupIds: ['group-math-1-3']
+        exerciseIds: ['math-6', 'math-7']
       },
       { 
         id: 'math-1-4', 
@@ -248,7 +241,7 @@ const initUnitsAndCourses = async (subjects) => {
         description: '代数章节综合测试',
         unitType: 'exercise', 
         position: 'right',
-        exerciseGroupIds: ['group-math-1-4']
+        exerciseIds: ['math-8', 'math-9', 'math-10']
       },
       { 
         id: 'math-1-5', 
@@ -256,7 +249,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '二次函数', 
         description: '二次函数的性质和图像',
         unitType: 'normal',
-        exerciseGroupIds: ['group-math-1-5']
+        exerciseIds: ['math-11', 'math-12']
       },
       { 
         id: 'math-1-6', 
@@ -264,7 +257,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '二次函数应用', 
         description: '二次函数在实际问题中的应用',
         unitType: 'normal',
-        exerciseGroupIds: ['group-math-1-6']
+        exerciseIds: ['math-13', 'math-14']
       }
     ];
 
@@ -293,7 +286,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '三角形', 
         description: '三角形的性质和计算',
         unitType: 'normal',
-        exerciseGroupIds: ['group-math-2-1']
+        exerciseIds: ['math-15', 'math-16']
       },
       { 
         id: 'math-2-2', 
@@ -301,7 +294,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '圆', 
         description: '圆的性质和计算',
         unitType: 'normal',
-        exerciseGroupIds: ['group-math-2-2']
+        exerciseIds: ['math-17', 'math-18']
       },
       { 
         id: 'math-2-3', 
@@ -309,7 +302,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '几何综合', 
         description: '几何章节综合练习',
         unitType: 'exercise',
-        exerciseGroupIds: ['group-math-2-3']
+        exerciseIds: ['math-19', 'math-20']
       }
     ];
 
@@ -338,7 +331,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '数据统计', 
         description: '数据的收集整理和分析',
         unitType: 'normal',
-        exerciseGroupIds: ['group-math-3-1']
+        exerciseIds: ['math-21', 'math-22']
       },
       { 
         id: 'math-3-2', 
@@ -346,7 +339,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '概率计算', 
         description: '概率的基本概念和计算',
         unitType: 'normal',
-        exerciseGroupIds: ['group-math-3-2']
+        exerciseIds: ['math-23', 'math-24']
       },
       { 
         id: 'math-3-3', 
@@ -354,7 +347,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '匹配练习', 
         description: '数学匹配题练习（新格式）',
         unitType: 'exercise',
-        exerciseGroupIds: ['group-math-matching']
+        exerciseIds: ['math-matching-1', 'math-matching-2']
       }
     ];
 
@@ -389,7 +382,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '运动学', 
         description: '描述物体运动的规律',
         unitType: 'normal',
-        exerciseGroupIds: ['group-physics-1-1']
+        exerciseIds: ['physics-1', 'physics-2']
       },
       { 
         id: 'physics-1-2', 
@@ -397,7 +390,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '力学', 
         description: '研究力与运动的关系',
         unitType: 'normal',
-        exerciseGroupIds: ['group-physics-1-2']
+        exerciseIds: ['physics-3', 'physics-4']
       }
     ];
 
@@ -432,7 +425,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '原子结构', 
         description: '原子的组成和结构',
         unitType: 'normal',
-        exerciseGroupIds: ['group-chemistry-1-1']
+        exerciseIds: ['chemistry-1', 'chemistry-2']
       }
     ];
 
@@ -467,7 +460,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '细胞结构', 
         description: '细胞的基本结构和组成',
         unitType: 'normal',
-        exerciseGroupIds: ['group-biology-1-1']
+        exerciseIds: ['biology-1', 'biology-2']
       }
     ];
 
@@ -887,195 +880,12 @@ const initExercises = async (subjects) => {
 /**
  * 初始化习题组数据
  */
-const initExerciseGroups = async (subjects, exercises) => {
-  const exerciseGroups = [];
-
-  // 数学习题组
-  const mathSubject = subjects.find(s => s.code === 'math');
-  if (mathSubject) {
-    const mathGroups = [
-      {
-        id: 'group-math-1-1',
-        name: '一元二次方程习题组',
-        description: '一元二次方程解法练习',
-        subject: 'math',
-        exerciseIds: ['math-1-1-1', 'math-1-1-2', 'math-1-1-3', 'math-1-1-4', 'math-1-1-5', 'math-1-1-6', 'math-1-1-7'],
-        isActive: true
-      },
-      {
-        id: 'group-math-1-2',
-        name: '因式分解习题组',
-        description: '因式分解方法练习',
-        subject: 'math',
-        exerciseIds: [], // 后续可以添加
-        isActive: true
-      },
-      {
-        id: 'group-math-1-3',
-        name: '配方法习题组',
-        description: '配方法解方程练习',
-        subject: 'math',
-        exerciseIds: [], // 后续可以添加
-        isActive: true
-      },
-      {
-        id: 'group-math-1-4',
-        name: '第一次月考习题组',
-        description: '代数章节综合测试',
-        subject: 'math',
-        exerciseIds: ['math-1-4-1', 'math-1-4-2', 'math-1-4-3', 'math-1-4-4', 'math-1-4-5', 'math-1-4-6', 'math-1-4-7', 'math-1-4-8'],
-        isActive: true
-      },
-      {
-        id: 'group-math-1-5',
-        name: '二次函数习题组',
-        description: '二次函数性质和图像',
-        subject: 'math',
-        exerciseIds: [], // 后续可以添加
-        isActive: true
-      },
-      {
-        id: 'group-math-1-6',
-        name: '二次函数应用习题组',
-        description: '二次函数实际应用问题',
-        subject: 'math',
-        exerciseIds: ['math-1-6-1', 'math-1-6-2', 'math-1-6-3', 'math-1-6-4', 'math-1-6-5'],
-        isActive: true
-      },
-      {
-        id: 'group-math-2-1',
-        name: '三角形习题组',
-        description: '三角形性质和计算',
-        subject: 'math',
-        exerciseIds: ['math-2-1-1', 'math-2-1-2', 'math-2-1-3'],
-        isActive: true
-      },
-      {
-        id: 'group-math-2-2',
-        name: '圆习题组',
-        description: '圆的性质和计算',
-        subject: 'math',
-        exerciseIds: [], // 后续可以添加
-        isActive: true
-      },
-      {
-        id: 'group-math-2-3',
-        name: '几何综合习题组',
-        description: '几何章节综合练习',
-        subject: 'math',
-        exerciseIds: [], // 后续可以添加
-        isActive: true
-      },
-      {
-        id: 'group-math-3-1',
-        name: '数据统计习题组',
-        description: '数据收集整理和分析',
-        subject: 'math',
-        exerciseIds: [], // 后续可以添加
-        isActive: true
-      },
-      {
-        id: 'group-math-3-2',
-        name: '概率计算习题组',
-        description: '概率基本概念和计算',
-        subject: 'math',
-        exerciseIds: [], // 后续可以添加
-        isActive: true
-      },
-      {
-        id: 'group-math-matching',
-        name: '匹配题习题组',
-        description: '数学匹配题练习（测试新格式）',
-        subject: 'math',
-        exerciseIds: ['math-matching-1', 'math-matching-2'],
-        isActive: true
-      }
-    ];
-
-    for (const groupData of mathGroups) {
-      const group = await ExerciseGroup.create(groupData);
-      exerciseGroups.push(group);
-    }
-  }
-
-  // 物理习题组
-  const physicsSubject = subjects.find(s => s.code === 'physics');
-  if (physicsSubject) {
-    const physicsGroups = [
-      {
-        id: 'group-physics-1-1',
-        name: '运动学习题组',
-        description: '物体运动规律',
-        subject: 'physics',
-        exerciseIds: ['physics-1-1-1'],
-        isActive: true
-      },
-      {
-        id: 'group-physics-1-2',
-        name: '力学习题组',
-        description: '力与运动关系',
-        subject: 'physics',
-        exerciseIds: ['physics-1-2-1'],
-        isActive: true
-      }
-    ];
-
-    for (const groupData of physicsGroups) {
-      const group = await ExerciseGroup.create(groupData);
-      exerciseGroups.push(group);
-    }
-  }
-
-  // 化学习题组
-  const chemistrySubject = subjects.find(s => s.code === 'chemistry');
-  if (chemistrySubject) {
-    const chemistryGroups = [
-      {
-        id: 'group-chemistry-1-1',
-        name: '原子结构习题组',
-        description: '原子组成和结构',
-        subject: 'chemistry',
-        exerciseIds: ['chemistry-1-1-1'],
-        isActive: true
-      }
-    ];
-
-    for (const groupData of chemistryGroups) {
-      const group = await ExerciseGroup.create(groupData);
-      exerciseGroups.push(group);
-    }
-  }
-
-  // 生物习题组
-  const biologySubject = subjects.find(s => s.code === 'biology');
-  if (biologySubject) {
-    const biologyGroups = [
-      {
-        id: 'group-biology-1-1',
-        name: '细胞结构习题组',
-        description: '细胞基本结构和组成',
-        subject: 'biology',
-        exerciseIds: ['biology-1-1-1'],
-        isActive: true
-      }
-    ];
-
-    for (const groupData of biologyGroups) {
-      const group = await ExerciseGroup.create(groupData);
-      exerciseGroups.push(group);
-    }
-  }
-
-  console.log(`创建了${exerciseGroups.length}个习题组`);
-  return exerciseGroups;
-};
-
 /**
- * 关联课程和习题组
+ * 关联课程和习题
  */
-const linkCoursesWithExerciseGroups = async (courses, exerciseGroups) => {
-  // 课程的exerciseGroupIds已经在创建时设置，这里可以验证或更新
-  console.log('课程和习题组关联已在课程创建时完成');
+const linkCoursesWithExercises = async (courses, exercises) => {
+  // 课程的exerciseIds已经在创建时设置，这里可以验证或更新
+  console.log('课程和习题关联已在课程创建时完成');
 };
 
 /**

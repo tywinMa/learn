@@ -1,42 +1,12 @@
 const TaskService = require('./taskService');
-const { ExerciseGroup, Exercise, Grade } = require('../models');
+const { Exercise, Grade } = require('../models');
 const axios = require('axios');
 
 /**
  * AI任务服务类
  */
 class AITaskService {
-  /**
-   * 创建AI生成习题组任务
-   */
-  static async createAIGenerateExerciseGroupTask(params, createdBy = null) {
-    try {
-      const { groupName, subject, gradeId, type, courseId, relevance, difficulty, questionCount } = params;
 
-      const typeDescription = type === 'choice' ? '选择题' : 
-                          type === 'fill_blank' ? '填空题' : 
-                          type === 'matching' ? '匹配题' : 
-                          type === 'mixed' ? '混合题型' : '题目';
-
-      const task = await TaskService.createTask({
-        type: 'ai_generate_exercise_group',
-        title: `AI生成习题组: ${groupName}`,
-        description: `正在生成${questionCount}道${typeDescription}...`,
-        params,
-        createdBy
-      });
-
-      // 异步执行任务
-      setImmediate(() => {
-        AITaskService.executeAIGenerateExerciseGroup(task.id, params);
-      });
-
-      return task;
-    } catch (error) {
-      console.error('创建AI生成习题组任务失败:', error);
-      throw error;
-    }
-  }
 
   /**
    * 创建AI生成单个习题任务
@@ -69,83 +39,7 @@ class AITaskService {
     }
   }
 
-  /**
-   * 执行AI生成习题组任务
-   */
-  static async executeAIGenerateExerciseGroup(taskId, params) {
-    try {
-      // 更新任务状态为运行中
-      await TaskService.updateTaskStatus(taskId, 'running');
-      
-      const { groupName, subject, gradeId, type, courseId, relevance, difficulty, questionCount } = params;
 
-      // 步骤1: 调用AI生成接口
-      const aiExercises = await AITaskService.callAIGenerateAPI(subject, gradeId, type, courseId, relevance, difficulty, questionCount);
-      
-      if (!Array.isArray(aiExercises) || aiExercises.length === 0) {
-        await TaskService.setTaskError(taskId, 'AI生成习题失败，返回数据为空');
-        return;
-      }
-
-      // 步骤2: 创建习题组
-      const exerciseGroupData = {
-        id: `${subject}-group-${Date.now()}`,
-        name: groupName,
-        description: `AI自动生成的习题组（共${aiExercises.length}道题）`,
-        subject: subject,
-        exerciseIds: [],
-        isActive: true,
-      };
-
-      const groupCreated = await ExerciseGroup.create(exerciseGroupData);
-      if (!groupCreated) {
-        await TaskService.setTaskError(taskId, '创建习题组失败');
-        return;
-      }
-
-      const groupId = exerciseGroupData.id;
-
-      // 步骤3: 批量创建习题
-      const createdExerciseIds = [];
-      const totalExercises = aiExercises.length;
-      
-      for (let i = 0; i < totalExercises; i++) {
-        const aiExercise = aiExercises[i];
-        try {
-          const exerciseData = AITaskService.formatExerciseData(aiExercise, subject, type, i + 1);
-          const createdExercise = await Exercise.create(exerciseData);
-
-          if (createdExercise && createdExercise.id) {
-            createdExerciseIds.push(String(createdExercise.id));
-          }
-        } catch (error) {
-          console.error(`创建第${i + 1}个习题失败:`, error);
-        }
-      }
-
-      // 步骤4: 更新习题组，添加习题ID
-      if (createdExerciseIds.length > 0) {
-        await ExerciseGroup.update(
-          { exerciseIds: createdExerciseIds },
-          { where: { id: groupId } }
-        );
-
-        // 任务完成
-        await TaskService.setTaskResult(taskId, {
-          groupId,
-          exerciseCount: createdExerciseIds.length,
-          exerciseIds: createdExerciseIds,
-          message: `AI生成习题组成功！共创建了${createdExerciseIds.length}道习题`
-        });
-      } else {
-        await TaskService.setTaskError(taskId, '习题组创建成功，但习题生成失败');
-      }
-
-    } catch (error) {
-      console.error('执行AI生成习题组任务失败:', error);
-      await TaskService.setTaskError(taskId, error);
-    }
-  }
 
   /**
    * 执行AI生成单个习题任务

@@ -1,4 +1,4 @@
-const { Exercise, Course, Subject, ExerciseGroup } = require('../../models');
+const { Exercise, Course, Subject } = require('../../models');
 
 // 获取所有练习题
 exports.getAllExercises = async (req, res) => {
@@ -39,67 +39,46 @@ exports.getAllExercises = async (req, res) => {
       order: [['id', 'ASC']]
     });
     
-    // 为每个习题查找相关的习题组和课程信息
-    const formattedExercises = await Promise.all(exercises.map(async (exercise) => {
-      // 查找包含此习题的习题组
-      const exerciseGroups = await ExerciseGroup.findAll({
-        where: {
-          subject: exercise.subject,
-          exerciseIds: {
-            [require('sequelize').Op.like]: `%"${exercise.id}"%`
-          }
+      // 为每个习题查找相关的课程信息
+  const formattedExercises = await Promise.all(exercises.map(async (exercise) => {
+    // 查找直接使用此习题的课程
+    const relatedCourses = await Course.findAll({
+      where: {
+        exerciseIds: {
+          [require('sequelize').Op.like]: `%"${exercise.id}"%`
         }
-      });
-      
-      // 查找使用这些习题组的课程
-      const relatedCourses = [];
-      for (const group of exerciseGroups) {
-        const courses = await Course.findAll({
-          where: {
-            exerciseGroupIds: {
-              [require('sequelize').Op.like]: `%"${group.id}"%`
-            }
-          },
-          attributes: ['id', 'title', 'subject', 'unitId']
-        });
-        relatedCourses.push(...courses);
-      }
-      
-      return {
-        id: exercise.id,
-        subject: exercise.subject,
-        title: exercise.title,
-        question: exercise.question,
-        options: exercise.options,
-        correctAnswer: exercise.correctAnswer,
-        explanation: exercise.explanation,
-        type: exercise.type,
-        difficulty: exercise.difficulty,
-        media: exercise.media,
-        hints: exercise.hints,
-        knowledgePointIds: exercise.knowledgePointIds || [],
-        isAI: exercise.isAI,
-        createdAt: exercise.createdAt,
-        updatedAt: exercise.updatedAt,
-        // 新架构下的关联信息
-        exerciseGroups: exerciseGroups.map(group => ({
-          id: group.id,
-          name: group.name,
-          description: group.description
-        })),
-        relatedCourses: relatedCourses.map(course => ({
-          id: course.id,
-          title: course.title,
-          subject: course.subject,
-          unitId: course.unitId
-        })),
-        subjectInfo: exercise.Subject ? {
-          id: exercise.Subject.id,
-          name: exercise.Subject.name,
-          code: exercise.Subject.code
-        } : undefined
-      };
-    }));
+      },
+      attributes: ['id', 'title', 'subject']
+    });
+    
+    return {
+      id: exercise.id,
+      subject: exercise.subject,
+      title: exercise.title,
+      question: exercise.question,
+      options: exercise.options,
+      correctAnswer: exercise.correctAnswer,
+      explanation: exercise.explanation,
+      type: exercise.type,
+      difficulty: exercise.difficulty,
+      media: exercise.media,
+      hints: exercise.hints,
+      knowledgePointIds: exercise.knowledgePointIds || [],
+      isAI: exercise.isAI,
+      createdAt: exercise.createdAt,
+      updatedAt: exercise.updatedAt,
+      relatedCourses: relatedCourses.map(course => ({
+        id: course.id,
+        title: course.title,
+        subject: course.subject
+      })),
+      subjectInfo: exercise.Subject ? {
+        id: exercise.Subject.id,
+        name: exercise.Subject.name,
+        code: exercise.Subject.code
+      } : undefined
+    };
+  }));
     
     return res.status(200).json({
       err_no: 0,
@@ -120,7 +99,7 @@ exports.getExercisesByCourse = async (req, res) => {
   try {
     const { courseId } = req.params;
     
-    // 查找课程及其关联的习题组
+    // 查找课程及其关联的习题
     const course = await Course.findByPk(courseId);
     if (!course) {
       return res.status(404).json({
@@ -129,27 +108,18 @@ exports.getExercisesByCourse = async (req, res) => {
       });
     }
     
-    const exerciseGroupIds = course.exerciseGroupIds || [];
-    if (exerciseGroupIds.length === 0) {
+    const exerciseIds = course.exerciseIds || [];
+    if (exerciseIds.length === 0) {
       return res.status(200).json({
         err_no: 0,
         data: []
       });
     }
     
-    // 获取习题组中的所有习题
-    const exerciseGroups = await ExerciseGroup.findAll({
-      where: {
-        id: exerciseGroupIds,
-        isActive: true
-      }
-    });
-    
-    const allExerciseIds = exerciseGroups.flatMap(group => group.exerciseIds || []);
-    
+    // 获取课程中的所有习题
     const exercises = await Exercise.findAll({
       where: {
-        id: allExerciseIds
+        id: exerciseIds
       },
       include: [
         {
@@ -253,27 +223,17 @@ exports.getExercisesByUnit = async (req, res) => {
       });
     }
     
-    const exerciseGroupIds = course.exerciseGroupIds || [];
-    if (exerciseGroupIds.length === 0) {
+    const exerciseIds = course.exerciseIds || [];
+    if (exerciseIds.length === 0) {
       return res.status(200).json({
         err_no: 0,
         data: []
       });
     }
     
-    // 获取习题组中的所有习题
-    const exerciseGroups = await ExerciseGroup.findAll({
-      where: {
-        id: exerciseGroupIds,
-        isActive: true
-      }
-    });
-    
-    const allExerciseIds = exerciseGroups.flatMap(group => group.exerciseIds || []);
-    
     const exercises = await Exercise.findAll({
       where: {
-        id: allExerciseIds
+        id: exerciseIds
       },
       include: [
         {
@@ -338,28 +298,15 @@ exports.getExerciseById = async (req, res) => {
       });
     }
     
-    // 查找包含此习题的习题组和相关课程
-    const exerciseGroups = await ExerciseGroup.findAll({
+    // 查找直接包含此习题的课程
+    const relatedCourses = await Course.findAll({
       where: {
-        subject: exercise.subject,
         exerciseIds: {
           [require('sequelize').Op.like]: `%"${exercise.id}"%`
         }
-      }
+      },
+      attributes: ['id', 'title', 'subject']
     });
-    
-    const relatedCourses = [];
-    for (const group of exerciseGroups) {
-      const courses = await Course.findAll({
-        where: {
-          exerciseGroupIds: {
-            [require('sequelize').Op.like]: `%"${group.id}"%`
-          }
-        },
-        attributes: ['id', 'title', 'subject', 'unitId']
-      });
-      relatedCourses.push(...courses);
-    }
     
     // 返回单个练习题的数据
     const responseData = {
@@ -378,16 +325,10 @@ exports.getExerciseById = async (req, res) => {
       isAI: exercise.isAI,
       createdAt: exercise.createdAt,
       updatedAt: exercise.updatedAt,
-      exerciseGroups: exerciseGroups.map(group => ({
-        id: group.id,
-        name: group.name,
-        description: group.description
-      })),
       relatedCourses: relatedCourses.map(course => ({
         id: course.id,
         title: course.title,
-        subject: course.subject,
-        unitId: course.unitId
+        subject: course.subject
       })),
       subjectInfo: exercise.Subject
     };

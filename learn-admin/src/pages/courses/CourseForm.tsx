@@ -3,11 +3,11 @@ import { Form, Input, Button, Card, Select, message, Collapse, Typography, Space
 import { ArrowLeftOutlined, InfoCircleOutlined, InboxOutlined, LoadingOutlined, BookOutlined, QuestionCircleOutlined, EditOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getCourseById, createCourse, updateCourse } from '../../services/courseService';
-import { getExerciseGroupsBySubject } from '../../services/exerciseGroupService';
+import { getExercisesBySubject } from '../../services/exerciseService';
 import { uploadCourseCover, uploadCourseVideo } from '../../services/uploadService';
 
 import type { Course } from '../../services/courseService';
-import type { ExerciseGroup } from '../../services/exerciseGroupService';
+import type { Exercise } from '../../services/exerciseService';
 import type { UploadFile, UploadChangeParam } from 'antd/es/upload/interface';
 import { useSubjectStore } from '../../store/subjectStore';
 
@@ -45,7 +45,7 @@ interface CourseFormData {
   content: string;
   subject: string;
   sources?: Array<{type: 'image' | 'video', url: string}>;
-  exerciseGroupIds?: string[];
+  exerciseIds?: string[];
   students?: number;
   media?: UploadFile[];
   exampleMedia?: Array<{type: 'image' | 'video', url: string}>;
@@ -77,7 +77,7 @@ const CourseForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   // 使用zustand的学科状态
   const { subjects, fetchSubjects, isLoading: loadingSubjects } = useSubjectStore();
-  const [exercises, setExercises] = useState<ExerciseGroup[]>([]);
+  const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loadingExercises, setLoadingExercises] = useState(false);
   const [editor, setEditor] = useState<IDomEditor | null>(null);
   const [html, setHtml] = useState('');
@@ -166,7 +166,7 @@ const CourseForm: React.FC = () => {
     currentLoadingSubjectRef.current = targetSubject;
     setLoadingExercises(true);
     try {
-      const data = await getExerciseGroupsBySubject(targetSubject);
+      const data = await getExercisesBySubject(targetSubject);
       console.log('CourseForm - 习题数据加载完成, 数量:', data.length);
       console.log('CourseForm - 习题数据示例:', data.length > 0 ? data[0] : '无数据');
       setExercises(data);
@@ -202,19 +202,19 @@ const CourseForm: React.FC = () => {
         title: course.name || course.title,
         subject: course.Subject?.name || course.subjectName,
         hasContent: !!course.content,
-        exerciseGroupIds: course.exerciseGroupIds
+        exerciseIds: course.exerciseIds
       });
 
       // 设置表单值
-      const exerciseGroupIds = course.exerciseGroups?.map(group => group.id.toString()) || 
-                              course.exerciseGroupIds || [];
-      console.log('CourseForm - 设置exerciseGroupIds值:', exerciseGroupIds);
+      const exerciseIds = course.exercises?.map(group => group.id.toString()) || 
+                              course.exerciseIds || [];
+      console.log('CourseForm - 设置exerciseIds值:', exerciseIds);
       
       form.setFieldsValue({
         title: course.name || course.title,
         description: course.description,
         subject: course.Subject?.code || course.subject || course.subjectName,
-        exerciseGroupIds: exerciseGroupIds
+        exerciseIds: exerciseIds
       });
       
       // 设置富文本内容
@@ -338,9 +338,9 @@ const CourseForm: React.FC = () => {
         exampleMedia,
         // 使用subjectName字段作为学科分类，将由服务层转换为subjectId
         subjectName: values.subject,
-        // 使用exerciseGroupIds字段
-        exerciseGroupIds: values.exerciseGroupIds || [],
-        instructor: values.exerciseGroupIds && values.exerciseGroupIds.length > 0 ? '关联习题教师' : '', // 保持向后兼容
+        // 使用exerciseIds字段
+        exerciseIds: values.exerciseIds || [],
+        instructor: values.exerciseIds && values.exerciseIds.length > 0 ? '关联习题教师' : '', // 保持向后兼容
         students: values.students || 0,
         // 如果是新建课程，生成courseCode作为课程ID
         courseCode: isEditing ? undefined : `C${Date.now().toString().substring(7, 12)}`,
@@ -362,7 +362,7 @@ const CourseForm: React.FC = () => {
         description: formattedValues.description,
         subjectName: formattedValues.subjectName,
         contentLength: formattedValues.content?.length || 0,
-        exerciseGroupIds: formattedValues.exerciseGroupIds,
+        exerciseIds: formattedValues.exerciseIds,
         sourcesCount: formattedValues.sources?.length || 0,
         exampleMediaCount: formattedValues.exampleMedia?.length || 0
       }));
@@ -730,7 +730,7 @@ const CourseForm: React.FC = () => {
                 关联习题
               </h3>
               <Form.Item
-                name="exerciseGroupIds"
+                name="exerciseIds"
                 label="选择习题组"
                 help="选择多个习题组与本课程关联，学生可以通过课程直接访问相关练习（可选）"
                 className="mb-0"
