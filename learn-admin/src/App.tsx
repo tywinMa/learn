@@ -56,7 +56,7 @@ function App() {
             <Route path=":id/edit" element={<ExerciseForm />} />
           </Route>
           
-          {/* 习题组管理 */}
+
           
           
           {/* 知识点管理 */}

@@ -25,7 +25,7 @@ export interface Course {
   Subject?: { id: string; name: string; code: string }; // 学科详细信息对象
   course_code?: string; // 下划线格式的课程编号
   created_at?: string; // 下划线格式的创建时间
-  exercises?: Array<{ id: string | number; name: string; description?: string }>; // 关联习题组
+  exercises?: Array<{ id: string | number; name: string; description?: string }>; // 关联习题
   subjectName?: string;
 }
 
@@ -47,9 +47,8 @@ interface BackendCourse {
   subject?: string; // 学科代码，如'math'
   Subject?: { id: string; name: string; code: string }; // 学科详细信息对象
   teacher?: { id: string; name: string };
-  exercises?: Array<{ id: string | number; name: string; description?: string }>; // 关联习题组
-  exerciseIds?: string[]; // 习题组ID列表
-  exercise_group_ids?: string[]; // 下划线格式的字段
+  exercises?: Array<{ id: string | number; name: string; description?: string }>; // 关联习题
+  exerciseIds?: string[]; // 习题ID列表
 }
 
 // API端点
@@ -92,8 +91,8 @@ const transformBackendCourse = (course: BackendCourse): Course => {
     sources: course.media || course.sources || [],
     // 例题媒体资源
     exampleMedia: course.exampleMedia || [],
-    // 关联习题组ID列表
-    exerciseIds: course.exerciseIds || course.exercise_group_ids || [],
+    // 关联习题ID列表
+    exerciseIds: course.exerciseIds || [],
     // 保留原始字段用于类型兼容
     Subject: subjectDetailData,
     teacher: teacherData,
@@ -163,8 +162,8 @@ export const getCourses = async (): Promise<Course[]> => {
           sources: course.media || course.sources || [],
           // 例题媒体资源
           exampleMedia: course.exampleMedia || [],
-          // 关联习题组ID列表
-          exerciseIds: course.exerciseIds || course.exercise_group_ids || [],
+                  // 关联习题ID列表
+        exerciseIds: course.exerciseIds || [],
           // 保留原始字段用于类型兼容
           Subject: subjectDetailData,
           teacher: teacherData,
@@ -313,7 +312,7 @@ export const createCourse = async (courseData: Omit<Course, "id">): Promise<Cour
       subject: subject.code, // 后端期望学科代码，不是学科ID
       media: courseData.sources || [], // 后端期望media字段，不是sources
       exampleMedia: (courseData as any).exampleMedia || [], // 处理例题媒体资源
-      exerciseIds: courseData.exerciseIds || [], // 使用习题组ID列表
+      exerciseIds: courseData.exerciseIds || [], // 使用习题ID列表
       teacherId: null, // 暂不设置教师
     };
 

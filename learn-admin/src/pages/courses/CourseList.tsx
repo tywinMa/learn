@@ -309,7 +309,7 @@ const CourseList: React.FC = () => {
         <>
           <Row gutter={[16, 16]}>
             {paginatedCourses.map(course => {
-              // 删除习题组相关显示逻辑
+              // 直接关联习题显示逻辑
               
               return (
                 <Col xs={24} sm={12} md={8} lg={6} key={course.id}>

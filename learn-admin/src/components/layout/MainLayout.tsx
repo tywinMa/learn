@@ -191,20 +191,7 @@ const MainLayout: React.FC = () => {
           key: "exercise-management",
           icon: <FormOutlined />,
           label: "习题管理",
-          children: [
-            {
-              key: "exercises",
-              icon: <FormOutlined />,
-              label: "练习题管理",
-              onClick: () => navigate("/exercises"),
-            },
-            {
-              key: "exercise-groups",
-              icon: <FormOutlined />,
-              label: "习题组管理",
-              onClick: () => navigate("/exercise-groups"),
-            },
-          ],
+          onClick: () => navigate("/exercises"),
         },
         {
           key: "knowledge-points",
@@ -265,7 +252,6 @@ const MainLayout: React.FC = () => {
     if (path.includes("grades")) return ["course-group", "grades"];
     if (path.includes("units")) return ["course-group", "units"];
     if (path.includes("exercises")) return ["course-group", "exercise-management", "exercises"];
-    if (path.includes("exercise-groups")) return ["course-group", "exercise-management", "exercise-groups"];
     if (path.includes("knowledge-points")) return ["course-group", "knowledge-points"];
     if (path.includes("students")) return ["students"];
     if (path.includes("settings")) return ["settings"];
@@ -281,7 +267,7 @@ const MainLayout: React.FC = () => {
     if (path.includes("grades")) return "年级管理";
     if (path.includes("units")) return "单元管理";
     if (path.includes("exercises")) return "练习题管理";
-    if (path.includes("exercise-groups")) return "习题组管理";
+
     if (path.includes("knowledge-points")) return "知识点管理";
     if (path.includes("students")) return "学生管理";
     if (path.includes("settings")) return "系统设置";
