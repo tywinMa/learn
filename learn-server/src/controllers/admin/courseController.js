@@ -40,6 +40,7 @@ const getCourses = async (req, res) => {
       include: [
         {
           model: Subject,
+          as: 'subjectInfo',
           attributes: ['id', 'name', 'code']
         },
         {
@@ -78,6 +79,7 @@ const getCourseById = async (req, res) => {
       include: [
         {
           model: Subject,
+          as: 'subjectInfo',
           attributes: ['id', 'name', 'code', 'color']
         },
         {
@@ -137,6 +139,7 @@ const getCoursesBySubject = async (req, res) => {
       include: [
         {
           model: Subject,
+          as: 'subjectInfo',
           attributes: ['id', 'name', 'code']
         },
         {
@@ -174,8 +177,6 @@ const createCourse = async (req, res) => {
       isPublished = true,
       unitType = 'normal',
       position = 'default',
-      media = [],
-      exampleMedia = [],
       exerciseIds = []
     } = req.body;
     
@@ -252,8 +253,6 @@ const createCourse = async (req, res) => {
       isPublished,
       unitType,
       position,
-      media,
-      exampleMedia,
       teacherId,
       exerciseIds
     };
@@ -302,8 +301,6 @@ const updateCourse = async (req, res) => {
       isPublished,
       unitType,
       position,
-      media,
-      exampleMedia,
       teacherId,
       exerciseIds
     } = req.body;
@@ -367,15 +364,8 @@ const updateCourse = async (req, res) => {
     if (isPublished !== undefined) updateData.isPublished = isPublished;
     if (unitType !== undefined) updateData.unitType = unitType;
     if (position !== undefined) updateData.position = position;
-    if (media !== undefined) updateData.media = media;
-    if (exampleMedia !== undefined) updateData.exampleMedia = exampleMedia;
     if (teacherId !== undefined) updateData.teacherId = teacherId;
     if (exerciseIds !== undefined) updateData.exerciseIds = exerciseIds;
-    
-    // 调试：输出例题媒体资源的更新情况
-    console.log('后端收到的例题媒体资源数据:', exampleMedia);
-    console.log('例题媒体资源是否会被更新:', exampleMedia !== undefined);
-    console.log('准备更新的数据字段:', Object.keys(updateData));
     
     // 更新课程
     await course.update(updateData);

@@ -1,5 +1,5 @@
 const { sequelize } = require("../config/database");
-const { Subject, Unit, Course, Exercise, User, KnowledgePoint, Student, Grade, SubjectGrade } = require("../models");
+const { Subject, Unit, Course, Exercise, User, KnowledgePoint, Student, Grade, SubjectGrade, MediaResource, CourseMediaResource } = require("../models");
 
 /**
  * 完整的数据库初始化脚本
@@ -67,12 +67,22 @@ const completeInit = async (options = {}) => {
       console.log(`✅ 创建用户: ${users.length}个`);
     }
 
-    // 10. 初始化测试学生数据
+    // 10. 初始化媒体资源数据
+    console.log("\n🎬 初始化媒体资源数据...");
+    const mediaResources = await initMediaResources();
+    console.log(`✅ 创建媒体资源: ${mediaResources.length}个`);
+
+    // 11. 关联课程和媒体资源
+    console.log("\n🔗 关联课程和媒体资源...");
+    await linkCoursesWithMediaResources(courses, mediaResources);
+    console.log("✅ 课程媒体资源关联完成");
+
+    // 12. 初始化测试学生数据
     console.log("\n👨‍🎓 初始化测试学生数据...");
     const students = await initStudentData();
     console.log(`✅ 创建学生: ${students.length}个`);
 
-    // 11. 初始化知识点数据
+    // 13. 初始化知识点数据
     if (includeKnowledgePoints) {
       console.log("\n🧠 初始化知识点数据...");
       const knowledgePoints = await initKnowledgePointsData(exercises);
@@ -87,6 +97,7 @@ const completeInit = async (options = {}) => {
     console.log(`✓ 大单元: ${units.length}个`);
     console.log(`✓ 课程: ${courses.length}个`);
     console.log(`✓ 练习题: ${exercises.length}道`);
+    console.log(`✓ 媒体资源: ${mediaResources.length}个`);
     if (includeAdminData) console.log(`✓ 用户账户: 3个`);
     if (includeKnowledgePoints) console.log(`✓ 知识点: 很多个`);
     console.log("==============================================");
@@ -98,6 +109,7 @@ const completeInit = async (options = {}) => {
       units,
       courses,
       exercises,
+      mediaResources,
       success: true
     };
     
@@ -889,6 +901,187 @@ const linkCoursesWithExercises = async (courses, exercises) => {
 };
 
 /**
+ * 初始化媒体资源数据
+ */
+const initMediaResources = async () => {
+  const mediaResourcesData = [
+    {
+      type: 'course_explanation',
+      resourceUrl: 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
+      resourceType: 'video',
+      title: '一元二次方程讲解视频',
+      description: '详细讲解一元二次方程的概念和解法',
+      uploadUserId: 1,
+      viewCount: 0,
+      clickCount: 0,
+      status: 'published',
+      fileSize: 5242880, // 5MB
+      duration: 596, // 9分56秒 = 596秒
+      thumbnailUrl: 'https://via.placeholder.com/320x240?text=Video+Thumbnail',
+      tags: ['数学', '一元二次方程', '基础概念'],
+      isDeleted: false
+    },
+    {
+      type: 'course_media',
+      resourceUrl: 'https://via.placeholder.com/800x600?text=Quadratic+Function+Graph',
+      resourceType: 'image',
+      title: '二次函数图像',
+      description: '二次函数的标准图像和性质展示',
+      uploadUserId: 1,
+      viewCount: 0,
+      clickCount: 0,
+      status: 'published',
+      fileSize: 204800, // 200KB
+      thumbnailUrl: 'https://via.placeholder.com/320x240?text=Image+Thumbnail',
+      tags: ['数学', '二次函数', '图像'],
+      isDeleted: false
+    },
+    {
+      type: 'example_media',
+      resourceUrl: 'https://via.placeholder.com/600x400?text=Triangle+Example',
+      resourceType: 'image',
+      title: '三角形例题图解',
+      description: '三角形性质计算的例题图解',
+      uploadUserId: 1,
+      viewCount: 0,
+      clickCount: 0,
+      status: 'published',
+      fileSize: 153600, // 150KB
+      thumbnailUrl: 'https://via.placeholder.com/320x240?text=Example+Thumbnail',
+      tags: ['数学', '三角形', '例题'],
+      isDeleted: false
+    },
+    {
+      type: 'course_explanation',
+      resourceUrl: 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
+      resourceType: 'video',
+      title: '运动学基础讲解',
+      description: '物体运动规律的基础讲解',
+      uploadUserId: 1,
+      viewCount: 0,
+      clickCount: 0,
+      status: 'published',
+      fileSize: 7340032, // 7MB
+      duration: 750, // 12分30秒 = 750秒
+      thumbnailUrl: 'https://via.placeholder.com/320x240?text=Physics+Video',
+      tags: ['物理', '运动学', '基础'],
+      isDeleted: false
+    },
+    {
+      type: 'course_media',
+      resourceUrl: 'https://via.placeholder.com/800x600?text=Atom+Structure',
+      resourceType: 'image',
+      title: '原子结构图',
+      description: '氢原子结构示意图',
+      uploadUserId: 1,
+      viewCount: 0,
+      clickCount: 0,
+      status: 'published',
+      fileSize: 256000, // 250KB
+      thumbnailUrl: 'https://via.placeholder.com/320x240?text=Atom+Diagram',
+      tags: ['化学', '原子结构', '示意图'],
+      isDeleted: false
+    },
+    {
+      type: 'course_media',
+      resourceUrl: 'https://via.placeholder.com/800x600?text=Cell+Structure',
+      resourceType: 'image',
+      title: '细胞结构图',
+      description: '植物细胞和动物细胞结构对比图',
+      uploadUserId: 1,
+      viewCount: 0,
+      clickCount: 0,
+      status: 'published',
+      fileSize: 307200, // 300KB
+      thumbnailUrl: 'https://via.placeholder.com/320x240?text=Cell+Image',
+      tags: ['生物', '细胞结构', '对比图'],
+      isDeleted: false
+    }
+  ];
+
+  const mediaResources = [];
+  for (const mediaData of mediaResourcesData) {
+    const media = await MediaResource.create(mediaData);
+    mediaResources.push(media);
+  }
+
+  console.log(`创建了${mediaResources.length}个媒体资源`);
+  return mediaResources;
+};
+
+/**
+ * 关联课程和媒体资源
+ */
+const linkCoursesWithMediaResources = async (courses, mediaResources) => {
+  const courseMediaRelations = [
+    // 一元二次方程课程关联讲解视频
+    {
+      courseId: 'math-1-1',
+      mediaTitle: '一元二次方程讲解视频',
+      displayOrder: 1,
+      isActive: true,
+      createdBy: 1
+    },
+    // 二次函数应用课程关联二次函数图像
+    {
+      courseId: 'math-1-6',
+      mediaTitle: '二次函数图像',
+      displayOrder: 1,
+      isActive: true,
+      createdBy: 1
+    },
+    // 三角形课程关联例题图解
+    {
+      courseId: 'math-2-1',
+      mediaTitle: '三角形例题图解',
+      displayOrder: 1,
+      isActive: true,
+      createdBy: 1
+    },
+    // 运动学课程关联讲解视频
+    {
+      courseId: 'physics-1-1',
+      mediaTitle: '运动学基础讲解',
+      displayOrder: 1,
+      isActive: true,
+      createdBy: 1
+    },
+    // 原子结构课程关联结构图
+    {
+      courseId: 'chemistry-1-1',
+      mediaTitle: '原子结构图',
+      displayOrder: 1,
+      isActive: true,
+      createdBy: 1
+    },
+    // 细胞结构课程关联结构图
+    {
+      courseId: 'biology-1-1',
+      mediaTitle: '细胞结构图',
+      displayOrder: 1,
+      isActive: true,
+      createdBy: 1
+    }
+  ];
+
+  for (const relation of courseMediaRelations) {
+    // 通过标题查找媒体资源
+    const mediaResource = mediaResources.find(m => m.title === relation.mediaTitle);
+    if (mediaResource) {
+      await CourseMediaResource.create({
+        courseId: relation.courseId,
+        mediaResourceId: mediaResource.id,
+        displayOrder: relation.displayOrder,
+        isActive: relation.isActive,
+        createdBy: relation.createdBy
+      });
+    }
+  }
+
+  console.log(`建立了${courseMediaRelations.length}个课程媒体资源关联`);
+};
+
+/**
  * 初始化课程内容
  */
 const initCourseContents = async (courses) => {
@@ -914,16 +1107,7 @@ const initCourseContents = async (courses) => {
   <li>Δ < 0：没有实数根</li>
 </ul>`;
 
-    const media = [
-      {
-        type: 'video',
-        title: '一元二次方程简介',
-        url: 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
-        metadata: { duration: '9:56', resolution: '720p' }
-      }
-    ];
-
-    await mathCourse.update({ content, media });
+    await mathCourse.update({ content });
     console.log(`更新课程内容: ${mathCourse.title}`);
   }
 

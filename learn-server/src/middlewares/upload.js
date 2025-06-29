@@ -46,10 +46,23 @@ const fileFilter = (req, file, cb) => {
   const allowedVideoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
   const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
   
-  if (allowedTypes.includes(file.mimetype)) {
+  // 允许的文件扩展名
+  const allowedImageExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+  const allowedVideoExts = ['.mp4', '.webm', '.mov'];
+  const allowedExts = [...allowedImageExts, ...allowedVideoExts];
+  
+  // 获取文件扩展名
+  const fileExt = path.extname(file.originalname).toLowerCase();
+  
+  // 检查MIME类型或扩展名
+  const isValidMimeType = allowedTypes.includes(file.mimetype);
+  const isValidExtension = allowedExts.includes(fileExt);
+  const isOctetStream = file.mimetype === 'application/octet-stream';
+  
+  if (isValidMimeType || (isOctetStream && isValidExtension)) {
     cb(null, true);
   } else {
-    cb(new Error('不支持的文件类型！只允许 JPG, PNG, GIF, WEBP, MP4, WEBM, MOV 格式'), false);
+    cb(new Error(`不支持的文件类型！文件扩展名: ${fileExt}，MIME类型: ${file.mimetype}，只允许 JPG, PNG, GIF, WEBP, MP4, WEBM, MOV 格式`), false);
   }
 };
 

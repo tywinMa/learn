@@ -25,3 +25,7 @@ dist-ssr
 *.sln
 *.sw?
 *.mp4
+*.mov
+*.jpg
+*.png
+*.gif

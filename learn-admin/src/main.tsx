@@ -6,6 +6,7 @@ import zhCN from 'antd/locale/zh_CN'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import App from './App.tsx'
+import { UserProvider } from './contexts/UserContext'
 import './index.css'
 
 // 配置 dayjs 使用中文
@@ -36,7 +37,9 @@ const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement)
 root.render(
     <ConfigProvider locale={zhCN}>
       <BrowserRouter>
-        <App />
+        <UserProvider>
+          <App />
+        </UserProvider>
       </BrowserRouter>
     </ConfigProvider>
 );

@@ -24,11 +24,13 @@ import {
   ReadOutlined,
   FormOutlined,
   UnorderedListOutlined,
+  FileImageOutlined,
 } from "@ant-design/icons";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { getCurrentUser, logout } from "../../services/auth";
 import { useUserStore } from "../../store/userStore";
 import { useSubjectStore } from "../../store/subjectStore";
+import { useUser } from "../../contexts/UserContext";
 import TaskModal from "../TaskModal";
 import { getTaskStats } from "../../services/taskService";
 import type { TaskStats } from "../../services/taskService";
@@ -95,11 +97,29 @@ const MainLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, setUser, clearUser } = useUserStore();
+  const { setUser: setUserContext } = useUser();
   const { fetchSubjects } = useSubjectStore(); // 获取学科数据加载方法
   const [debugMode, setDebugMode] = useState(false);
 
   // 开发环境才显示调试按钮
   const isDev = import.meta.env.DEV;
+
+  // 检查是否为管理员或超级管理员
+  const isAdminOrSuperAdmin = () => {
+    if (!user) return false;
+    
+    // 检查用户角色
+    if (user.role === 'admin' || user.role === 'superadmin') {
+      return true;
+    }
+    
+    // 检查roles数组
+    if (user.roles && user.roles.length > 0) {
+      return user.roles.some(role => role.code === 'admin' || role.code === 'superadmin');
+    }
+    
+    return false;
+  };
 
   // 获取任务统计
   const fetchTaskStats = async () => {
@@ -130,6 +150,35 @@ const MainLayout: React.FC = () => {
       } else {
         // 如果没有用户信息，重定向到登录页
         navigate("/login");
+        return;
+      }
+    }
+
+    // 检查用户权限并重定向到合适的页面
+    if (user) {
+      const isAdmin = isAdminOrSuperAdmin();
+      const currentPath = location.pathname;
+      
+      // 定义普通用户可以访问的页面
+      const allowedPagesForNonAdmin = ['/exercises', '/media-resources'];
+      
+      // 如果不是管理员且当前页面不在允许列表中，重定向到习题管理
+      if (!isAdmin && !allowedPagesForNonAdmin.some(page => currentPath.includes(page))) {
+        // 如果是根路径或仪表盘等受限页面，重定向到习题管理
+        if (currentPath === '/' || currentPath === '/dashboard' || 
+            currentPath.includes('/subjects') || currentPath.includes('/grades') || 
+            currentPath.includes('/units') || currentPath.includes('/courses') || 
+            currentPath.includes('/knowledge-points') || currentPath.includes('/students') || 
+            currentPath.includes('/settings')) {
+          navigate("/exercises");
+          return;
+        }
+      }
+      
+      // 如果是根路径，根据权限重定向
+      if (currentPath === '/') {
+        navigate(isAdmin ? "/dashboard" : "/exercises");
+        return;
       }
     }
 
@@ -144,80 +193,121 @@ const MainLayout: React.FC = () => {
     // 每30秒刷新一次任务统计
     const interval = setInterval(fetchTaskStats, 30000);
     return () => clearInterval(interval);
-  }, [navigate, user, setUser, fetchSubjects]);
+  }, [navigate, user, setUser, fetchSubjects, location.pathname]);
 
   const {
     token: { colorBgContainer, borderRadiusLG },
   } = theme.useToken();
 
+  // 根据用户权限生成菜单项
+  const getMenuItems = () => {
+    const isAdmin = isAdminOrSuperAdmin();
+    
+    // 基础菜单项（所有用户都可以看到的）
+    const baseMenuItems = [
+      {
+        key: "exercise-management",
+        icon: <FormOutlined />,
+        label: "习题管理",
+        onClick: () => navigate("/exercises"),
+      },
+      {
+        key: "media-resources",
+        icon: <FileImageOutlined />,
+        label: "媒体资源管理",
+        onClick: () => navigate("/media-resources"),
+      },
+    ];
+    
+    // 如果是管理员或超级管理员，显示完整菜单
+    if (isAdmin) {
+      return [
+        {
+          key: "dashboard",
+          icon: <DashboardOutlined />,
+          label: "仪表盘",
+          onClick: () => navigate("/dashboard"),
+        },
+        {
+          key: "course-group",
+          icon: <BookOutlined />,
+          label: "教学管理",
+          children: [
+            {
+              key: "subjects",
+              icon: <ReadOutlined />,
+              label: "学科管理",
+              onClick: () => navigate("/subjects"),
+            },
+            {
+              key: "grades",
+              icon: <ReadOutlined />,
+              label: "年级管理",
+              onClick: () => navigate("/grades"),
+            },
+            {
+              key: "units",
+              icon: <ReadOutlined />,
+              label: "单元管理",
+              onClick: () => navigate("/units"),
+            },
+            {
+              key: "courses",
+              icon: <ReadOutlined />,
+              label: "课程管理",
+              onClick: () => navigate("/courses"),
+            },
+            {
+              key: "exercise-management",
+              icon: <FormOutlined />,
+              label: "习题管理",
+              onClick: () => navigate("/exercises"),
+            },
+            {
+              key: "knowledge-points",
+              icon: <ReadOutlined />,
+              label: "知识点管理",
+              onClick: () => navigate("/knowledge-points"),
+            },
+            {
+              key: "media-resources",
+              icon: <FileImageOutlined />,
+              label: "媒体资源管理",
+              onClick: () => navigate("/media-resources"),
+            },
+          ],
+        },
+        {
+          key: "students",
+          icon: <TeamOutlined />,
+          label: "学生管理",
+          onClick: () => navigate("/students"),
+        },
+        {
+          key: "settings",
+          icon: <SettingOutlined />,
+          label: "系统设置",
+          onClick: () => navigate("/settings"),
+        },
+      ];
+    }
+    
+    // 其他用户只显示基础菜单
+    return baseMenuItems;
+  };
+
   // 菜单项定义
-  const menuItems = [
-    {
-      key: "dashboard",
-      icon: <DashboardOutlined />,
-      label: "仪表盘",
-      onClick: () => navigate("/dashboard"),
-    },
-    {
-      key: "course-group",
-      icon: <BookOutlined />,
-      label: "教学管理",
-      children: [
-        {
-          key: "subjects",
-          icon: <ReadOutlined />,
-          label: "学科管理",
-          onClick: () => navigate("/subjects"),
-        },
-        {
-          key: "grades",
-          icon: <ReadOutlined />,
-          label: "年级管理",
-          onClick: () => navigate("/grades"),
-        },
-        {
-          key: "units",
-          icon: <ReadOutlined />,
-          label: "单元管理",
-          onClick: () => navigate("/units"),
-        },
-        {
-          key: "courses",
-          icon: <ReadOutlined />,
-          label: "课程管理",
-          onClick: () => navigate("/courses"),
-        },
-        {
-          key: "exercise-management",
-          icon: <FormOutlined />,
-          label: "习题管理",
-          onClick: () => navigate("/exercises"),
-        },
-        {
-          key: "knowledge-points",
-          icon: <ReadOutlined />,
-          label: "知识点管理",
-          onClick: () => navigate("/knowledge-points"),
-        },
-      ],
-    },
-    {
-      key: "students",
-      icon: <TeamOutlined />,
-      label: "学生管理",
-      onClick: () => navigate("/students"),
-    },
-    {
-      key: "settings",
-      icon: <SettingOutlined />,
-      label: "系统设置",
-      onClick: () => navigate("/settings"),
-    },
-  ];
+  const menuItems = getMenuItems();
 
   const handleLogout = () => {
+    // 创建一个函数来同时清理两个状态管理
+    const clearBothUserStates = () => {
+      clearUser(); // 清理Zustand store
+      setUserContext(null); // 清理UserContext
+    };
+    
     // 调用logout时传入清除全局用户状态的函数
-    logout(clearUser);
+    logout(clearBothUserStates);
     navigate("/login");
   };
 
@@ -246,32 +336,47 @@ const MainLayout: React.FC = () => {
   // 确定当前选中的菜单项
   const getSelectedKey = () => {
     const path = location.pathname;
+    const isAdmin = isAdminOrSuperAdmin();
+    
     if (path.includes("dashboard")) return ["dashboard"];
+    if (path.includes("exercises")) {
+      // 根据用户权限返回不同的菜单键
+      return isAdmin ? ["course-group", "exercise-management"] : ["exercise-management"];
+    }
+    if (path.includes("media-resources")) {
+      // 根据用户权限返回不同的菜单键
+      return isAdmin ? ["course-group", "media-resources"] : ["media-resources"];
+    }
     if (path.includes("courses")) return ["course-group", "courses"];
     if (path.includes("subjects")) return ["course-group", "subjects"];
     if (path.includes("grades")) return ["course-group", "grades"];
     if (path.includes("units")) return ["course-group", "units"];
-    if (path.includes("exercises")) return ["course-group", "exercise-management", "exercises"];
     if (path.includes("knowledge-points")) return ["course-group", "knowledge-points"];
     if (path.includes("students")) return ["students"];
     if (path.includes("settings")) return ["settings"];
-    return ["dashboard"];
+    
+    // 默认选中逻辑：管理员默认选中仪表盘，普通用户默认选中习题管理
+    return isAdmin ? ["dashboard"] : ["exercise-management"];
   };
 
   // 确定当前页面标题
   const getPageTitle = () => {
     const path = location.pathname;
+    const isAdmin = isAdminOrSuperAdmin();
+    
     if (path.includes("dashboard")) return "仪表盘";
     if (path.includes("courses")) return "课程管理";
     if (path.includes("subjects")) return "学科管理";
     if (path.includes("grades")) return "年级管理";
     if (path.includes("units")) return "单元管理";
-    if (path.includes("exercises")) return "练习题管理";
-
+    if (path.includes("exercises")) return "习题管理";
     if (path.includes("knowledge-points")) return "知识点管理";
+    if (path.includes("media-resources")) return "媒体资源管理";
     if (path.includes("students")) return "学生管理";
     if (path.includes("settings")) return "系统设置";
-    return "仪表盘";
+    
+    // 默认标题：管理员显示仪表盘，普通用户显示习题管理
+    return isAdmin ? "仪表盘" : "习题管理";
   };
 
   return (
@@ -301,7 +406,7 @@ const MainLayout: React.FC = () => {
         <Menu
           theme="dark"
           mode="inline"
-          defaultOpenKeys={["course-group", "exercise-management"]}
+          defaultOpenKeys={isAdminOrSuperAdmin() ? ["course-group"] : []}
           selectedKeys={getSelectedKey()}
           items={menuItems}
           className="border-t border-gray-700"

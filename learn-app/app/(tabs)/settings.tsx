@@ -1,9 +1,11 @@
-import { StyleSheet, Switch, TouchableOpacity } from "react-native";
+import { StyleSheet, Switch, TouchableOpacity, Alert } from "react-native";
 import { Text, View } from "@/components/Themed";
 import Colors from "@/constants/Colors";
 import { useColorScheme } from "react-native";
 import { useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { logout } from "../services/authService";
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
@@ -12,6 +14,34 @@ export default function SettingsScreen() {
   const [examCountdown, setExamCountdown] = useState(true);
   const [autoPlayVideo, setAutoPlayVideo] = useState(false);
   const [offlineMode, setOfflineMode] = useState(false);
+
+  // 退出登录处理函数
+  const handleLogout = () => {
+    Alert.alert(
+      "确认退出",
+      "确定要退出登录吗？这将清除所有本地数据。",
+      [
+        {
+          text: "取消",
+          style: "cancel"
+        },
+        {
+          text: "确定退出",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await logout();
+              // 跳转到登录页面
+              router.replace("/auth/login");
+            } catch (error) {
+              console.error("退出登录失败:", error);
+              Alert.alert("错误", "退出登录失败，请重试");
+            }
+          }
+        }
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -103,7 +133,7 @@ export default function SettingsScreen() {
           <Text style={styles.settingValue}>&gt;</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.settingItem, styles.logoutButton]}>
+        <TouchableOpacity style={[styles.settingItem, styles.logoutButton]} onPress={handleLogout}>
           <Text style={styles.logoutText}>退出登录</Text>
         </TouchableOpacity>
       </View>

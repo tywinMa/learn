@@ -8,15 +8,17 @@ export interface Course {
   title: string;
   instructor: string;
   subject?: string; // 学科代码，如'math', 'physics'等
+  gradeId?: number; // 年级ID
   students: number;
   createdAt: string;
   description?: string;
   content?: string;
-  sources?: Array<{ type: "image" | "video"; url: string }>;
-  exampleMedia?: Array<{ type: "image" | "video"; url: string }>; // 例题媒体资源
   courseCode?: string;
   exerciseIds?: string[]; // 关联习题ID列表
   coverImage?: string; // 课程封面图片
+  isPublished?: boolean; // 发布状态
+  unitType?: string; // 课程类型：normal, exercise
+  position?: string; // 特殊位置：default, left, right
 
   // 以下是后端API可能返回的字段名，用于类型兼容
   name?: string; // 对应title
@@ -41,9 +43,6 @@ interface BackendCourse {
   createdAt?: string;
   created_at?: string;
   updatedAt?: string;
-  sources?: Array<{ type: "image" | "video"; url: string }>;
-  media?: Array<{ type: "image" | "video"; url: string }>;
-  exampleMedia?: Array<{ type: "image" | "video"; url: string }>; // 例题媒体资源
   subject?: string; // 学科代码，如'math'
   Subject?: { id: string; name: string; code: string }; // 学科详细信息对象
   teacher?: { id: string; name: string };
@@ -81,16 +80,14 @@ const transformBackendCourse = (course: BackendCourse): Course => {
     content: course.content || "",
     // 学科代码 - 直接使用后端的subject字段
     subject: course.subject || subjectDetailData?.code || "unknown",
+    // 年级ID
+    gradeId: (course as any).gradeId || null,
     // 教师信息
     instructor: teacherData?.name || "未分配教师",
     // 课程编号
     courseCode: course.courseCode || course.course_code || "",
     // 创建日期
     createdAt: course.createdAt || course.created_at || course.updatedAt || new Date().toISOString(),
-    // 媒体资源
-    sources: course.media || course.sources || [],
-    // 例题媒体资源
-    exampleMedia: course.exampleMedia || [],
     // 关联习题ID列表
     exerciseIds: course.exerciseIds || [],
     // 保留原始字段用于类型兼容
@@ -152,18 +149,16 @@ export const getCourses = async (): Promise<Course[]> => {
           content: course.content || "",
           // 学科代码 - 直接使用后端的subject字段
           subject: course.subject || subjectDetailData?.code || "unknown",
+          // 年级ID
+          gradeId: (course as any).gradeId || null,
           // 教师信息
           instructor: teacherData?.name || "未分配教师",
           // 课程编号
           courseCode: course.courseCode || course.course_code || "",
           // 创建日期
           createdAt: course.createdAt || course.created_at || course.updatedAt || new Date().toISOString(),
-          // 媒体资源
-          sources: course.media || course.sources || [],
-          // 例题媒体资源
-          exampleMedia: course.exampleMedia || [],
-                  // 关联习题ID列表
-        exerciseIds: course.exerciseIds || [],
+          // 关联习题ID列表
+          exerciseIds: course.exerciseIds || [],
           // 保留原始字段用于类型兼容
           Subject: subjectDetailData,
           teacher: teacherData,
@@ -310,8 +305,6 @@ export const createCourse = async (courseData: Omit<Course, "id">): Promise<Cour
       description: courseData.description,
       content: courseData.content, // 确保将content字段包含在API请求中
       subject: subject.code, // 后端期望学科代码，不是学科ID
-      media: courseData.sources || [], // 后端期望media字段，不是sources
-      exampleMedia: (courseData as any).exampleMedia || [], // 处理例题媒体资源
       exerciseIds: courseData.exerciseIds || [], // 使用习题ID列表
       teacherId: null, // 暂不设置教师
     };
@@ -359,8 +352,6 @@ export const updateCourse = async (id: string, courseData: Partial<Course>): Pro
       title: courseData.title, // 后端期望title字段，不是name
       description: courseData.description,
       content: courseData.content,
-      media: courseData.sources, // 后端期望media字段，不是sources
-      exampleMedia: (courseData as any).exampleMedia, // 处理例题媒体资源
       exerciseIds: courseData.exerciseIds,
     };
 

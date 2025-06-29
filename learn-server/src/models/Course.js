@@ -29,16 +29,6 @@ const Course = sequelize.define('Course', {
     allowNull: true,
     comment: '课程学习内容，支持富文本'
   },
-  media: {
-    type: DataTypes.JSON,
-    allowNull: true,
-    comment: '媒体资源数组，包含图片、视频等媒体资源'
-  },
-  exampleMedia: {
-    type: DataTypes.JSON,
-    allowNull: true,
-    comment: '例题媒体资源数组，包含例题相关的图片、视频等媒体资源'
-  },
   isPublished: {
     type: DataTypes.BOOLEAN,
     allowNull: false,

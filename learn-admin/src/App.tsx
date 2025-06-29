@@ -10,6 +10,7 @@ import ExerciseForm from './pages/exercises/ExerciseForm';
 
 import KnowledgePointList from './pages/knowledgePoints/KnowledgePointList';
 import KnowledgePointForm from './pages/knowledgePoints/KnowledgePointForm';
+import MediaResourceList from './pages/mediaResources/MediaResourceList';
 import StudentList from './pages/students/StudentList';
 import StudentProgress from './pages/students/StudentProgress';
 import SubjectList from './pages/subjects/SubjectList';
@@ -64,6 +65,11 @@ function App() {
             <Route index element={<KnowledgePointList />} />
             <Route path="new" element={<KnowledgePointForm />} />
             <Route path=":id/edit" element={<KnowledgePointForm />} />
+          </Route>
+          
+          {/* 媒体资源管理 */}
+          <Route path="media-resources">
+            <Route index element={<MediaResourceList />} />
           </Route>
           
           {/* 学生管理 */}

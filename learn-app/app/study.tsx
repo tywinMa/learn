@@ -39,6 +39,7 @@ export default function StudyScreen() {
   const [loading, setLoading] = React.useState(true);
   const [learningContents, setLearningContents] = React.useState<any[]>([]);
   const [exampleContents, setExampleContents] = React.useState<any[]>([]);
+  const [courseMediaResources, setCourseMediaResources] = React.useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [currentStudentId, setCurrentStudentId] = useState<string>("");
   const screenWidth = Dimensions.get("window").width;
@@ -46,6 +47,40 @@ export default function StudyScreen() {
   // 获取颜色参数并提供默认值
   const primaryColor = Array.isArray(color) ? color[0] : color || "#5EC0DE";
   const secondaryCol = Array.isArray(secondaryColor) ? secondaryColor[0] : secondaryColor || primaryColor;
+
+  // 获取课程媒体资源的函数
+  const fetchCourseMediaResources = async (courseId: string) => {
+    try {
+      const apiUrl = `${API_BASE_URL}/api/admin/media-resources/course/${courseId}/media-resources`;
+      console.log("获取课程媒体资源:", apiUrl);
+      
+      const response = await fetch(apiUrl);
+      if (!response.ok) {
+        throw new Error(`获取媒体资源失败 (HTTP ${response.status})`);
+      }
+
+      const data = await response.json();
+      console.log("获取到课程媒体资源:", data);
+
+      if (data.err_no === 0 && Array.isArray(data.data)) {
+        // 过滤出已发布的媒体资源
+        const publishedResources = data.data.filter((item: any) => 
+          item.mediaResource && 
+          item.mediaResource.status === 'published' && 
+          item.isActive === true
+        );
+        
+        setCourseMediaResources(publishedResources);
+        console.log("设置已发布的媒体资源:", publishedResources);
+      } else {
+        console.log("没有找到课程媒体资源或API返回错误");
+        setCourseMediaResources([]);
+      }
+    } catch (error) {
+      console.error("获取课程媒体资源失败:", error);
+      setCourseMediaResources([]);
+    }
+  };
 
   // 加载学习内容
   useEffect(() => {
@@ -93,43 +128,16 @@ export default function StudyScreen() {
             });
           }
           
-          // 如果有媒体内容，将每个媒体添加为单独的项
-          if (unitData.media && Array.isArray(unitData.media)) {
-            unitData.media.forEach((media: { title?: string; url: string; type: string; metadata?: any }, index: number) => {
-              contentItems.push({
-                id: `${unitData.id}-media-${index}`,
-                unitId: unitData.id,
-                title: media.title || `${unitData.title} 媒体 ${index + 1}`,
-                content: '',
-                mediaUrl: media.url,
-                order: index + 2, // 文本内容之后
-                type: media.type,
-                metadata: media.metadata
-              });
-            });
-          }
-          
-          // 如果有例题媒体内容，将每个例题媒体添加为单独的项
-          if (unitData.exampleMedia && Array.isArray(unitData.exampleMedia)) {
-            unitData.exampleMedia.forEach((media: { title?: string; url: string; type: string; metadata?: any }, index: number) => {
-              exampleItems.push({
-                id: `${unitData.id}-example-${index}`,
-                unitId: unitData.id,
-                title: media.title || `例题 ${index + 1}`,
-                content: '',
-                mediaUrl: media.url,
-                order: index + 1,
-                type: media.type,
-                metadata: media.metadata
-              });
-            });
-          }
-          
           // 按order字段排序
           const sortedContents = contentItems.sort((a, b) => a.order - b.order);
           const sortedExamples = exampleItems.sort((a, b) => a.order - b.order);
           setLearningContents(sortedContents);
           setExampleContents(sortedExamples);
+
+          // 获取课程媒体资源
+          if (unitData.id) {
+            await fetchCourseMediaResources(unitData.id);
+          }
         } else {
           setError(data.message || "获取学习内容失败");
         }
@@ -299,27 +307,53 @@ export default function StudyScreen() {
         </View>
       ) : (
         <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 30 }}>
-          {/* 主要媒体资源部分 - Grid布局 */}
-          {videoContents.length > 0 && (
+          {/* 课程媒体资源部分 */}
+          {courseMediaResources.length > 0 && (
             <RNView style={styles.contentContainer}>
-              <Text style={[styles.sectionTitle, { color: primaryColor, marginTop: 0 }]}>学习视频</Text>
+              <Text style={[styles.sectionTitle, { color: primaryColor, marginTop: 0 }]}>课程资源</Text>
               <RNView style={styles.mediaGrid}>
-                {videoContents.map((video, index) => (
-                  <RNView key={video.id} style={styles.mediaItem}>
-                    <TouchableOpacity
-                      style={styles.mediaVideoContainer}
-                      onPress={() => {
-                        // 可以添加视频播放逻辑或导航到全屏播放
-                      }}
-                    >
-                                             <VideoPlayer
-                        source={{ uri: video.mediaUrl }}
-                        title={video.title}
-                        style={styles.mediaVideo}
-                        primaryColor={primaryColor}
-                        onPlaybackStatusUpdate={handleVideoStatusUpdate}
-                      />
-                    </TouchableOpacity>
+                {courseMediaResources.map((mediaItem, index) => (
+                  <RNView key={mediaItem.id} style={styles.mediaItem}>
+                    {mediaItem.mediaResource.resourceType === "video" && (
+                      <TouchableOpacity
+                        style={styles.mediaVideoContainer}
+                        onPress={() => {
+                          // 可以添加视频播放逻辑或导航到全屏播放
+                        }}
+                      >
+                        <VideoPlayer
+                          source={{ uri: mediaItem.mediaResource.resourceUrl }}
+                          title={mediaItem.mediaResource.title}
+                          style={styles.mediaVideo}
+                          primaryColor={primaryColor}
+                          onPlaybackStatusUpdate={handleVideoStatusUpdate}
+                        />
+                        <RNView style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 8, backgroundColor: 'rgba(0,0,0,0.6)' }}>
+                          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
+                            {mediaItem.mediaResource.title}
+                          </Text>
+                        </RNView>
+                      </TouchableOpacity>
+                    )}
+                    {mediaItem.mediaResource.resourceType === "image" && (
+                      <TouchableOpacity 
+                        style={styles.mediaVideoContainer}
+                        onPress={() => {
+                          // 可以添加图片查看逻辑
+                        }}
+                      >
+                        <Image 
+                          source={{ uri: mediaItem.mediaResource.resourceUrl }} 
+                          style={styles.mediaVideo} 
+                          resizeMode="cover" 
+                        />
+                        <RNView style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 8, backgroundColor: 'rgba(0,0,0,0.6)' }}>
+                          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>
+                            {mediaItem.mediaResource.title}
+                          </Text>
+                        </RNView>
+                      </TouchableOpacity>
+                    )}
                   </RNView>
                 ))}
               </RNView>

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { login, isAuthenticated } from '../services/auth';
 import type { LoginRequest, UserInfo } from '../services/auth';
 import { useUserStore } from '../store/userStore';
+import { useUser } from '../contexts/UserContext';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -21,7 +22,8 @@ interface LoginResult {
 const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const setUser = useUserStore(state => state.setUser);
+  const setUserStore = useUserStore(state => state.setUser);
+  const { setUser: setUserContext } = useUser();
 
   // 如果已登录，重定向到首页
   React.useEffect(() => {
@@ -34,7 +36,13 @@ const LoginPage: React.FC = () => {
     setLoading(true);
     
     try {
-      const result = await login(values.username, values.password, setUser) as LoginResult;
+      // 创建一个函数来同时更新两个状态管理
+      const updateBothUserStates = (user: UserInfo) => {
+        setUserStore(user);
+        setUserContext(user);
+      };
+      
+      const result = await login(values.username, values.password, updateBothUserStates) as LoginResult;
       if (result.success) {
         message.success('登录成功');
         navigate('/dashboard');

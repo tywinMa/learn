@@ -359,19 +359,88 @@ export const changePassword = async (currentPassword: string, newPassword: strin
 };
 
 /**
+ * 清除所有本地用户相关数据的辅助函数
+ */
+export const clearAllLocalUserData = async (): Promise<void> => {
+  try {
+    // 获取所有AsyncStorage的键
+    const allKeys = await AsyncStorage.getAllKeys();
+    
+    // 基础用户数据键
+    const basicUserKeys = [
+      STORAGE_KEYS.TOKEN,
+      STORAGE_KEYS.STUDENT_INFO,
+      STORAGE_KEYS.STUDENT_ID,
+      'currentSubject',
+      'currentGrade',
+      'user_preferences',
+      'app_settings',
+      'study_progress',
+      'exercise_cache',
+      'user_favorites',
+      'practice_history'
+    ];
+
+    // 查找所有以用户相关前缀开头的键
+    const userRelatedKeys = allKeys.filter(key => 
+      key.startsWith('user_') ||
+      key.startsWith('student_') ||
+      key.startsWith('auth_') ||
+      key.startsWith('login_') ||
+      key.startsWith('study_') ||
+      key.startsWith('exercise_') ||
+      key.startsWith('practice_') ||
+      key.startsWith('progress_') ||
+      key.startsWith('cache_') ||
+      basicUserKeys.includes(key)
+    );
+
+    // 批量删除所有用户相关数据
+    await AsyncStorage.multiRemove(userRelatedKeys);
+    
+    console.log(`✅ 用户登出，已清除 ${userRelatedKeys.length} 个本地缓存项目`);
+    console.log('清除的键:', userRelatedKeys);
+  } catch (error) {
+    console.error('清除本地数据失败:', error);
+  }
+};
+
+/**
  * 登出
  */
 export const logout = async (): Promise<void> => {
   try {
-    await AsyncStorage.multiRemove([
-      STORAGE_KEYS.TOKEN,
-      STORAGE_KEYS.STUDENT_INFO,
-      STORAGE_KEYS.STUDENT_ID,
-      'currentSubject', // 清除学科缓存
-      'currentGrade'    // 清除年级缓存
-    ]);
-    console.log('✅ 用户登出，已清除所有本地缓存');
+    // 调用 API 通知服务器登出（如果需要）
+    const token = await getStoredToken();
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/api/students/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+      } catch (apiError) {
+        console.warn('服务器登出API调用失败，但继续清除本地数据:', apiError);
+      }
+    }
+
+    // 彻底清除所有本地用户数据
+    await clearAllLocalUserData();
+    
+    console.log('✅ 退出登录成功，已清除所有本地用户数据');
   } catch (error) {
     console.error('登出失败:', error);
+    // 即使出错也尝试清除基础数据
+    try {
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.TOKEN,
+        STORAGE_KEYS.STUDENT_INFO,
+        STORAGE_KEYS.STUDENT_ID,
+      ]);
+    } catch (fallbackError) {
+      console.error('基础数据清除也失败:', fallbackError);
+    }
   }
 }; 

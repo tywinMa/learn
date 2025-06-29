@@ -2,6 +2,7 @@ import api from './api';
 
 // 用户角色常量
 export const UserRole = {
+  SUPERADMIN: 'superadmin',
   ADMIN: 'admin',
   TEACHER: 'teacher',
   STUDENT: 'student'
@@ -285,21 +286,19 @@ export const logout = async (clearUser?: () => void) => {
     // 实际API调用
     await api.post(API_ENDPOINTS.LOGOUT);
     
-    // 清除本地存储
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_INFO);
+    // 彻底清除所有本地用户相关数据
+    clearAllLocalUserData();
     
     // 清除全局用户状态(如果提供了回调函数)
     if (clearUser) {
       clearUser();
     }
     
-    console.log('退出登录成功');
+    console.log('退出登录成功，已清除所有本地用户数据');
     return { success: true };
   } catch (error) {
     // 即使API调用失败，也要清除本地存储
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_INFO);
+    clearAllLocalUserData();
     
     if (clearUser) {
       clearUser();
@@ -307,6 +306,52 @@ export const logout = async (clearUser?: () => void) => {
     
     console.error('退出登录API调用失败，但已清除本地数据:', error);
     return { success: true }; // 仍然返回成功，因为本地已清除
+  }
+};
+
+// 清除所有本地用户相关数据的辅助函数
+export const clearAllLocalUserData = () => {
+  try {
+    // 清除主要的用户数据
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_INFO);
+    
+    // 清除Zustand用户状态存储
+    localStorage.removeItem('user-storage');
+    
+    // 清除可能的重定向标志
+    localStorage.removeItem('redirecting_to_login');
+    
+    // 清除可能的缓存数据（可根据需要添加更多）
+    localStorage.removeItem('current_subject');
+    localStorage.removeItem('current_grade');
+    localStorage.removeItem('user_preferences');
+    localStorage.removeItem('app_settings');
+    
+    // 获取所有localStorage键并清除所有以用户相关前缀开头的数据
+    const keysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (
+        key.startsWith('user_') || 
+        key.startsWith('auth_') || 
+        key.startsWith('login_') ||
+        key.startsWith('student_') ||
+        key.startsWith('teacher_') ||
+        key.startsWith('admin_')
+      )) {
+        keysToRemove.push(key);
+      }
+    }
+    
+    // 批量删除匹配的键
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+    });
+    
+    console.log(`已清除 ${keysToRemove.length + 7} 个本地存储项目`);
+  } catch (error) {
+    console.error('清除本地存储时出错:', error);
   }
 };
 
@@ -347,9 +392,9 @@ export const hasPermission = (permissionKey?: string): boolean => {
   }
   
   // 简单的权限检查逻辑
-  // 管理员拥有所有权限
-  if (user.role === UserRole.ADMIN || 
-      (user.roles && user.roles.some(role => role.code === 'admin'))) {
+  // 管理员和系统管理员拥有所有权限
+  if (user.role === UserRole.ADMIN || user.role === UserRole.SUPERADMIN ||
+      (user.roles && user.roles.some(role => role.code === 'admin' || role.code === 'superadmin'))) {
     return true;
   }
   

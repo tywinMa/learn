@@ -29,6 +29,7 @@ const adminUploadRoutes = require('./routes/admin/uploadRoutes');
 const adminSubjectRoutes = require('./routes/admin/subjectRoutes');
 const adminKnowledgePointRoutes = require('./routes/admin/knowledgePointRoutes');
 const adminTaskRoutes = require('./routes/admin/taskRoutes');
+const adminMediaResourceRoutes = require('./routes/admin/mediaResourceRoutes');
 const gradeRoutes = require('./routes/gradeRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 
@@ -76,6 +77,7 @@ app.use('/api/admin/upload', adminUploadRoutes);
 app.use('/api/admin/subjects', adminSubjectRoutes);
 app.use('/api/admin/knowledge-points', adminKnowledgePointRoutes);
 app.use('/api/admin/tasks', adminTaskRoutes);
+app.use('/api/admin/media-resources', adminMediaResourceRoutes);
 app.use('/api', gradeRoutes);
 
 // 根路由

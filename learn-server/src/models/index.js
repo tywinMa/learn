@@ -13,6 +13,8 @@ const Task = require('./Task');
 const Grade = require('./Grade');
 const SubjectGrade = require('./SubjectGrade');
 const UserGradeSubjectPreference = require('./UserGradeSubjectPreference');
+const MediaResource = require('./MediaResource');
+const CourseMediaResource = require('./CourseMediaResource');
 const { sequelize } = require('../config/database');
 
 // 定义模型之间的关系
@@ -21,7 +23,7 @@ SubjectGrade.hasMany(Unit, { foreignKey: 'subjectGradeId', as: 'units' });
 Unit.belongsTo(SubjectGrade, { foreignKey: 'subjectGradeId', as: 'subjectGrade' });
 
 // 学科与课程之间的关系
-Course.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
+Course.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code', as: 'subjectInfo' });
 Subject.hasMany(Course, { foreignKey: 'subject', sourceKey: 'code' });
 
 // 学科与练习题之间的关系
@@ -94,6 +96,34 @@ UserGradeSubjectPreference.belongsTo(Subject, { foreignKey: 'subjectCode', targe
 Grade.hasMany(UserGradeSubjectPreference, { foreignKey: 'gradeId', as: 'gradeSubjectPreferences' });
 UserGradeSubjectPreference.belongsTo(Grade, { foreignKey: 'gradeId', as: 'grade' });
 
+// ===== 媒体资源相关的关系 =====
+// User和MediaResource之间的关系（上传者）
+User.hasMany(MediaResource, { foreignKey: 'uploadUserId', as: 'mediaResources' });
+MediaResource.belongsTo(User, { foreignKey: 'uploadUserId', as: 'uploader' });
+
+// Course和MediaResource之间的多对多关系
+Course.belongsToMany(MediaResource, { 
+  through: CourseMediaResource, 
+  foreignKey: 'courseId', 
+  otherKey: 'mediaResourceId',
+  as: 'mediaResources'
+});
+MediaResource.belongsToMany(Course, { 
+  through: CourseMediaResource, 
+  foreignKey: 'mediaResourceId', 
+  otherKey: 'courseId',
+  as: 'courses'
+});
+
+// 关联表与主表的关系
+CourseMediaResource.belongsTo(Course, { foreignKey: 'courseId', as: 'course' });
+CourseMediaResource.belongsTo(MediaResource, { foreignKey: 'mediaResourceId', as: 'mediaResource' });
+CourseMediaResource.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+
+Course.hasMany(CourseMediaResource, { foreignKey: 'courseId', as: 'courseMediaResources' });
+MediaResource.hasMany(CourseMediaResource, { foreignKey: 'mediaResourceId', as: 'courseMediaResources' });
+User.hasMany(CourseMediaResource, { foreignKey: 'createdBy', as: 'createdCourseMediaResources' });
+
 // 同步所有模型到数据库
 const syncDatabase = async () => {
   try {
@@ -122,6 +152,8 @@ const syncDatabase = async () => {
       await sequelize.query('SELECT 1 FROM Users LIMIT 1');
       await sequelize.query('SELECT 1 FROM StudentPoints LIMIT 1');
       await sequelize.query('SELECT 1 FROM Tasks LIMIT 1');
+      await sequelize.query('SELECT 1 FROM MediaResources LIMIT 1');
+      await sequelize.query('SELECT 1 FROM CourseMediaResources LIMIT 1');
       console.log('数据库表结构完整');
     } catch (checkError) {
       // 如果表不存在，将创建它们（已经通过上面的sync操作完成）
@@ -169,6 +201,8 @@ module.exports = {
   Grade,
   SubjectGrade,
   UserGradeSubjectPreference,
+  MediaResource,
+  CourseMediaResource,
   sequelize,
   syncDatabase
 };
