@@ -1,4 +1,4 @@
-const { Course, Subject, User, Exercise } = require('../../models');
+const { Course, Subject, User, Exercise, Grade } = require('../../models');
 const { Op } = require('sequelize');
 
 
@@ -47,6 +47,11 @@ const getCourses = async (req, res) => {
           model: User,
           as: 'teacher',
           attributes: ['id', 'name']
+        },
+        {
+          model: Grade,
+          as: 'grade',
+          attributes: ['id', 'name', 'order']
         }
       ]
     });
@@ -86,6 +91,11 @@ const getCourseById = async (req, res) => {
           model: User,
           as: 'teacher',
           attributes: ['id', 'name']
+        },
+        {
+          model: Grade,
+          as: 'grade',
+          attributes: ['id', 'name', 'order']
         }
       ]
     });
@@ -146,6 +156,11 @@ const getCoursesBySubject = async (req, res) => {
           model: User,
           as: 'teacher',
           attributes: ['id', 'name']
+        },
+        {
+          model: Grade,
+          as: 'grade',
+          attributes: ['id', 'name', 'order']
         }
       ],
       order: [['id', 'ASC']]

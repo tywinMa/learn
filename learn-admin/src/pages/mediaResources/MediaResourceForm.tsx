@@ -31,6 +31,13 @@ import { getCourses, type Course } from "../../services/courseService";
 import { getAllUnits, type Unit } from "../../services/unitService";
 import { useUser } from "../../contexts/UserContext";
 
+// 根据课程ID查找单元的辅助函数
+const findUnitByCourseId = (courseId: string, units: Unit[]): Unit | null => {
+  return units.find(unit => 
+    unit.courseIds && unit.courseIds.includes(courseId)
+  ) || null;
+};
+
 const { Option } = Select;
 
 interface MediaResourceFormProps {
@@ -157,6 +164,16 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
     }
   };
 
+  // 加载所有单元数据（用于编辑模式下显示关联信息）
+  const loadAllUnitsForDisplay = async () => {
+    try {
+      const allUnits = await getAllUnits();
+      setUnits(allUnits);
+    } catch (error) {
+      console.error("加载单元数据失败:", error);
+    }
+  };
+
   // 加载单元数据
   const loadUnits = async (gradeId: string, subjectCode: string) => {
     try {
@@ -229,6 +246,38 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
     }
   };
 
+  // 根据单元加载课程数据
+  const loadCoursesByUnit = async (unitId: string) => {
+    try {
+      // 找到选中的单元
+      const selectedUnitObj = units.find(unit => unit.id === unitId);
+      if (!selectedUnitObj || !selectedUnitObj.courseIds || selectedUnitObj.courseIds.length === 0) {
+        console.log("未找到单元或单元没有课程关联:", unitId);
+        setCourses([]);
+        return;
+      }
+
+      console.log("=== 根据单元筛选课程调试信息 ===");
+      console.log("选中的单元:", selectedUnitObj);
+      console.log("单元包含的课程ID:", selectedUnitObj.courseIds);
+
+      // 获取所有课程
+      const allCourses = await getCourses();
+
+      // 根据单元的courseIds筛选课程
+      const filteredCourses = allCourses.filter(course => 
+        selectedUnitObj.courseIds?.includes(course.id)
+      );
+
+      console.log(`根据单元${unitId}筛选课程结果:`, filteredCourses);
+      console.log("=== 根据单元筛选课程调试信息结束 ===");
+      setCourses(filteredCourses);
+    } catch (error) {
+      console.error("根据单元加载课程数据失败:", error);
+      message.error("根据单元加载课程数据失败");
+    }
+  };
+
   // 年级选择处理
   const handleGradeChange = (gradeId: number) => {
     setSelectedGrade(gradeId.toString()); // 转换为字符串用于后续API调用
@@ -263,9 +312,9 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
     setSelectedCourse("");
     form.setFieldsValue({ course: undefined });
 
-    // 选择单元后，根据当前的年级和学科加载课程
-    if (unitId && selectedGrade && selectedSubject) {
-      loadCourses(selectedGrade, selectedSubject);
+    // 选择单元后，根据单元的courseIds来加载课程
+    if (unitId) {
+      loadCoursesByUnit(unitId);
     }
   };
 
@@ -279,6 +328,11 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
       // 总是加载年级和学科数据
       loadGrades();
       loadSubjects();
+      
+      // 在编辑模式下也需要加载所有单元数据，用于显示关联信息
+      if (resource) {
+        loadAllUnitsForDisplay();
+      }
 
       if (resource) {
         // 编辑模式
@@ -421,30 +475,7 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
         // 编辑保存
         await mediaResourceService.updateMediaResource(resource.id, data);
 
-        // 如果修改了课程关联（仅在可编辑状态下），更新课程关联
-        if (selectedCourse && ["draft", "rejected"].includes(resource.status)) {
-          try {
-            const currentCourseId = resource.courses?.[0]?.id;
-            // 如果课程发生了变化，先删除原有关联再创建新关联
-            if (currentCourseId !== selectedCourse) {
-              // 删除所有旧的课程关联
-              await courseMediaResourceService.deleteAllCourseMediaResourcesByMediaId(
-                resource.id
-              );
-
-              // 创建新的课程关联
-              await courseMediaResourceService.createCourseMediaResource({
-                courseId: selectedCourse,
-                mediaResourceId: resource.id,
-                displayOrder: 0,
-                isActive: true,
-              });
-            }
-          } catch (error) {
-            console.error("更新课程关联失败:", error);
-            message.warning("媒体资源保存成功，但课程关联更新失败");
-          }
-        }
+        // 编辑模式下不更新课程关联（关联信息创建后不可修改）
 
         message.success("媒体资源保存成功");
       } else {
@@ -486,11 +517,8 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
       const values = await form.validateFields();
       setSubmitLoading(true);
 
-      // 验证课程关联是否完整
-      if (
-        !resource ||
-        (resource && ["draft", "rejected"].includes(resource.status))
-      ) {
+      // 验证课程关联是否完整（仅在新增模式下验证）
+      if (!resource) {
         if (!selectedCourse) {
           message.error("请完成课程关联设置，选择年级、学科、单元和课程");
           setSubmitLoading(false);
@@ -529,30 +557,7 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
         // 编辑模式：先更新，再提交审核
         await mediaResourceService.updateMediaResource(resource.id, data);
 
-        // 如果修改了课程关联，需要更新课程关联关系
-        if (selectedCourse && ["draft", "rejected"].includes(resource.status)) {
-          try {
-            const currentCourseId = resource.courses?.[0]?.id;
-            // 如果课程发生了变化，先删除原有关联再创建新关联
-            if (currentCourseId !== selectedCourse) {
-              // 删除所有旧的课程关联
-              await courseMediaResourceService.deleteAllCourseMediaResourcesByMediaId(
-                resource.id
-              );
-
-              // 创建新的课程关联
-              await courseMediaResourceService.createCourseMediaResource({
-                courseId: selectedCourse,
-                mediaResourceId: resource.id,
-                displayOrder: 0,
-                isActive: true,
-              });
-            }
-          } catch (error) {
-            console.error("更新课程关联失败:", error);
-            message.warning("媒体资源更新成功，但课程关联更新失败");
-          }
-        }
+        // 编辑模式下不更新课程关联（关联信息创建后不可修改）
 
         await mediaResourceService.submitForReview(resource.id);
         message.success("媒体资源已提交审核");
@@ -789,42 +794,7 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
         </div>
       )}
 
-      {/* 当前关联信息提示 */}
-      {resource && resource.courses && resource.courses.length > 0 && (
-        <div className="mb-4 p-3 bg-blue-50 rounded">
-          <h4 className="text-sm font-medium text-gray-900 mb-2">
-            当前关联信息：
-            {(resource.status === "published" ||
-              resource.status === "under_review") && (
-              <span className="ml-2 text-xs text-gray-500">
-                (已锁定，无法修改)
-              </span>
-            )}
-          </h4>
-          {(() => {
-            const course = resource.courses[0];
-            return (
-              <div className="text-xs space-y-1">
-                <div className="flex flex-wrap gap-2">
-                  {course.grade && (
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                      年级: {course.grade.name}
-                    </span>
-                  )}
-                  {course.subjectInfo && (
-                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded">
-                      学科: {course.subjectInfo.name}
-                    </span>
-                  )}
-                </div>
-                <div className="font-medium text-gray-700">
-                  课程: {course.title}
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-      )}
+
 
       <Form
         form={form}
@@ -833,9 +803,8 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
           resourceType: "image",
         }}
       >
-        {/* 课程关联选择区域 - 顶部必选 */}
-        {(!resource ||
-          (resource && ["draft", "rejected"].includes(resource.status))) && (
+        {/* 课程关联选择区域 - 只有新增时可以设置 */}
+        {!resource && (
           <Card
             size="small"
             className="mb-6"
@@ -846,9 +815,7 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
                 <span className="text-red-500 mr-1">*</span>
                 课程关联设置
                 <span className="ml-2 text-sm font-normal text-gray-500">
-                  {resource
-                    ? "（修改课程关联后需重新提交审核）"
-                    : "（必须关联到具体课程才能发布）"}
+                  （必须关联到具体课程才能发布）
                 </span>
               </h4>
             </div>
@@ -863,7 +830,6 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
                   placeholder="选择年级"
                   onChange={handleGradeChange}
                   allowClear
-                  disabled={!isEditable()}
                 >
                   {grades.map((grade) => (
                     <Option key={grade.id} value={grade.id}>
@@ -880,7 +846,7 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
                 <Select
                   placeholder="选择单元"
                   onChange={handleUnitChange}
-                  disabled={!selectedSubject || !isEditable()}
+                  disabled={!selectedSubject}
                   allowClear
                 >
                   {units.map((unit) => (
@@ -898,7 +864,7 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
                 <Select
                   placeholder="选择学科"
                   onChange={handleSubjectChange}
-                  disabled={!selectedGrade || !isEditable()}
+                  disabled={!selectedGrade}
                   allowClear
                 >
                   {subjects.map((subject) => (
@@ -917,7 +883,7 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
                 <Select
                   placeholder="选择课程"
                   onChange={handleCourseChange}
-                  disabled={!selectedUnit || !isEditable()}
+                  disabled={!selectedUnit}
                   allowClear
                 >
                   {courses.map((course) => (
@@ -928,6 +894,63 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
                 </Select>
               </Form.Item>
             </div>
+          </Card>
+        )}
+
+        {/* 已关联信息显示区域 - 编辑模式下显示 */}
+        {resource && resource.courses && resource.courses.length > 0 && (
+          <Card
+            size="small"
+            className="mb-6"
+            style={{ backgroundColor: "#f0f8ff" }}
+          >
+            <div className="mb-3">
+              <h4 className="text-base font-medium text-gray-900 flex items-center">
+                <span className="text-blue-500 mr-2">📎</span>
+                关联信息
+                <span className="ml-2 text-sm font-normal text-gray-500">
+                  （关联信息创建后不可修改）
+                </span>
+              </h4>
+            </div>
+
+            {(() => {
+              const course = resource.courses[0];
+              const unit = findUnitByCourseId(course.id, units);
+              
+              return (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-gray-600 w-16">年级：</span>
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                        {course.grade?.name || '数据加载中...'}
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-gray-600 w-16">学科：</span>
+                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                        {course.subjectInfo?.name || '数据加载中...'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-gray-600 w-16">单元：</span>
+                      <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
+                        {unit?.title || '数据加载中...'}
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-gray-600 w-16">课程：</span>
+                      <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm">
+                        {course.title}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </Card>
         )}
 

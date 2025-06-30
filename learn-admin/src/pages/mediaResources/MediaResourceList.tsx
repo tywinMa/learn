@@ -4,6 +4,14 @@ import { PlusOutlined, DeleteOutlined, EditOutlined, EyeOutlined, UploadOutlined
 import { type MediaResource, mediaResourceService } from '../../services/mediaResourceService';
 import MediaResourceForm from './MediaResourceForm';
 import { useUser } from '../../contexts/UserContext';
+import { getAllUnits, type Unit } from '../../services/unitService';
+
+// 根据课程ID查找单元的辅助函数
+const findUnitByCourseId = (courseId: string, units: Unit[]): Unit | null => {
+  return units.find(unit => 
+    unit.courseIds && unit.courseIds.includes(courseId)
+  ) || null;
+};
 
 const { Search } = Input;
 const { Option } = Select;
@@ -12,6 +20,7 @@ const MediaResourceList: React.FC = () => {
   const [mediaResources, setMediaResources] = useState<MediaResource[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploaders, setUploaders] = useState<Array<{id: number; name: string; username: string}>>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const { user } = useUser();
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -58,6 +67,7 @@ const MediaResourceList: React.FC = () => {
 
   useEffect(() => {
     fetchMediaResources();
+    fetchUnits();
     if (isAdmin) {
       fetchUploaders();
     }
@@ -122,6 +132,16 @@ const MediaResourceList: React.FC = () => {
   const fetchUploaders = async () => {
     // 这里可以调用一个专门的API来获取所有上传者
     // 暂时通过媒体资源列表来获取
+  };
+
+  // 获取单元数据
+  const fetchUnits = async () => {
+    try {
+      const unitsData = await getAllUnits();
+      setUnits(unitsData);
+    } catch (error) {
+      console.error('获取单元数据失败:', error);
+    }
   };
 
   const handleAdd = () => {
@@ -263,17 +283,19 @@ const MediaResourceList: React.FC = () => {
     {
       title: '关联信息',
       key: 'relationInfo',
-      width: 250,
+      width: 280,
       render: (record: MediaResource) => {
         if (!record.courses || record.courses.length === 0) {
           return <span className="text-gray-400">未关联课程</span>;
         }
         
         const course = record.courses[0]; // 只取第一个，因为一个媒体资源只关联一个课程
+        const unit = findUnitByCourseId(course.id, units);
+        
         return (
           <div className="text-xs">
             <div className="border rounded p-2 bg-gray-50">
-              <div className="flex flex-wrap gap-1 mb-1">
+              <div className="flex flex-wrap gap-1 mb-2">
                 {course.grade && (
                   <Tag color="blue">{course.grade.name}</Tag>
                 )}
@@ -281,7 +303,13 @@ const MediaResourceList: React.FC = () => {
                   <Tag color="green">{course.subjectInfo.name}</Tag>
                 )}
               </div>
-              <div className="font-medium text-gray-700">{course.title}</div>
+              <div className="mb-1">
+                <span className="text-gray-500">单元：</span>
+                <Tag color="purple">{unit?.title || '加载中...'}</Tag>
+              </div>
+              <div className="font-medium text-gray-700 truncate" title={course.title}>
+                课程：{course.title}
+              </div>
             </div>
           </div>
         );
