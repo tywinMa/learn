@@ -1,185 +1,370 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Card, 
-  Button, 
-  Input, 
-  Popconfirm, 
-  message, 
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Card,
+  Button,
+  Input,
+  Popconfirm,
+  message,
   Select,
-  Tooltip,
-  Result,
-  Row,
-  Col,
   Typography,
-  Empty,
-  Pagination,
+  Table,
+  Tag,
+  Space,
   Modal,
   Form,
-  Space,
-  Spin
-} from 'antd';
-import { 
-  PlusOutlined, 
-  EditOutlined, 
-  DeleteOutlined, 
-  ReloadOutlined,
+  Row,
+  Col,
+} from "antd";
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
   SearchOutlined,
   BookOutlined,
-  RobotOutlined
-} from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
-import { getAllExercises, deleteExercise } from '../../services/exerciseService';
-import { getCourses } from '../../services/courseService';
-import { getSubjects } from '../../services/subjectService';
-import { getGrades } from '../../services/gradeService';
-import { createAIGenerateSingleExerciseTask } from '../../services/taskService';
-import type { Exercise } from '../../services/exerciseService';
+  RobotOutlined,
+} from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
+import {
+  getAllExercises,
+  deleteExercise,
+  getStatusOptions,
+  updateExercise,
+  type ExerciseFilters,
+} from "../../services/exerciseService";
+import { getCourses } from "../../services/courseService";
+import { getSubjects } from "../../services/subjectService";
+import { getGrades } from "../../services/gradeService";
+import { createAIGenerateSingleExerciseTask } from "../../services/taskService";
+import { useUser } from "../../contexts/UserContext";
+import type { Exercise } from "../../services/exerciseService";
 
 const { Option } = Select;
-const { Text, Paragraph, Title } = Typography;
+const { Title } = Typography;
+
+// 题目类型选项
+const questionTypes = [
+  { value: "choice", label: "选择题" },
+  { value: "fill_blank", label: "填空题" },
+  { value: "application", label: "应用题" },
+  { value: "matching", label: "匹配题" },
+];
+
+// 难度选项
+const difficultyOptions = [
+  { value: 1, label: "简单" },
+  { value: 2, label: "中等" },
+  { value: 3, label: "困难" },
+];
 
 const ExerciseList: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useUser();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [searchText, setSearchText] = useState('');
-  const [subjectFilter, setSubjectFilter] = useState<string | undefined>(undefined);
+  const [searchText, setSearchText] = useState("");
+  const [subjectFilter, setSubjectFilter] = useState<string | undefined>(
+    undefined
+  );
   const [typeFilter, setTypeFilter] = useState<string | undefined>(undefined);
-  const [difficultyFilter, setDifficultyFilter] = useState<string | undefined>(undefined);
+  const [difficultyFilter, setDifficultyFilter] = useState<string | undefined>(
+    undefined
+  );
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(
+    undefined
+  );
+  const [gradeFilter, setGradeFilter] = useState<number | undefined>(undefined);
+  const [courseFilter, setCourseFilter] = useState<string | undefined>(
+    undefined
+  );
   const [deleting, setDeleting] = useState<string | null>(null);
-  
+  const [updating, setUpdating] = useState<string | null>(null);
+
   // AI生成相关状态
   const [aiModalVisible, setAiModalVisible] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiStep, setAiStep] = useState<'select' | 'form'>('select');
+  const [aiStep, setAiStep] = useState<"select" | "form">("select");
   const [courses, setCourses] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [grades, setGrades] = useState<any[]>([]);
   const [aiForm] = Form.useForm();
-  
-  // 添加课程过滤相关状态
   const [filteredCourses, setFilteredCourses] = useState<any[]>([]);
-  const [selectedSubject, setSelectedSubject] = useState<string>('');
-  
-  // 分页相关状态
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
+  const [selectedSubject, setSelectedSubject] = useState<string>("");
+
+  // 权限检查
+  const canModifyStatus = () => {
+    return user && ["admin", "superadmin"].includes(user.role || "");
+  };
+
+  // 处理状态变更
+  const handleStatusChange = async (id: string, newStatus: string) => {
+    try {
+      setUpdating(id);
+      await updateExercise(id, { status: newStatus as any });
+      message.success("状态更新成功");
+      fetchExercises();
+    } catch (error) {
+      console.error("更新状态失败:", error);
+      message.error("更新状态失败");
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  // 表格列定义
+  const columns = [
+    {
+      title: "ID",
+      dataIndex: "id",
+      key: "id",
+      width: 80,
+      ellipsis: true,
+    },
+    {
+      title: "习题标题",
+      dataIndex: "title",
+      key: "title",
+      width: 200,
+      ellipsis: true,
+      render: (title: string, record: Exercise) => (
+        <div>
+          <div className="font-medium">{title}</div>
+          <div className="text-xs text-gray-500">
+            {questionTypes.find((t) => t.value === record.type)?.label}
+          </div>
+        </div>
+      ),
+    },
+    {
+      title: "关联信息",
+      key: "relationInfo",
+      width: 280,
+      render: (record: Exercise) => {
+        const hasRelation = record.subjectInfo || record.grade || record.unit || record.course;
+        
+        if (!hasRelation) {
+          return <span className="text-gray-400">无关联信息</span>;
+        }
+        
+        return (
+          <div className="text-xs">
+            <div className="border rounded p-2 bg-gray-50">
+              <div className="flex flex-wrap gap-1 mb-2">
+                {record.grade && (
+                  <Tag color="blue">{record.grade.name}</Tag>
+                )}
+                {record.subjectInfo && (
+                  <Tag color="green">{record.subjectInfo.name}</Tag>
+                )}
+              </div>
+              {record.unit && (
+                <div className="mb-1">
+                  <span className="text-gray-500">单元：</span>
+                  <Tag color="purple">{record.unit.title}</Tag>
+                </div>
+              )}
+              {record.course && (
+                <div className="font-medium text-gray-700 truncate" title={record.course.title}>
+                  课程：{record.course.title}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      title: "难度",
+      dataIndex: "difficulty",
+      key: "difficulty",
+      width: 80,
+      render: (difficulty: number) => (
+        <Tag
+          color={
+            difficulty === 1 ? "green" : difficulty === 2 ? "orange" : "red"
+          }
+        >
+          {difficultyOptions.find((d) => d.value === difficulty)?.label}
+        </Tag>
+      ),
+    },
+    {
+      title: "状态",
+      dataIndex: "status",
+      key: "status",
+      width: 120,
+      render: (status: string, record: Exercise) => {
+        const statusConfig = getStatusOptions().find((s) => s.value === status);
+        return <Tag color={statusConfig?.color}>{statusConfig?.label}</Tag>;
+      },
+    },
+    {
+      title: "创建者",
+      dataIndex: "creator",
+      key: "creator",
+      width: 100,
+      render: (creator: any) => creator?.name || creator?.username || "-",
+    },
+    {
+      title: "创建时间",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      width: 120,
+      render: (createdAt: string) => new Date(createdAt).toLocaleDateString(),
+    },
+    {
+      title: "操作",
+      key: "action",
+      width: 150,
+      fixed: "right" as const,
+      render: (text: any, record: Exercise) => (
+        <Space size="small">
+          <Button
+            type="link"
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => navigate(`/exercises/${record.id}/edit`)}
+          >
+            编辑
+          </Button>
+          <Popconfirm
+            title="确定要删除这个习题吗？"
+            onConfirm={() => handleDelete(record.id as string)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button
+              type="link"
+              size="small"
+              danger
+              icon={<DeleteOutlined />}
+              loading={deleting === record.id}
+            >
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
 
   const fetchExercises = useCallback(async () => {
     setLoading(true);
-    setError(null);
     try {
-      const exercisesData = await getAllExercises();
+      const filters: ExerciseFilters = {
+        search: searchText || undefined,
+        subject: subjectFilter || undefined,
+        type: typeFilter || undefined,
+        difficulty: difficultyFilter || undefined,
+        status: statusFilter || undefined,
+        gradeId: gradeFilter || undefined,
+        courseId: courseFilter || undefined,
+      };
+
+      const exercisesData = await getAllExercises(filters);
       if (Array.isArray(exercisesData)) {
         setExercises(exercisesData);
-        console.log('习题数据加载成功，数量:', exercisesData.length);
       } else {
-        console.error('习题数据格式错误:', exercisesData);
-        setError('习题数据格式错误');
         setExercises([]);
       }
     } catch (error) {
-      console.error('加载习题数据失败:', error);
-      message.error('加载习题数据失败');
-      setError('加载习题数据失败，请刷新页面重试');
-      setExercises([]); 
+      console.error("加载习题数据失败:", error);
+      message.error("加载习题数据失败");
+      setExercises([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [
+    searchText,
+    subjectFilter,
+    typeFilter,
+    difficultyFilter,
+    statusFilter,
+    gradeFilter,
+    courseFilter,
+  ]);
 
-  // 加载课程和学科数据
+  // 加载基础数据
   const fetchBasicData = useCallback(async () => {
     try {
       const [coursesData, subjectsData, gradesData] = await Promise.all([
         getCourses(),
         getSubjects(),
-        getGrades()
+        getGrades(),
       ]);
       setCourses(coursesData || []);
       setSubjects(subjectsData || []);
       setGrades(gradesData || []);
     } catch (error) {
-      console.error('加载基础数据失败:', error);
+      console.error("加载基础数据失败:", error);
     }
   }, []);
-  
+
   useEffect(() => {
     fetchExercises();
+  }, [fetchExercises]);
+
+  useEffect(() => {
     fetchBasicData();
-  }, [fetchExercises, fetchBasicData]);
-  
+  }, [fetchBasicData]);
+
   const handleDelete = async (id: string) => {
     try {
       setDeleting(id);
       const success = await deleteExercise(id);
-      
+
       if (success) {
-        message.success('习题删除成功');
-        setExercises(prev => prev.filter(exercise => exercise.id !== id));
+        message.success("习题删除成功");
+        fetchExercises();
       } else {
-        message.error('删除习题失败');
+        message.error("删除习题失败");
       }
     } catch (error) {
-      console.error('删除习题出错:', error);
-      message.error('删除习题时发生错误');
+      console.error("删除习题出错:", error);
+      message.error("删除习题时发生错误");
     } finally {
       setDeleting(null);
     }
   };
-  
-  // AI生成习题相关函数
+
+  // AI生成相关函数
   const handleAiModalOpen = () => {
     setAiModalVisible(true);
-    setAiStep('select');
+    setAiStep("select");
     aiForm.resetFields();
   };
 
   const handleAiModalClose = () => {
     setAiModalVisible(false);
-    setAiStep('select');
+    setAiStep("select");
     aiForm.resetFields();
     setAiGenerating(false);
-    setSelectedSubject('');
+    setSelectedSubject("");
     setFilteredCourses([]);
   };
 
   const handleSelectGenerationType = (type: string) => {
-    if (type === 'info') {
-      setAiStep('form');
+    if (type === "info") {
+      setAiStep("form");
     } else {
-      message.info('上传图片生成功能暂未开放');
+      message.info("上传图片生成功能暂未开放");
     }
   };
 
-  // 处理学科选择变化
   const handleSubjectChange = (subjectCode: string) => {
     setSelectedSubject(subjectCode);
-    // 根据选择的学科过滤课程
     const filtered = courses.filter((course) => course.subject === subjectCode);
     setFilteredCourses(filtered);
-    // 清空课程选择
     aiForm.setFieldsValue({ courseId: undefined });
   };
 
   const handleAiGenerate = async () => {
     try {
       const values = await aiForm.validateFields();
-      const { subject, gradeId, type, courseId, relevance, difficulty } = values;
+      const { subject, gradeId, type, courseId, relevance, difficulty } =
+        values;
 
       setAiGenerating(true);
 
-      console.log("创建AI生成单个习题任务，参数:", {
-        subject,
-        gradeId,
-        type,
-        courseId,
-        relevance,
-        difficulty,
-      });
-
-      // 创建异步任务
       const task = await createAIGenerateSingleExerciseTask({
         subject,
         gradeId,
@@ -189,127 +374,48 @@ const ExerciseList: React.FC = () => {
         difficulty,
       });
 
-      console.log("任务创建成功:", task);
-      
       message.success("任务已创建，正在后台生成中，请在任务管理中查看进度");
-      
       handleAiModalClose();
-
     } catch (error) {
-      console.error('创建AI生成单个习题任务失败:', error);
-      message.error('创建任务失败，请重试');
+      console.error("创建AI生成单个习题任务失败:", error);
+      message.error("创建任务失败，请重试");
     } finally {
       setAiGenerating(false);
     }
   };
-  
-  // 确保exercises是数组后再筛选
-  const filteredExercises = Array.isArray(exercises) ? exercises.filter(exercise => {
-    if (!exercise) return false;
-    
-    // 搜索标题内容
-    const searchContent = exercise.title || '';
-    const matchSearch = searchText ? 
-      searchContent.toLowerCase().includes(searchText.toLowerCase()) : 
-      true;
-    
-    const matchSubject = subjectFilter ? 
-      exercise.subject === subjectFilter : 
-      true;
-    
-    // 检查题型
-    const matchType = typeFilter ? 
-      exercise.type === typeFilter : 
-      true;
-    
-    // 检查难度
-    const matchDifficulty = difficultyFilter ? 
-      exercise.difficulty === parseInt(difficultyFilter) : 
-      true;
-    
-    return matchSearch && matchSubject && matchType && matchDifficulty;
-  }) : [];
-  
-  // 获取学科名称
-  const getSubjectName = (subject: string) => {
-    switch (subject) {
-      case 'math': return '数学';
-      case 'chinese': return '语文';
-      case 'english': return '英语';
-      case 'physics': return '物理';
-      case 'chemistry': return '化学';
-      case 'biology': return '生物';
-      case 'history': return '历史';
-      case 'geography': return '地理';
-      case 'politics': return '政治';
-      case 'it': return '信息技术';
-      default: return subject;
-    }
+
+  // 重置筛选
+  const handleResetFilters = () => {
+    setSearchText("");
+    setSubjectFilter(undefined);
+    setTypeFilter(undefined);
+    setDifficultyFilter(undefined);
+    setStatusFilter(undefined);
+    setGradeFilter(undefined);
+    setCourseFilter(undefined);
   };
-
-  // 获取学科渐变色
-  const getSubjectGradient = (subject: string) => {
-    switch (subject) {
-      case 'math': return 'from-blue-400 to-blue-600';
-      case 'chinese': return 'from-red-400 to-red-600';
-      case 'english': return 'from-green-400 to-green-600';
-      case 'physics': return 'from-purple-400 to-purple-600';
-      case 'chemistry': return 'from-orange-400 to-orange-600';
-      case 'biology': return 'from-cyan-400 to-cyan-600';
-      case 'history': return 'from-yellow-400 to-yellow-600';
-      case 'geography': return 'from-emerald-400 to-emerald-600';
-      case 'politics': return 'from-pink-400 to-pink-600';
-      case 'it': return 'from-indigo-400 to-indigo-600';
-      default: return 'from-gray-400 to-gray-600';
-    }
-  };
-
-  // 出现错误时的渲染
-  if (error) {
-    return (
-      <Result
-        status="warning"
-        title="加载习题数据失败"
-        subTitle={error}
-        extra={
-          <Button 
-            type="primary" 
-            icon={<ReloadOutlined />} 
-            loading={loading}
-            onClick={fetchExercises}
-          >
-            重新加载
-          </Button>
-        }
-      />
-    );
-  }
-
-  // 当前页的习题数据
-  const paginatedExercises = filteredExercises.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
 
   return (
     <div>
-      {/* 标题栏区域 - 增加下边框、调整布局 */}
+      {/* 标题栏区域 */}
       <div className="flex justify-between items-center mb-6 border-b pb-4">
         <div className="flex items-center">
           <BookOutlined className="mr-2 text-2xl text-blue-500" />
-          <Title level={2} style={{ margin: 0 }}>习题管理</Title>
+          <Title level={2} style={{ margin: 0 }}>
+            习题管理
+          </Title>
         </div>
         <div className="flex items-center">
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             icon={<PlusOutlined />}
-            onClick={() => navigate('/exercises/new')}
+            onClick={() => navigate("/exercises/new")}
             size="large"
           >
             添加习题
           </Button>
-          <Button 
-            type="primary" 
+          <Button
+            type="primary"
             icon={<RobotOutlined />}
             onClick={handleAiModalOpen}
             size="large"
@@ -319,10 +425,10 @@ const ExerciseList: React.FC = () => {
           </Button>
         </div>
       </div>
-      
-      {/* 搜索和筛选区域 - 恢复原始样式 */}
-      <Card className="mb-6 shadow-sm rounded-lg bg-gray-50">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+      {/* 搜索和筛选区域 */}
+      <Card className="mb-6 shadow-sm rounded-lg">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div>
             <div className="text-gray-600 mb-1">习题标题</div>
             <Input
@@ -332,218 +438,161 @@ const ExerciseList: React.FC = () => {
               onChange={(e) => setSearchText(e.target.value)}
               allowClear
               size="large"
-              className="w-full"
             />
           </div>
-          
+
           <div>
             <div className="text-gray-600 mb-1">学科筛选</div>
             <Select
               placeholder="选择学科"
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
               value={subjectFilter}
               onChange={setSubjectFilter}
               allowClear
               size="large"
             >
-              <Option value="math">数学</Option>
-              <Option value="chinese">语文</Option>
-              <Option value="english">英语</Option>
-              <Option value="physics">物理</Option>
-              <Option value="chemistry">化学</Option>
-              <Option value="biology">生物</Option>
-              <Option value="history">历史</Option>
-              <Option value="geography">地理</Option>
-              <Option value="politics">政治</Option>
-              <Option value="it">信息技术</Option>
+              {subjects.map((subject) => (
+                <Option key={subject.code} value={subject.code}>
+                  {subject.name}
+                </Option>
+              ))}
             </Select>
           </div>
-          
+
+          <div>
+            <div className="text-gray-600 mb-1">年级筛选</div>
+            <Select
+              placeholder="选择年级"
+              style={{ width: "100%" }}
+              value={gradeFilter}
+              onChange={setGradeFilter}
+              allowClear
+              size="large"
+            >
+              {grades.map((grade) => (
+                <Option key={grade.id} value={grade.id}>
+                  {grade.name}
+                </Option>
+              ))}
+            </Select>
+          </div>
+
           <div>
             <div className="text-gray-600 mb-1">题型筛选</div>
             <Select
               placeholder="选择题型"
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
               value={typeFilter}
               onChange={setTypeFilter}
               allowClear
               size="large"
             >
-              <Option value="choice">选择题</Option>
-              <Option value="fill_blank">填空题</Option>
-              <Option value="matching">匹配题</Option>
-              <Option value="application" disabled>应用题（暂未支持）</Option>
+              {questionTypes.map((type) => (
+                <Option key={type.value} value={type.value}>
+                  {type.label}
+                </Option>
+              ))}
             </Select>
           </div>
-          
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
             <div className="text-gray-600 mb-1">难度筛选</div>
             <Select
               placeholder="选择难度"
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
               value={difficultyFilter}
               onChange={setDifficultyFilter}
               allowClear
               size="large"
             >
-              <Option value="1">简单</Option>
-              <Option value="2">中等</Option>
-              <Option value="3">困难</Option>
+              {difficultyOptions.map((option) => (
+                <Option key={option.value} value={option.value.toString()}>
+                  {option.label}
+                </Option>
+              ))}
             </Select>
+          </div>
+
+          <div>
+            <div className="text-gray-600 mb-1">状态筛选</div>
+            <Select
+              placeholder="选择状态"
+              style={{ width: "100%" }}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              allowClear
+              size="large"
+            >
+              {getStatusOptions().map((option) => (
+                <Option key={option.value} value={option.value}>
+                  {option.label}
+                </Option>
+              ))}
+            </Select>
+          </div>
+
+          <div>
+            <div className="text-gray-600 mb-1">课程筛选</div>
+            <Select
+              placeholder="选择课程"
+              style={{ width: "100%" }}
+              value={courseFilter}
+              onChange={setCourseFilter}
+              allowClear
+              size="large"
+              showSearch
+              optionFilterProp="children"
+            >
+              {courses.map((course) => (
+                <Option key={course.id} value={course.id}>
+                  {course.title}
+                </Option>
+              ))}
+            </Select>
+          </div>
+
+          <div className="flex items-end">
+            <Button
+              onClick={handleResetFilters}
+              size="large"
+              className="w-full"
+            >
+              重置筛选
+            </Button>
           </div>
         </div>
       </Card>
-      
-      {/* 习题卡片列表 */}
-      {loading ? (
-        <div className="flex justify-center items-center p-10">
-          <div className="text-center">
-            <div className="mb-4">
-              <img src="/loading-spin.svg" alt="加载中" className="w-16 h-16 mx-auto" />
-            </div>
-            <p className="text-gray-500">正在加载习题数据...</p>
-          </div>
-        </div>
-      ) : filteredExercises.length > 0 ? (
-        <>
-          <Row gutter={[16, 16]} className="mb-6">
-            {paginatedExercises.map((exercise) => (
-              <Col key={exercise.id} xs={24} sm={12} md={8} lg={6}>
-                <Card 
-                  className="h-full hover:shadow-2xl hover:scale-105 transition-all duration-500 border-0 rounded-xl overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100"
-                  hoverable
-                  bodyStyle={{ 
-                    padding: '0',
-                    display: 'flex',
-                    flexDirection: 'column'
-                  }}
-                  actions={[
-                    <Tooltip title="编辑习题" key="edit">
-                      <Button 
-                        type="primary" 
-                        ghost
-                        icon={<EditOutlined />} 
-                        onClick={() => navigate(`/exercises/${exercise.id}/edit`)}
-                        className="border-blue-500 text-blue-600 hover:bg-blue-500 hover:text-white transition-all duration-300"
-                      >
-                        编辑
-                      </Button>
-                    </Tooltip>,
-                    <Tooltip title="删除习题" key="delete">
-                      <Popconfirm
-                        title="确定删除这个习题吗？"
-                        description="此操作不可恢复，请谨慎操作！"
-                        onConfirm={() => handleDelete(String(exercise.id))}
-                        okText="确定"
-                        cancelText="取消"
-                      >
-                        <Button 
-                          danger
-                          ghost
-                          icon={<DeleteOutlined />} 
-                          loading={deleting === String(exercise.id)}
-                          className="border-red-500 text-red-600 hover:bg-red-500 hover:text-white transition-all duration-300"
-                        >
-                          删除
-                        </Button>
-                      </Popconfirm>
-                    </Tooltip>
-                  ]}
-                >
-                  {/* 顶部装饰条 */}
-                  <div className={`h-3 bg-gradient-to-r ${getSubjectGradient(exercise.subject)} shadow-sm`}></div>
-                  
-                  <div className="p-5 flex flex-col flex-1 bg-gradient-to-b from-transparent to-slate-50">
-                    {/* 标题和学科标签区域 */}
-                    <div className="mb-3">
-                      <div className="flex items-start justify-between mb-2">
-                        <Text strong className="text-lg text-slate-800 leading-tight font-bold flex-1 pr-3">
-                          {exercise.title}
-                        </Text>
-                        <div className={`px-3 py-1 rounded-full text-xs font-bold text-white bg-gradient-to-r ${getSubjectGradient(exercise.subject)} shadow-sm flex-shrink-0`}>
-                          {getSubjectName(exercise.subject)}
-                        </div>
-                      </div>
-                      
-                      {/* 元信息 */}
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        <div className="flex items-center text-slate-600 bg-green-100 px-2 py-1 rounded-full">
-                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></div>
-                          <span className="font-medium">系统</span>
-                        </div>
-                        <div className="flex items-center text-slate-600 bg-indigo-100 px-2 py-1 rounded-full">
-                          <BookOutlined className="mr-1 text-indigo-600 text-xs" />
-                          <span className="font-medium">{exercise.type}</span>
-                        </div>
-                        <div className="flex items-center text-slate-600 bg-yellow-100 px-2 py-1 rounded-full">
-                          <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-1.5"></div>
-                          <span className="font-medium">难度 {exercise.difficulty}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* 描述区域 */}
-                    <div className="flex-1">
-                      {exercise.question ? (
-                        <div className="bg-white p-3 rounded-lg border-l-3 border-blue-400 shadow-sm">
-                          <Paragraph 
-                            ellipsis={{ rows: 2, expandable: true, symbol: '展开' }} 
-                            className="mb-0 text-slate-700 leading-relaxed text-sm"
-                            title={exercise.question}
-                          >
-                            {exercise.question}
-                          </Paragraph>
-                        </div>
-                      ) : (
-                        <div className="bg-slate-100 p-3 rounded-lg text-center border border-slate-200">
-                          <Text type="secondary" className="text-xs">
-                            暂无题目内容
-                          </Text>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* 底部时间信息 */}
-                    <div className="mt-3 pt-2 border-t border-slate-200">
-                      <div className="text-xs text-slate-500 text-center">
-                        {new Date(exercise.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </Col>
-            ))}
-          </Row>
-          
-          {/* 分页 */}
-          <div className="flex justify-center mt-6 mb-8">
-            <Pagination
-              current={currentPage}
-              pageSize={pageSize}
-              total={filteredExercises.length}
-              onChange={(page) => setCurrentPage(page)}
-              onShowSizeChange={(current, size) => {
-                setCurrentPage(1);
-                setPageSize(size);
-              }}
-              showSizeChanger
-              showQuickJumper
-              showTotal={(total) => `共 ${total} 个习题`}
-            />
-          </div>
-        </>
-      ) : (
-        <Empty 
-          description={
-            <span>
-              {searchText || subjectFilter || typeFilter || difficultyFilter ? 
-                '没有找到符合筛选条件的习题' : 
-                '暂无习题数据，请点击添加按钮创建新习题'}
-            </span>
-          }
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
+
+      {/* 习题表格 */}
+      <Card className="shadow-sm rounded-lg">
+        <Table
+          columns={columns}
+          dataSource={exercises}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total) => `共 ${total} 条记录`,
+            pageSizeOptions: ["10", "20", "50", "100"],
+          }}
+          scroll={{ x: 1200 }}
+          locale={{
+            emptyText:
+              searchText ||
+              subjectFilter ||
+              typeFilter ||
+              difficultyFilter ||
+              statusFilter ||
+              gradeFilter ||
+              courseFilter
+                ? "没有找到符合筛选条件的习题"
+                : "暂无习题数据，请点击添加按钮创建新习题",
+          }}
         />
-      )}
+      </Card>
 
       {/* AI生成弹窗 */}
       <Modal
@@ -554,68 +603,63 @@ const ExerciseList: React.FC = () => {
         width={600}
         destroyOnClose
       >
-        {aiStep === 'select' ? (
+        {aiStep === "select" ? (
           <div className="py-8">
             <div className="text-center mb-6">
               <RobotOutlined className="text-4xl text-blue-500 mb-4" />
               <Title level={3}>选择生成方式</Title>
-              <Text type="secondary">请选择适合您的习题生成方式</Text>
             </div>
-            
+
             <Row gutter={[24, 24]}>
               <Col span={12}>
                 <Card
                   hoverable
-                  className="text-center h-full border-2 border-dashed border-gray-300 hover:border-blue-500 transition-all duration-300"
-                  onClick={() => handleSelectGenerationType('upload')}
-                  bodyStyle={{ padding: '32px 16px' }}
+                  className="text-center h-full border-2 border-dashed border-gray-300"
+                  onClick={() => handleSelectGenerationType("upload")}
                 >
                   <div className="text-5xl mb-4">📷</div>
-                  <Title level={4} className="mb-2">上传图片生成</Title>
-                  <Text type="secondary" className="text-sm">
-                    上传题目图片，AI智能识别并生成习题
-                  </Text>
-                  <div className="mt-4">
-                    <Button size="small" disabled>暂未开放</Button>
-                  </div>
+                  <Title level={4} className="mb-2">
+                    上传图片生成
+                  </Title>
+                  <Button size="small" disabled>
+                    暂未开放
+                  </Button>
                 </Card>
               </Col>
-              
+
               <Col span={12}>
                 <Card
                   hoverable
-                  className="text-center h-full border-2 border-solid border-blue-200 hover:border-blue-500 hover:shadow-lg transition-all duration-300"
-                  onClick={() => handleSelectGenerationType('info')}
-                  bodyStyle={{ padding: '32px 16px' }}
+                  className="text-center h-full border-2 border-solid border-blue-200"
+                  onClick={() => handleSelectGenerationType("info")}
                 >
                   <div className="text-5xl mb-4">📝</div>
-                  <Title level={4} className="mb-2">信息生成</Title>
-                  <Text type="secondary" className="text-sm">
-                    根据学科、课程等信息智能生成习题
-                  </Text>
-                  <div className="mt-4">
-                    <Button type="primary" size="small">立即体验</Button>
-                  </div>
+                  <Title level={4} className="mb-2">
+                    信息生成
+                  </Title>
+                  <Button type="primary" size="small">
+                    立即体验
+                  </Button>
                 </Card>
               </Col>
             </Row>
           </div>
         ) : (
           <div className="py-4">
-            <Form
-              form={aiForm}
-              layout="vertical"
-              onFinish={handleAiGenerate}
-            >
+            <Form form={aiForm} layout="vertical" onFinish={handleAiGenerate}>
               <Row gutter={16}>
                 <Col span={8}>
                   <Form.Item
                     label="选择学科"
                     name="subject"
-                    rules={[{ required: true, message: '请选择学科' }]}
+                    rules={[{ required: true, message: "请选择学科" }]}
                   >
-                    <Select placeholder="请选择学科" size="large" onChange={handleSubjectChange}>
-                      {subjects.map(subject => (
+                    <Select
+                      placeholder="请选择学科"
+                      size="large"
+                      onChange={handleSubjectChange}
+                    >
+                      {subjects.map((subject) => (
                         <Option key={subject.code} value={subject.code}>
                           {subject.name}
                         </Option>
@@ -635,51 +679,51 @@ const ExerciseList: React.FC = () => {
                     </Select>
                   </Form.Item>
                 </Col>
-                
+
                 <Col span={8}>
                   <Form.Item
                     label="题目类型"
                     name="type"
-                    rules={[{ required: true, message: '请选择题目类型' }]}
+                    rules={[{ required: true, message: "请选择题目类型" }]}
                   >
                     <Select placeholder="请选择题目类型" size="large">
-                      <Option value="choice">选择题</Option>
-                      <Option value="fill_blank">填空题</Option>
-                      <Option value="matching">匹配题</Option>
-                      <Option value="application" disabled>应用题（暂未支持）</Option>
+                      {questionTypes.map((type) => (
+                        <Option key={type.value} value={type.value}>
+                          {type.label}
+                        </Option>
+                      ))}
                     </Select>
                   </Form.Item>
                 </Col>
               </Row>
-              
-              <Form.Item
-                label="相关课程（可选）"
-                name="courseId"
-              >
-                <Select 
-                  placeholder={selectedSubject ? "请选择相关课程" : "请先选择学科"} 
+
+              <Form.Item label="相关课程（可选）" name="courseId">
+                <Select
+                  placeholder={
+                    selectedSubject ? "请选择相关课程" : "请先选择学科"
+                  }
                   size="large"
                   disabled={!selectedSubject}
                   allowClear
                 >
-                  {filteredCourses.map(course => (
+                  {filteredCourses.map((course) => (
                     <Option key={course.id} value={course.id}>
                       {course.title}
                     </Option>
                   ))}
                 </Select>
               </Form.Item>
-              
+
               <Row gutter={16}>
                 <Col span={12}>
-                  <Form.Item
-                    label="题目相关性"
-                    name="relevance"
-                  >
-                    <Input placeholder="例如：函数、方程等（可选）" size="large" />
+                  <Form.Item label="题目相关性" name="relevance">
+                    <Input
+                      placeholder="例如：函数、方程等（可选）"
+                      size="large"
+                    />
                   </Form.Item>
                 </Col>
-                
+
                 <Col span={12}>
                   <Form.Item
                     label="题目难度"
@@ -687,27 +731,29 @@ const ExerciseList: React.FC = () => {
                     initialValue={2}
                   >
                     <Select placeholder="请选择难度" size="large">
-                      <Option value={1}>简单</Option>
-                      <Option value={2}>中等</Option>
-                      <Option value={3}>困难</Option>
+                      {difficultyOptions.map((option) => (
+                        <Option key={option.value} value={option.value}>
+                          {option.label}
+                        </Option>
+                      ))}
                     </Select>
                   </Form.Item>
                 </Col>
               </Row>
-              
+
               <Form.Item className="mb-0 mt-6">
                 <Space className="w-full justify-center">
                   <Button onClick={handleAiModalClose} size="large">
                     取消
                   </Button>
-                  <Button 
-                    type="primary" 
-                    htmlType="submit" 
+                  <Button
+                    type="primary"
+                    htmlType="submit"
                     loading={aiGenerating}
                     size="large"
                     icon={<RobotOutlined />}
                   >
-                    {aiGenerating ? '正在生成中...' : '开始生成'}
+                    {aiGenerating ? "正在生成中..." : "开始生成"}
                   </Button>
                 </Space>
               </Form.Item>

@@ -3,24 +3,41 @@ const { User, Student } = require('../models');
 
 const authenticate = async (req, res, next) => {
   try {
+    console.log('=== 后端认证中间件开始 ===');
     const authHeader = req.headers.authorization;
+    console.log('Authorization头:', authHeader ? `${authHeader.substring(0, 20)}...` : '无');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ 认证失败: 未提供认证令牌或格式错误');
       return res.status(401).json({ message: '未提供认证令牌' });
     }
     
     const token = authHeader.split(' ')[1];
-    const decoded = verifyToken(token);
+    console.log('提取的token:', token ? `${token.substring(0, 20)}...` : '无');
     
+    console.log('开始验证token...');
+    const decoded = verifyToken(token);
+    console.log('Token验证成功，decoded:', decoded);
+    
+    console.log('查找用户...');
     const user = await User.findByPk(decoded.id);
+    console.log('找到用户:', user ? { id: user.id, username: user.username, role: user.role } : '未找到');
     
     if (!user) {
+      console.log('❌ 认证失败: 用户不存在');
       return res.status(401).json({ message: '用户不存在' });
     }
     
     req.user = user;
+    console.log('✅ 认证成功');
+    console.log('=== 后端认证中间件结束 ===');
     next();
   } catch (error) {
+    console.log('=== 后端认证中间件错误 ===');
+    console.log('错误类型:', error.constructor.name);
+    console.log('错误消息:', error.message);
+    console.log('错误堆栈:', error.stack);
+    console.log('=== 后端认证中间件错误结束 ===');
     return res.status(401).json({ message: '认证失败: ' + error.message });
   }
 };

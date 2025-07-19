@@ -37,6 +37,10 @@ api.interceptors.request.use(
     // 获取当前请求的URL
     const requestUrl = config?.url || '';
     
+    console.log(`=== API请求拦截器 ===`);
+    console.log(`请求URL: ${requestUrl}`);
+    console.log(`请求方法: ${config.method}`);
+    
     // 调试日志：请求大小
     if (config.data && typeof config.data === 'object') {
       const dataSize = JSON.stringify(config.data).length;
@@ -50,17 +54,24 @@ api.interceptors.request.use(
     
     // 对于登录接口，不添加任何认证头
     if (requestUrl.includes(API_PATHS.LOGIN)) {
+      console.log(`登录接口，跳过token检查`);
       return config;
     }
     
     // 对于其他接口，添加token到header
     const token = getToken();
+    console.log(`当前token状态: ${token ? '存在' : '不存在'}`);
     if (token) {
+      console.log(`Token前10位: ${token.substring(0, 10)}...`);
       // 只使用标准Authorization头格式
       config.headers['Authorization'] = `Bearer ${token}`;
       // 移除冗余的x-auth-token
       // config.headers['x-auth-token'] = token;
+    } else {
+      console.warn(`⚠️ 没有token但尝试访问需要认证的接口: ${requestUrl}`);
     }
+    
+    console.log(`=== API请求拦截器结束 ===`);
     return config;
   },
   error => {
@@ -72,17 +83,33 @@ api.interceptors.request.use(
 // 响应拦截器
 api.interceptors.response.use(
   response => {
-    // 处理后端统一的响应格式 { err_no: 0, data: ... }
-    if (response.data && typeof response.data === 'object' && 'err_no' in response.data) {
-      const backendResponse = response.data as BackendResponse;
-      if (backendResponse.err_no === 0) {
-        // 成功响应，返回data字段
-        return backendResponse.data;
-      } else {
-        // 业务错误，抛出异常
-        const error = new Error(backendResponse.message || '请求失败') as ApiError;
-        error.response = response;
-        throw error;
+    // 处理后端统一的响应格式 { err_no: 0, data: ... } 或 { success: true, data: ... }
+    if (response.data && typeof response.data === 'object') {
+      // 处理 err_no 格式
+      if ('err_no' in response.data) {
+        const backendResponse = response.data as BackendResponse;
+        if (backendResponse.err_no === 0) {
+          // 成功响应，返回data字段
+          return backendResponse.data;
+        } else {
+          // 业务错误，抛出异常
+          const error = new Error(backendResponse.message || '请求失败') as ApiError;
+          error.response = response;
+          throw error;
+        }
+      }
+      // 处理 success 格式
+      else if ('success' in response.data) {
+        const successResponse = response.data as { success: boolean; data: any; message?: string };
+        if (successResponse.success) {
+          // 成功响应，返回data字段
+          return successResponse.data;
+        } else {
+          // 业务错误，抛出异常
+          const error = new Error(successResponse.message || '请求失败') as ApiError;
+          error.response = response;
+          throw error;
+        }
       }
     }
     // 对于不符合标准格式的响应，直接返回data
@@ -93,7 +120,8 @@ api.interceptors.response.use(
     // 阻止错误信息传播到全局的window.onerror事件
     error.preventDefault = () => {};
 
-    console.log('error 999', error);
+    console.log('=== API响应错误拦截器 ===');
+    console.log('错误对象:', error);
     
     const { response, config } = error;
     
@@ -101,10 +129,15 @@ api.interceptors.response.use(
     const requestUrl = config?.url || '';
     const isLoginRequest = requestUrl.includes(API_PATHS.LOGIN);
     
+    console.log(`错误请求URL: ${requestUrl}`);
+    console.log(`是否登录请求: ${isLoginRequest}`);
+    console.log(`响应状态: ${response?.status || '无响应'}`);
+    
     // 尝试获取后端返回的具体错误信息
     let errorMessage = '请求失败';
     
     if (response && response.data) {
+      console.log('响应数据:', response.data);
       // 尝试从响应数据中提取错误消息
       if (response.data.message) {
         errorMessage = response.data.message;
@@ -116,12 +149,17 @@ api.interceptors.response.use(
     } else if (!response) {
       // 网络错误等导致无响应
       errorMessage = '网络连接错误，请检查您的网络';
+      console.log('网络错误，无响应');
     }
     
     // 401错误特殊处理：如果不是登录接口，则触发登出流程
     if (response && response.status === 401 && !isLoginRequest) {
+      console.log('🚨 检测到401错误，非登录接口');
+      console.log(`当前token状态: ${getToken() ? '存在' : '不存在'}`);
+      
       // 防止多次重定向，添加一个标志位到localStorage
       if (!localStorage.getItem('redirecting_to_login')) {
+        console.log('💡 设置重定向标志并清除token');
         localStorage.setItem('redirecting_to_login', 'true');
         
         // 清除token并重定向到登录页
@@ -130,7 +168,10 @@ api.interceptors.response.use(
         // 添加定时器清除标志位
         setTimeout(() => {
           localStorage.removeItem('redirecting_to_login');
+          console.log('🔄 清除重定向标志');
         }, 3000);
+      } else {
+        console.log('⚠️ 已有重定向标志，跳过重复处理');
       }
       
       errorMessage = '登录已过期，请重新登录';
@@ -141,6 +182,9 @@ api.interceptors.response.use(
     if (!isLoginRequest) {
       antMessage.error(errorMessage);
     }
+    
+    console.log(`最终错误消息: ${errorMessage}`);
+    console.log('=== API响应错误拦截器结束 ===');
     
     // 自定义错误对象，确保它包含我们提取的错误消息
     const customError = new Error(errorMessage) as ApiError;

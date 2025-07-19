@@ -1,10 +1,19 @@
-const { Exercise, Course, Subject } = require('../../models');
+const { Exercise, Course, Subject, User, Grade, Unit } = require('../../models');
 
 // 获取所有练习题
 exports.getAllExercises = async (req, res) => {
   try {
-    const { search, subject, difficulty, type } = req.query;
+    const { search, subject, difficulty, type, status, gradeId, courseId } = req.query;
     const whereClause = {};
+    
+    // 基于用户角色的权限控制
+    const userRole = req.user.role;
+    const currentUserId = req.user.id;
+    
+    // 如果不是管理员或超级管理员，只能看到自己创建的习题
+    if (!['admin', 'superadmin'].includes(userRole)) {
+      whereClause.createdBy = currentUserId;
+    }
     
     // 添加搜索条件
     if (search) {
@@ -28,15 +37,47 @@ exports.getAllExercises = async (req, res) => {
       whereClause.type = type;
     }
     
+    if (status) {
+      whereClause.status = status;
+    }
+    
+    if (gradeId) {
+      whereClause.gradeId = parseInt(gradeId);
+    }
+    
+    if (courseId) {
+      whereClause.courseId = courseId;
+    }
+    
     const exercises = await Exercise.findAll({
       where: whereClause,
       include: [
         {
           model: Subject,
           attributes: ['id', 'name', 'code']
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'name', 'username']
+        },
+        {
+          model: Grade,
+          as: 'grade',
+          attributes: ['id', 'name', 'order']
+        },
+        {
+          model: Unit,
+          as: 'unit',
+          attributes: ['id', 'title']
+        },
+        {
+          model: Course,
+          as: 'course',
+          attributes: ['id', 'title']
         }
       ],
-      order: [['id', 'ASC']]
+      order: [['createdAt', 'DESC']]
     });
     
       // 为每个习题查找相关的课程信息
@@ -65,6 +106,11 @@ exports.getAllExercises = async (req, res) => {
       hints: exercise.hints,
       knowledgePointIds: exercise.knowledgePointIds || [],
       isAI: exercise.isAI,
+      status: exercise.status,
+      gradeId: exercise.gradeId,
+      unitId: exercise.unitId,
+      courseId: exercise.courseId,
+      createdBy: exercise.createdBy,
       createdAt: exercise.createdAt,
       updatedAt: exercise.updatedAt,
       relatedCourses: relatedCourses.map(course => ({
@@ -76,6 +122,24 @@ exports.getAllExercises = async (req, res) => {
         id: exercise.Subject.id,
         name: exercise.Subject.name,
         code: exercise.Subject.code
+      } : undefined,
+      creator: exercise.creator ? {
+        id: exercise.creator.id,
+        name: exercise.creator.name,
+        username: exercise.creator.username
+      } : undefined,
+      grade: exercise.grade ? {
+        id: exercise.grade.id,
+        name: exercise.grade.name,
+        order: exercise.grade.order
+      } : undefined,
+      unit: exercise.unit ? {
+        id: exercise.unit.id,
+        title: exercise.unit.title
+      } : undefined,
+      course: exercise.course ? {
+        id: exercise.course.id,
+        title: exercise.course.title
       } : undefined
     };
   }));
@@ -286,6 +350,26 @@ exports.getExerciseById = async (req, res) => {
         {
           model: Subject,
           attributes: ['id', 'name', 'code']
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'name', 'username']
+        },
+        {
+          model: Grade,
+          as: 'grade',
+          attributes: ['id', 'name', 'order']
+        },
+        {
+          model: Unit,
+          as: 'unit',
+          attributes: ['id', 'title']
+        },
+        {
+          model: Course,
+          as: 'course',
+          attributes: ['id', 'title']
         }
       ]
     });
@@ -323,6 +407,11 @@ exports.getExerciseById = async (req, res) => {
       hints: exercise.hints,
       knowledgePointIds: exercise.knowledgePointIds || [],
       isAI: exercise.isAI,
+      status: exercise.status,
+      gradeId: exercise.gradeId,
+      unitId: exercise.unitId,
+      courseId: exercise.courseId,
+      createdBy: exercise.createdBy,
       createdAt: exercise.createdAt,
       updatedAt: exercise.updatedAt,
       relatedCourses: relatedCourses.map(course => ({
@@ -330,7 +419,29 @@ exports.getExerciseById = async (req, res) => {
         title: course.title,
         subject: course.subject
       })),
-      subjectInfo: exercise.Subject
+      subjectInfo: exercise.Subject ? {
+        id: exercise.Subject.id,
+        name: exercise.Subject.name,
+        code: exercise.Subject.code
+      } : undefined,
+      creator: exercise.creator ? {
+        id: exercise.creator.id,
+        name: exercise.creator.name,
+        username: exercise.creator.username
+      } : undefined,
+      grade: exercise.grade ? {
+        id: exercise.grade.id,
+        name: exercise.grade.name,
+        order: exercise.grade.order
+      } : undefined,
+      unit: exercise.unit ? {
+        id: exercise.unit.id,
+        title: exercise.unit.title
+      } : undefined,
+      course: exercise.course ? {
+        id: exercise.course.id,
+        title: exercise.course.title
+      } : undefined
     };
     
     return res.status(200).json({
@@ -362,7 +473,11 @@ exports.createExercise = async (req, res) => {
       media,
       hints,
       knowledgePointIds,
-      isAI
+      isAI,
+      gradeId,
+      unitId,
+      courseId,
+      status
     } = req.body;
     
     // 验证必填字段
@@ -452,7 +567,12 @@ exports.createExercise = async (req, res) => {
       media: media || null,
       hints: hints || null,
       knowledgePointIds: knowledgePointIds || [],
-      isAI: isAI || false
+      isAI: isAI || false,
+      createdBy: req.user.id,
+      status: status || 'draft',
+      gradeId: gradeId || null,
+      unitId: unitId || null,
+      courseId: courseId || null
     };
     
     const exercise = await Exercise.create(exerciseData);
@@ -463,6 +583,26 @@ exports.createExercise = async (req, res) => {
         {
           model: Subject,
           attributes: ['id', 'name', 'code']
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'name', 'username']
+        },
+        {
+          model: Grade,
+          as: 'grade',
+          attributes: ['id', 'name', 'order']
+        },
+        {
+          model: Unit,
+          as: 'unit',
+          attributes: ['id', 'title']
+        },
+        {
+          model: Course,
+          as: 'course',
+          attributes: ['id', 'title']
         }
       ]
     });
@@ -483,9 +623,18 @@ exports.createExercise = async (req, res) => {
         hints: createdExercise.hints,
         knowledgePointIds: createdExercise.knowledgePointIds || [],
         isAI: createdExercise.isAI,
+        status: createdExercise.status,
+        gradeId: createdExercise.gradeId,
+        unitId: createdExercise.unitId,
+        courseId: createdExercise.courseId,
+        createdBy: createdExercise.createdBy,
         createdAt: createdExercise.createdAt,
         updatedAt: createdExercise.updatedAt,
-        subjectInfo: createdExercise.Subject
+        subjectInfo: createdExercise.Subject,
+        creator: createdExercise.creator,
+        grade: createdExercise.grade,
+        unit: createdExercise.unit,
+        course: createdExercise.course
       }
     });
     
@@ -513,13 +662,70 @@ exports.updateExercise = async (req, res) => {
         data: null
       });
     }
+
+    // 权限检查：只有创建者或管理员可以修改
+    if (exercise.createdBy !== req.user.id && !['admin', 'superadmin'].includes(req.user.role)) {
+      return res.status(403).json({
+        err_no: 403,
+        message: '没有权限修改此习题'
+      });
+    }
+
+    // 状态流转控制
+    const currentStatus = exercise.status;
+    
+    // 检查是否可以编辑
+    if (currentStatus === 'published' || currentStatus === 'under_review') {
+      // 管理员可以修改任何状态，普通用户只能在特定状态下修改
+      if (!['admin', 'superadmin'].includes(req.user.role)) {
+        return res.status(403).json({
+          err_no: 403,
+          message: '当前状态下无法修改习题'
+        });
+      }
+    }
+
+    // 如果不是管理员，限制普通用户只能在draft和rejected状态下修改
+    if (!['admin', 'superadmin'].includes(req.user.role) && !['draft', 'rejected'].includes(currentStatus)) {
+      return res.status(403).json({
+        err_no: 403,
+        message: '只有草稿和退回状态的习题可以修改'
+      });
+    }
+
+    // 管理员可以修改任何状态，普通用户只能在特定状态转换中修改状态
+    const isAdmin = ['admin', 'superadmin'].includes(req.user.role);
     
     const updateData = {};
     const fields = [
       'subject', 'title', 'question', 'options', 'correctAnswer',
       'explanation', 'type', 'difficulty', 'media', 'hints',
-      'knowledgePointIds', 'isAI'
+      'knowledgePointIds', 'isAI', 'gradeId', 'unitId', 'courseId'
     ];
+
+    // 状态更新逻辑
+    if (req.body.status !== undefined) {
+      const newStatus = req.body.status;
+      
+      if (isAdmin) {
+        // 管理员可以修改到任何状态
+        fields.push('status');
+      } else {
+        // 普通用户只能进行特定的状态转换
+        if (currentStatus === 'draft' && newStatus === 'pending') {
+          // 允许从草稿提交到待审核
+          fields.push('status');
+        } else if (currentStatus === 'rejected' && newStatus === 'pending') {
+          // 允许从退回重新提交到待审核
+          fields.push('status');
+        } else {
+          return res.status(403).json({
+            err_no: 403,
+            message: `不允许的状态转换：从 ${currentStatus} 到 ${newStatus}`
+          });
+        }
+      }
+    }
     
     // 只更新提供的字段，并进行数据格式处理
     fields.forEach(field => {
@@ -568,6 +774,26 @@ exports.updateExercise = async (req, res) => {
         {
           model: Subject,
           attributes: ['id', 'name', 'code']
+        },
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'name', 'username']
+        },
+        {
+          model: Grade,
+          as: 'grade',
+          attributes: ['id', 'name', 'order']
+        },
+        {
+          model: Unit,
+          as: 'unit',
+          attributes: ['id', 'title']
+        },
+        {
+          model: Course,
+          as: 'course',
+          attributes: ['id', 'title']
         }
       ]
     });
@@ -588,9 +814,18 @@ exports.updateExercise = async (req, res) => {
         hints: exercise.hints,
         knowledgePointIds: exercise.knowledgePointIds || [],
         isAI: exercise.isAI,
+        status: exercise.status,
+        gradeId: exercise.gradeId,
+        unitId: exercise.unitId,
+        courseId: exercise.courseId,
+        createdBy: exercise.createdBy,
         createdAt: exercise.createdAt,
         updatedAt: exercise.updatedAt,
-        subjectInfo: exercise.Subject
+        subjectInfo: exercise.Subject,
+        creator: exercise.creator,
+        grade: exercise.grade,
+        unit: exercise.unit,
+        course: exercise.course
       }
     });
   } catch (error) {

@@ -228,6 +228,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '一元二次方程', 
         description: '一元二次方程的解法和应用',
         unitType: 'normal',
+        gradeId: mathGrade7SubjectGrade.grade.id,
         exerciseIds: ['math-1', 'math-2', 'math-3']
       },
       { 
@@ -236,6 +237,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '因式分解', 
         description: '多项式的因式分解方法',
         unitType: 'normal',
+        gradeId: mathGrade7SubjectGrade.grade.id,
         exerciseIds: ['math-4', 'math-5']
       },
       { 
@@ -244,6 +246,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '配方法', 
         description: '使用配方法解一元二次方程',
         unitType: 'normal',
+        gradeId: mathGrade7SubjectGrade.grade.id,
         exerciseIds: ['math-6', 'math-7']
       },
       { 
@@ -253,6 +256,7 @@ const initUnitsAndCourses = async (subjects) => {
         description: '代数章节综合测试',
         unitType: 'exercise', 
         position: 'right',
+        gradeId: mathGrade7SubjectGrade.grade.id,
         exerciseIds: ['math-8', 'math-9', 'math-10']
       },
       { 
@@ -261,6 +265,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '二次函数', 
         description: '二次函数的性质和图像',
         unitType: 'normal',
+        gradeId: mathGrade7SubjectGrade.grade.id,
         exerciseIds: ['math-11', 'math-12']
       },
       { 
@@ -269,6 +274,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '二次函数应用', 
         description: '二次函数在实际问题中的应用',
         unitType: 'normal',
+        gradeId: mathGrade7SubjectGrade.grade.id,
         exerciseIds: ['math-13', 'math-14']
       }
     ];
@@ -298,6 +304,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '三角形', 
         description: '三角形的性质和计算',
         unitType: 'normal',
+        gradeId: mathGrade7SubjectGrade.grade.id,
         exerciseIds: ['math-15', 'math-16']
       },
       { 
@@ -306,6 +313,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '圆', 
         description: '圆的性质和计算',
         unitType: 'normal',
+        gradeId: mathGrade7SubjectGrade.grade.id,
         exerciseIds: ['math-17', 'math-18']
       },
       { 
@@ -314,6 +322,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '几何综合', 
         description: '几何章节综合练习',
         unitType: 'exercise',
+        gradeId: mathGrade7SubjectGrade.grade.id,
         exerciseIds: ['math-19', 'math-20']
       }
     ];
@@ -343,6 +352,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '数据统计', 
         description: '数据的收集整理和分析',
         unitType: 'normal',
+        gradeId: mathGrade7SubjectGrade.grade.id,
         exerciseIds: ['math-21', 'math-22']
       },
       { 
@@ -351,6 +361,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '概率计算', 
         description: '概率的基本概念和计算',
         unitType: 'normal',
+        gradeId: mathGrade7SubjectGrade.grade.id,
         exerciseIds: ['math-23', 'math-24']
       },
       { 
@@ -359,6 +370,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '匹配练习', 
         description: '数学匹配题练习（新格式）',
         unitType: 'exercise',
+        gradeId: mathGrade7SubjectGrade.grade.id,
         exerciseIds: ['math-matching-1', 'math-matching-2']
       }
     ];
@@ -394,6 +406,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '运动学', 
         description: '描述物体运动的规律',
         unitType: 'normal',
+        gradeId: physicsGrade8SubjectGrade.grade.id,
         exerciseIds: ['physics-1', 'physics-2']
       },
       { 
@@ -402,6 +415,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '力学', 
         description: '研究力与运动的关系',
         unitType: 'normal',
+        gradeId: physicsGrade8SubjectGrade.grade.id,
         exerciseIds: ['physics-3', 'physics-4']
       }
     ];
@@ -437,6 +451,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '原子结构', 
         description: '原子的组成和结构',
         unitType: 'normal',
+        gradeId: chemistryGrade9SubjectGrade.grade.id,
         exerciseIds: ['chemistry-1', 'chemistry-2']
       }
     ];
@@ -472,6 +487,7 @@ const initUnitsAndCourses = async (subjects) => {
         title: '细胞结构', 
         description: '细胞的基本结构和组成',
         unitType: 'normal',
+        gradeId: biologyGrade7SubjectGrade.grade.id,
         exerciseIds: ['biology-1', 'biology-2']
       }
     ];

@@ -30,6 +30,11 @@ import { getGrades, type Grade } from "../../services/gradeService";
 import { getCourses, type Course } from "../../services/courseService";
 import { getAllUnits, type Unit } from "../../services/unitService";
 import { useUser } from "../../contexts/UserContext";
+import { 
+  getStatusOptions as getCommonStatusOptions, 
+  getStatusLabel as getCommonStatusLabel,
+  getStatusColor 
+} from "../../constants/status";
 
 // 根据课程ID查找单元的辅助函数
 const findUnitByCourseId = (courseId: string, units: Unit[]): Unit | null => {
@@ -70,6 +75,7 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
   const [selectedSubject, setSelectedSubject] = useState<string>("");
   const [selectedUnit, setSelectedUnit] = useState<string>("");
   const [selectedCourse, setSelectedCourse] = useState<string>("");
+  const [resourceDetails, setResourceDetails] = useState<MediaResource | null>(null);
 
   // 资源类型选项
   const resourceTypes = [
@@ -84,26 +90,9 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
     { value: "video", label: "视频" },
   ];
 
-  // 状态选项（只有管理员和超级管理员可见）
-  const statusOptions = [
-    { value: "draft", label: "草稿", color: "gray" },
-    { value: "pending", label: "待审核", color: "orange" },
-    { value: "published", label: "已发布", color: "green" },
-    { value: "under_review", label: "审核中", color: "blue" },
-    { value: "rejected", label: "已退回", color: "red" },
-  ];
-
-  // 状态显示标签
-  const getStatusLabel = (status: string) => {
-    const statusMap = {
-      draft: "草稿",
-      pending: "待审核",
-      published: "已发布",
-      under_review: "审核中",
-      rejected: "已退回",
-    };
-    return statusMap[status as keyof typeof statusMap] || status;
-  };
+  // 使用通用的状态选项和标签
+  const statusOptions = getCommonStatusOptions();
+  const getStatusLabel = getCommonStatusLabel;
 
   // 判断是否可以编辑
   const isEditable = () => {
@@ -171,6 +160,19 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
       setUnits(allUnits);
     } catch (error) {
       console.error("加载单元数据失败:", error);
+    }
+  };
+
+  // 重新加载媒体资源详情数据
+  const loadResourceDetails = async (resourceId: number) => {
+    try {
+      const response = await mediaResourceService.getMediaResource(resourceId);
+      console.log("重新获取的媒体资源详情:", response);
+      
+      // 设置完整的资源详情数据
+      setResourceDetails(response.data);
+    } catch (error) {
+      console.error("加载媒体资源详情失败:", error);
     }
   };
 
@@ -332,6 +334,8 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
       // 在编辑模式下也需要加载所有单元数据，用于显示关联信息
       if (resource) {
         loadAllUnitsForDisplay();
+        // 重新获取完整的媒体资源详情数据
+        loadResourceDetails(resource.id);
       }
 
       if (resource) {
@@ -436,6 +440,7 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
         setSelectedCourse("");
         setUnits([]);
         setCourses([]);
+        setResourceDetails(null);
       }
     }
   }, [visible, resource, form]);
@@ -898,7 +903,10 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
         )}
 
         {/* 已关联信息显示区域 - 编辑模式下显示 */}
-        {resource && resource.courses && resource.courses.length > 0 && (
+        {resource && (() => {
+          const displayRes = resourceDetails || resource;
+          return displayRes?.courses && displayRes.courses.length > 0;
+        })() && (
           <Card
             size="small"
             className="mb-6"
@@ -915,7 +923,11 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
             </div>
 
             {(() => {
-              const course = resource.courses[0];
+              const displayResource = resourceDetails || resource;
+              if (!displayResource?.courses || displayResource.courses.length === 0) {
+                return <div className="text-gray-500">关联信息加载中...</div>;
+              }
+              const course = displayResource.courses[0];
               const unit = findUnitByCourseId(course.id, units);
               
               return (
@@ -1023,13 +1035,13 @@ const MediaResourceForm: React.FC<MediaResourceFormProps> = ({
                   <Option key={status.value} value={status.value}>
                     <span
                       className={`inline-block w-2 h-2 rounded-full mr-2 ${
-                        status.color === "green"
+                        getStatusColor(status.value) === "green"
                           ? "bg-green-500"
-                          : status.color === "orange"
+                          : getStatusColor(status.value) === "orange"
                           ? "bg-orange-500"
-                          : status.color === "blue"
+                          : getStatusColor(status.value) === "blue"
                           ? "bg-blue-500"
-                          : status.color === "red"
+                          : getStatusColor(status.value) === "red"
                           ? "bg-red-500"
                           : "bg-gray-500"
                       }`}

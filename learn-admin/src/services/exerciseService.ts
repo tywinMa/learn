@@ -1,5 +1,10 @@
 import { message } from 'antd';
 import api from './api';
+import type { StatusValue, StatusOption } from '../constants/status';
+import { 
+  getStatusOptions as getCommonStatusOptions, 
+  getStatusLabel as getCommonStatusLabel 
+} from '../constants/status';
 
 // 匹配题选项类型
 export interface MatchingOptions {
@@ -49,6 +54,11 @@ export interface Exercise {
   hints?: any;
   knowledgePointIds?: string[];
   isAI?: boolean;
+  status?: StatusValue;
+  gradeId?: number;
+  unitId?: string;
+  courseId?: string;
+  createdBy?: number;
   createdAt: string;
   updatedAt: string;
   course?: {
@@ -60,6 +70,20 @@ export interface Exercise {
     id: string;
     name: string;
     code: string;
+  };
+  creator?: {
+    id: number;
+    name: string;
+    username: string;
+  };
+  grade?: {
+    id: number;
+    name: string;
+    order: number;
+  };
+  unit?: {
+    id: string;
+    title: string;
   };
 }
 
@@ -77,6 +101,10 @@ export interface CreateExerciseParams {
   hints?: any;
   knowledgePointIds?: string[];
   isAI?: boolean;
+  status?: StatusValue;
+  gradeId?: number;
+  unitId?: string;
+  courseId?: string;
 }
 
 // 更新练习题请求参数类型
@@ -93,14 +121,39 @@ export interface UpdateExerciseParams {
   hints?: any;
   knowledgePointIds?: string[];
   isAI?: boolean;
+  status?: StatusValue;
+  gradeId?: number;
+  unitId?: string;
+  courseId?: string;
+}
+
+// 练习题查询过滤参数
+export interface ExerciseFilters {
+  search?: string;
+  subject?: string;
+  type?: string;
+  difficulty?: string;
+  status?: string;
+  gradeId?: number;
+  courseId?: string;
 }
 
 /**
  * 获取所有练习题
  */
-export const getAllExercises = async (): Promise<Exercise[]> => {
+export const getAllExercises = async (filters?: ExerciseFilters): Promise<Exercise[]> => {
   try {
-    const response = await api.get('/api/admin/exercises');
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          params.append(key, value.toString());
+        }
+      });
+    }
+    
+    const url = `/api/admin/exercises${params.toString() ? `?${params.toString()}` : ''}`;
+    const response = await api.get(url);
     return response as unknown as Exercise[];
   } catch (error) {
     console.error('获取所有习题失败:', error);
@@ -215,4 +268,8 @@ export const deleteExercise = async (id: string): Promise<boolean> => {
     message.error('删除习题失败');
     return false;
   }
-}; 
+};
+
+// 导出通用的状态函数
+export const getStatusOptions = getCommonStatusOptions;
+export const getStatusLabel = getCommonStatusLabel; 

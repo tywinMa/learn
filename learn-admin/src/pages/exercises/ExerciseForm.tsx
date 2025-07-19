@@ -1,21 +1,46 @@
 import React, { useState, useEffect } from "react";
-import { Form, Input, Button, Card, Select, Radio, Space, Divider, message, Spin, Typography, Row, Col, Transfer } from "antd";
+import {
+  Form,
+  Input,
+  Button,
+  Card,
+  Select,
+  Radio,
+  Space,
+  Divider,
+  message,
+  Spin,
+  Typography,
+  Row,
+  Col,
+  Transfer,
+  Switch,
+  Tag,
+} from "antd";
 import {
   PlusOutlined,
   MinusCircleOutlined,
   CheckCircleOutlined,
-  InfoCircleOutlined,
-  QuestionCircleOutlined,
   ArrowLeftOutlined,
 } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import "./ExerciseForm.css";
-import { getExerciseById, createExercise, updateExercise } from "../../services/exerciseService";
+import {
+  getExerciseById,
+  createExercise,
+  updateExercise,
+  getStatusOptions,
+  getStatusLabel,
+} from "../../services/exerciseService";
+import { getStatusColor, type StatusValue } from "../../constants/status";
 import { getCourses } from "../../services/courseService";
 import { getKnowledgePointsForSelect } from "../../services/knowledgePointService";
 import { getSubjects } from "../../services/subjectService";
+import { getGrades } from "../../services/gradeService";
+import { getAllUnits } from "../../services/unitService";
+import { useUser } from "../../contexts/UserContext";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -37,752 +62,865 @@ const difficultyOptions = [
 ];
 
 interface FormValues {
-  subject: string;
   title: string;
-  type: "choice" | "fill_blank" | "application" | "matching";
+  type: string;
   difficulty: number;
+  subject: string;
+  gradeId: number;
+  unitId: string;
+  courseId: string;
   question: string;
-  options?: any;
-  correctAnswer?: any;
-  explanation?: string;
-  knowledgePointIds?: string[];
-}
-
-interface TransferKnowledgePoint {
-  key: string;
-  title: string;
-  description: string;
+  explanation: string;
+  options?: string[];
+  correctAnswer?: string;
+  keywords?: string;
+  knowledgePoints?: string[];
+  status?: string;
 }
 
 const ExerciseForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const isEditMode = !!id;
+  const { user } = useUser();
 
   const [form] = Form.useForm<FormValues>();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // 基础数据状态
+  const [grades, setGrades] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [units, setUnits] = useState<any[]>([]);
   const [courses, setCourses] = useState<any[]>([]);
   const [knowledgePoints, setKnowledgePoints] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
+
+  // 选择状态
+  const [selectedGrade, setSelectedGrade] = useState<string>("");
   const [selectedSubject, setSelectedSubject] = useState<string>("");
-  
+  const [selectedUnit, setSelectedUnit] = useState<string>("");
+  const [selectedCourse, setSelectedCourse] = useState<string>("");
+
   // Transfer组件相关状态
-  const [knowledgePointsData, setKnowledgePointsData] = useState<TransferKnowledgePoint[]>([]);
-  const [selectedKnowledgePointKeys, setSelectedKnowledgePointKeys] = useState<string[]>([]);
+  const [knowledgePointsData, setKnowledgePointsData] = useState<any[]>([]);
+  const [selectedKnowledgePointKeys, setSelectedKnowledgePointKeys] = useState<
+    string[]
+  >([]);
 
-  // 初始化表单
-  const initialValues: FormValues = {
-    subject: "math",
-    title: "",
-    type: "choice",
-    difficulty: 2,
-    question: "",
-    options: [
-      { content: "", isCorrect: false },
-      { content: "", isCorrect: false },
-      { content: "", isCorrect: false },
-      { content: "", isCorrect: false },
-    ],
-    correctAnswer: null,
-    explanation: "",
-    knowledgePointIds: [],
+  // 当前习题数据
+  const [currentExercise, setCurrentExercise] = useState<any>(null);
+
+  // 权限检查
+  const canModifyStatus = () => {
+    return user && ["admin", "superadmin"].includes(user.role || "");
   };
 
-  // 获取课程列表和知识点列表
+  const canEdit = () => {
+    if (!currentExercise) return true; // 新增模式总是可编辑
+    if (canModifyStatus()) return true; // 管理员可以编辑任何状态
+    return (
+      currentExercise.createdBy === user?.id &&
+      ["draft", "rejected"].includes(currentExercise.status)
+    );
+  };
+
+  const canSubmit = () => {
+    if (!currentExercise) return true; // 新增模式可以提交
+    if (canModifyStatus()) return true; // 管理员可以提交任何状态
+    return (
+      currentExercise.createdBy === user?.id &&
+      ["draft", "rejected"].includes(currentExercise.status)
+    );
+  };
+
+  // 判断是否可以编辑课程关联设置（只有管理员或新增模式可以编辑）
+  const canEditCourseAssociation = () => {
+    return !currentExercise || canModifyStatus(); // 新增模式或管理员可以编辑
+  };
+
+  // 加载基础数据
   useEffect(() => {
-    const fetchSubjects = async () => {
-      try {
-        const subjectsData = await getSubjects();
-        console.log("从API获取的学科数据:", subjectsData);
-        const formattedSubjects = subjectsData.map((subject) => ({
-          value: subject.code,
-          label: subject.name,
-        }));
-        console.log("格式化后的学科选项:", formattedSubjects);
-        setSubjects(formattedSubjects);
-      } catch (error) {
-        console.error("获取学科列表失败:", error);
-      }
-    };
+    loadGrades();
+    loadSubjects();
+    loadKnowledgePoints();
 
-    const fetchCourses = async () => {
-      try {
-        const coursesData = await getCourses();
-        setCourses(coursesData); // 直接使用返回的数组
-      } catch (error) {
-        console.error("获取课程列表失败:", error);
-      }
-    };
+    if (isEditMode && id) {
+      loadExerciseData(id);
+    }
+  }, [isEditMode, id]);
 
-    const fetchKnowledgePoints = async () => {
-      try {
-        // 初始化时加载默认学科（math）的知识点
-        const defaultSubject = "math";
-        const kpData = await getKnowledgePointsForSelect(defaultSubject);
-        setKnowledgePoints(kpData);
-        setSelectedSubject(defaultSubject);
-        
-        // 转换为Transfer组件需要的格式
-        const transferData = kpData.map((kp: any) => ({
-          key: kp.id.toString(),
-          title: kp.title,
-          description: `学科: ${kp.subject}`,
-        }));
-        setKnowledgePointsData(transferData);
-      } catch (error) {
-        console.error("获取知识点列表失败:", error);
-      }
-    };
-
-    fetchSubjects();
-    fetchCourses();
-    fetchKnowledgePoints();
-  }, []);
-
-  // 学科变化时过滤课程和知识点
-  const handleSubjectChange = async (subject: string) => {
-    setSelectedSubject(subject);
-    form.setFieldValue("knowledgePointIds", []); // 清空知识点选择
-    setSelectedKnowledgePointKeys([]); // 清空Transfer选择
-
-    // 重新获取该学科的知识点
+  const loadGrades = async () => {
     try {
-      const kpData = await getKnowledgePointsForSelect(subject);
-      setKnowledgePoints(kpData);
-      
-      // 转换为Transfer组件需要的格式
-      const transferData = kpData.map((kp: any) => ({
-        key: kp.id.toString(),
-        title: kp.title,
-        description: `学科: ${kp.subject}`,
-      }));
-      setKnowledgePointsData(transferData);
+      const gradesData = await getGrades();
+      setGrades(gradesData);
     } catch (error) {
-      console.error("获取知识点列表失败:", error);
+      console.error("加载年级数据失败:", error);
     }
   };
 
-  // Transfer组件变化处理
-  const handleKnowledgePointTransferChange = (targetKeys: React.Key[]) => {
-    const keys = targetKeys.map(key => key.toString());
-    setSelectedKnowledgePointKeys(keys);
-    // 同步更新表单数据
-    form.setFieldValue("knowledgePointIds", keys);
+  const loadSubjects = async () => {
+    try {
+      const subjectsData = await getSubjects();
+      setSubjects(subjectsData);
+    } catch (error) {
+      console.error("加载学科数据失败:", error);
+    }
   };
 
-  // 获取当前学科的课程
-  const filteredCourses = selectedSubject
-    ? courses.filter((course) => course.subjectName === selectedSubject)
-    : courses;
-
-  // 处理题型变更
-  const handleTypeChange = (type: string) => {
-    let options;
-    let correctAnswer = null;
-
-    switch (type) {
-      case "choice":
-        options = [
-          { content: "", isCorrect: false },
-          { content: "", isCorrect: false },
-          { content: "", isCorrect: false },
-          { content: "", isCorrect: false },
-        ];
-        break;
-      case "matching":
-        options = {
-          left: ["", "", "", ""],
-          right: ["", "", "", ""],
-        };
-        correctAnswer = {
-          "0": "0",
-          "1": "1", 
-          "2": "2",
-          "3": "3"
-        };
-        break;
-      case "fill_blank":
-        options = null;
-        correctAnswer = [""];
-        break;
-      case "application":
-        options = {
-          allowPhoto: true,
-          hint: "请解答并上传图片",
-        };
-        correctAnswer = "";
-        break;
+  const loadUnits = async (gradeId: string, subjectCode: string) => {
+    try {
+      const allUnits = await getAllUnits();
+      const filteredUnits = allUnits.filter((unit) => {
+        if (unit.subjectGrade) {
+          return (
+            unit.subjectGrade.gradeId === parseInt(gradeId) &&
+            unit.subjectGrade.subjectCode === subjectCode
+          );
+        }
+        return false;
+      });
+      setUnits(filteredUnits);
+      return filteredUnits;
+    } catch (error) {
+      console.error("加载单元数据失败:", error);
+      message.error("加载单元数据失败");
+      return [];
     }
+  };
 
+  const loadCoursesByUnit = async (unitId: string) => {
+    try {
+      // 找到选中的单元
+      const selectedUnitObj = units.find((unit) => unit.id === unitId);
+      if (
+        !selectedUnitObj ||
+        !selectedUnitObj.courseIds ||
+        selectedUnitObj.courseIds.length === 0
+      ) {
+        console.log("未找到单元或单元没有课程关联:", unitId);
+        console.log(
+          "可用的单元列表:",
+          units.map((u) => ({
+            id: u.id,
+            title: u.title,
+            courseIds: u.courseIds,
+          }))
+        );
+        setCourses([]);
+        return;
+      }
+
+      console.log("=== 根据单元筛选课程调试信息 ===");
+      console.log("选中的单元:", selectedUnitObj);
+      console.log("单元包含的课程ID:", selectedUnitObj.courseIds);
+      console.log("单元courseIds类型:", typeof selectedUnitObj.courseIds[0]);
+
+      // 获取所有课程
+      const allCourses = await getCourses();
+      console.log("获取到的所有课程数量:", allCourses.length);
+      console.log(
+        "前几个课程示例:",
+        allCourses
+          .slice(0, 3)
+          .map((c) => ({ id: c.id, title: c.title, idType: typeof c.id }))
+      );
+
+      // 根据单元的courseIds筛选课程
+      const filteredCourses = allCourses.filter((course) =>
+        selectedUnitObj.courseIds?.includes(course.id)
+      );
+
+      console.log(`根据单元${unitId}筛选课程结果:`, filteredCourses);
+      console.log("筛选出的课程数量:", filteredCourses.length);
+
+      // 逐个检查为什么课程没有被筛选出来
+      if (filteredCourses.length === 0) {
+        console.log("没有筛选出课程，详细检查原因:");
+        selectedUnitObj.courseIds.forEach((unitCourseId: string) => {
+          const matchedCourse = allCourses.find(
+            (course) => course.id === unitCourseId
+          );
+          console.log(
+            `  期望课程ID "${unitCourseId}" (${typeof unitCourseId}) -> ${
+              matchedCourse ? "找到" : "未找到"
+            }`
+          );
+          if (!matchedCourse) {
+            // 尝试类型转换匹配
+            const stringMatchedCourse = allCourses.find(
+              (course) => String(course.id) === String(unitCourseId)
+            );
+            console.log(
+              `    字符串匹配尝试: ${stringMatchedCourse ? "找到" : "未找到"}`
+            );
+          }
+        });
+        console.log(
+          "所有课程的ID:",
+          allCourses.map((c) => c.id)
+        );
+      }
+
+      console.log("=== 根据单元筛选课程调试信息结束 ===");
+      setCourses(filteredCourses);
+    } catch (error) {
+      console.error("根据单元加载课程数据失败:", error);
+      message.error("根据单元加载课程数据失败");
+    }
+  };
+
+  const loadKnowledgePoints = async () => {
+    try {
+      const kpData = await getKnowledgePointsForSelect();
+      setKnowledgePoints(kpData);
+      setKnowledgePointsData(
+        kpData.map((kp) => ({
+          key: kp.id,
+          title: kp.title,
+        }))
+      );
+    } catch (error) {
+      console.error("加载知识点数据失败:", error);
+    }
+  };
+
+  const loadExerciseData = async (exerciseId: string) => {
+    try {
+      setLoading(true);
+      const exercise = await getExerciseById(exerciseId);
+      if (!exercise) {
+        message.error("习题数据不存在");
+        return;
+      }
+
+      setCurrentExercise(exercise);
+
+      // 设置表单数据
+      form.setFieldsValue({
+        title: exercise.title,
+        type: exercise.type,
+        difficulty: exercise.difficulty,
+        subject: exercise.subject,
+        gradeId: exercise.gradeId,
+        unitId: exercise.unitId,
+        courseId: exercise.courseId,
+        question: exercise.question,
+        explanation: exercise.explanation,
+        options: exercise.options || [],
+        correctAnswer: exercise.correctAnswer,
+
+        status: exercise.status,
+      });
+
+      // 设置关联数据
+      if (exercise.gradeId && exercise.subject) {
+        setSelectedGrade(exercise.gradeId.toString());
+        setSelectedSubject(exercise.subject);
+        await loadUnits(exercise.gradeId.toString(), exercise.subject);
+      }
+
+      if (exercise.unitId) {
+        setSelectedUnit(exercise.unitId);
+        // 设置单元后加载对应的课程数据
+        await loadCoursesByUnit(exercise.unitId);
+      }
+
+      if (exercise.courseId) {
+        setSelectedCourse(exercise.courseId);
+      }
+
+      // 设置知识点
+      if (exercise.knowledgePointIds) {
+        setSelectedKnowledgePointKeys(exercise.knowledgePointIds);
+      }
+    } catch (error) {
+      console.error("加载习题数据失败:", error);
+      message.error("加载习题数据失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 年级选择处理
+  const handleGradeChange = (gradeId: number) => {
+    setSelectedGrade(gradeId.toString());
+    setSelectedSubject("");
+    setSelectedUnit("");
+    setSelectedCourse("");
+    setUnits([]);
+    setCourses([]);
     form.setFieldsValue({
-      options,
-      correctAnswer,
+      subject: undefined,
+      unitId: undefined,
+      courseId: undefined,
     });
   };
 
-  // 处理选项的正确性切换（选择题 - 支持多选）
-  const toggleOptionCorrect = (optionIndex: number) => {
-    const options = form.getFieldValue("options") || [];
-    const newOptions = [...options];
+  // 学科选择处理
+  const handleSubjectChange = (subjectCode: string) => {
+    setSelectedSubject(subjectCode);
+    setSelectedUnit("");
+    setSelectedCourse("");
+    setCourses([]);
+    form.setFieldsValue({ unitId: undefined, courseId: undefined });
 
-    // 切换当前选项的正确性
-    newOptions[optionIndex] = {
-      ...newOptions[optionIndex],
-      isCorrect: !newOptions[optionIndex].isCorrect,
-    };
-
-    form.setFieldsValue({ options: newOptions });
+    if (selectedGrade && subjectCode) {
+      loadUnits(selectedGrade, subjectCode);
+      // 课程现在通过单元加载，清空课程列表
+      setCourses([]);
+    }
   };
 
-  // 加载编辑数据
-  useEffect(() => {
-    if (isEditMode && id) {
-      const fetchExerciseData = async () => {
-        setLoading(true);
-        try {
-          const exerciseData = await getExerciseById(id);
-          if (exerciseData) {
-            // 处理选项数据格式转换
-            let processedOptions: any = exerciseData.options;
-            if (exerciseData.type === "choice" && Array.isArray(exerciseData.options)) {
-              // 将字符串数组转换为对象数组格式
-              processedOptions = exerciseData.options.map((optionText: string) => ({
-                content: optionText,
-                isCorrect: false, // 初始化为false，后续根据correctAnswer设置
-              }));
+  // 单元选择处理
+  const handleUnitChange = (unitId: string) => {
+    setSelectedUnit(unitId);
+    setSelectedCourse("");
+    form.setFieldsValue({ courseId: undefined });
 
-              // 根据correctAnswer设置正确答案
-              if (Array.isArray(exerciseData.correctAnswer)) {
-                exerciseData.correctAnswer.forEach((correctOption: any) => {
-                  const correctIndex = exerciseData.options.findIndex(
-                    (option: string) => option === String(correctOption)
-                  );
-                  if (correctIndex >= 0 && processedOptions[correctIndex]) {
-                    processedOptions[correctIndex].isCorrect = true;
-                  }
-                });
-              } else if (typeof exerciseData.correctAnswer === "number") {
-                // 如果correctAnswer是数字索引
-                if (processedOptions[exerciseData.correctAnswer]) {
-                  processedOptions[exerciseData.correctAnswer].isCorrect = true;
-                }
-              }
-            }
-
-            // 设置表单数据
-            form.setFieldsValue({
-              subject: exerciseData.subject,
-              title: exerciseData.title || "",
-              type: exerciseData.type,
-              difficulty: exerciseData.difficulty,
-              question: exerciseData.question,
-              options: processedOptions,
-              correctAnswer: exerciseData.correctAnswer,
-              explanation: exerciseData.explanation,
-              knowledgePointIds: exerciseData.knowledgePointIds || [],
-            });
-            setSelectedSubject(exerciseData.subject);
-
-            // 加载该学科的知识点
-            try {
-              const kpData = await getKnowledgePointsForSelect(exerciseData.subject);
-              setKnowledgePoints(kpData);
-              
-              // 转换为Transfer组件需要的格式
-              const transferData = kpData.map((kp: any) => ({
-                key: kp.id.toString(),
-                title: kp.title,
-                description: `学科: ${kp.subject}`,
-              }));
-              setKnowledgePointsData(transferData);
-              
-              // 设置已选择的知识点
-              const selectedKeys = (exerciseData.knowledgePointIds || []).map((id: any) => id.toString());
-              setSelectedKnowledgePointKeys(selectedKeys);
-            } catch (error) {
-              console.error("获取知识点列表失败:", error);
-            }
-          } else {
-            message.error("未找到习题信息");
-            navigate("/exercises");
-          }
-        } catch (error) {
-          console.error("加载习题数据失败:", error);
-          message.error("加载习题数据失败");
-          navigate("/exercises");
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchExerciseData();
-    } else if (!isEditMode) {
-      // 新建模式下，检查是否有AI生成的数据
-      const checkAiGeneratedData = () => {
-        const aiDataStr = sessionStorage.getItem("aiGeneratedExercise");
-        if (aiDataStr) {
-          try {
-            const aiData = JSON.parse(aiDataStr);
-            console.log("加载AI生成的数据:", aiData);
-
-            // 处理AI生成的选项数据格式
-            let processedOptions: any = aiData.options;
-            if (aiData.type === "choice" && Array.isArray(aiData.options)) {
-              processedOptions = aiData.options.map((option: any, index: number) => ({
-                content: option.text || option.content || String(option),
-                isCorrect: index === aiData.correctAnswer || option.isCorrect === true,
-              }));
-            } else if (aiData.type === "matching" && aiData.options) {
-              // 匹配题的options保持原样，因为AI返回的已经是{left: [], right: []}格式
-              processedOptions = aiData.options;
-            }
-
-            // 设置表单数据
-            form.setFieldsValue({
-              subject: aiData.subject,
-              title: aiData.title || "",
-              type: aiData.type || "choice",
-              difficulty: aiData.difficulty || 2,
-              question: aiData.question || "",
-              options: processedOptions,
-              correctAnswer: aiData.correctAnswer,
-              explanation: aiData.explanation || "",
-              knowledgePointIds: aiData.knowledgePointIds || [],
-            });
-
-            // 设置学科并加载对应的知识点
-            setSelectedSubject(aiData.subject);
-            if (aiData.subject) {
-              const loadKnowledgePoints = async () => {
-                try {
-                  const kpData = await getKnowledgePointsForSelect(aiData.subject);
-                  setKnowledgePoints(kpData);
-                  
-                  // 转换为Transfer组件需要的格式
-                  const transferData = kpData.map((kp: any) => ({
-                    key: kp.id.toString(),
-                    title: kp.title,
-                    description: `学科: ${kp.subject}`,
-                  }));
-                  setKnowledgePointsData(transferData);
-                  
-                  // 设置已选择的知识点
-                  const selectedKeys = (aiData.knowledgePointIds || []).map((id: any) => id.toString());
-                  setSelectedKnowledgePointKeys(selectedKeys);
-                } catch (error) {
-                  console.error("获取知识点列表失败:", error);
-                }
-              };
-              loadKnowledgePoints();
-            }
-
-            // 清除sessionStorage中的数据，避免重复使用
-            sessionStorage.removeItem("aiGeneratedExercise");
-
-            message.success("AI生成的习题数据已自动填充，请检查并完善信息");
-          } catch (error) {
-            console.error("解析AI生成数据失败:", error);
-            sessionStorage.removeItem("aiGeneratedExercise");
-          }
-        }
-      };
-
-      checkAiGeneratedData();
+    // 选择单元后，根据单元的courseIds来加载课程
+    if (unitId) {
+      loadCoursesByUnit(unitId);
     }
-  }, [id, isEditMode, form, navigate]);
+  };
 
-  // 提交表单
-  const handleSubmit = async (values: FormValues) => {
+  // 课程选择处理
+  const handleCourseChange = (courseId: string) => {
+    setSelectedCourse(courseId);
+  };
+
+  // 保存
+  const handleSave = async () => {
     try {
+      const values = await form.validateFields();
       setSaving(true);
-      console.log("开始提交表单，表单数据:", values);
 
-      // 验证选择题是否设置了正确答案
-      if (values.type === "choice") {
-        const hasCorrectAnswer =
-          Array.isArray(values.options) && values.options.some((option: any) => option.isCorrect === true);
-        if (!hasCorrectAnswer) {
-          message.error("选择题必须至少设置一个正确答案");
-          return;
-        }
-      }
-
-      // 构建练习题数据
-      const exerciseData: any = {
-        subject: values.subject,
-        title: values.title,
-        question: values.question,
-        type: values.type,
-        difficulty: values.difficulty,
-        explanation: values.explanation || "",
-        options: values.options,
-        correctAnswer: values.correctAnswer,
-        knowledgePointIds: values.knowledgePointIds || [],
+      const data = {
+        ...values,
+        knowledgePointIds: selectedKnowledgePointKeys,
+        status:
+          canModifyStatus() && isEditMode && values.status
+            ? (values.status as StatusValue)
+            : ("draft" as StatusValue),
       };
-
-      // 如果是选择题，从options中提取正确答案
-      if (values.type === "choice" && Array.isArray(values.options)) {
-        const correctIndexes = values.options
-          .map((option: any, index: number) => (option.isCorrect === true ? index : -1))
-          .filter((index: number) => index !== -1);
-        exerciseData.correctAnswer = correctIndexes.length === 1 ? correctIndexes[0] : correctIndexes;
-      }
-
-      console.log("准备发送的习题数据:", exerciseData);
 
       if (isEditMode && id) {
-        // 更新习题
-        console.log("执行更新操作，ID:", id);
-        const result = await updateExercise(id, exerciseData);
-        console.log("更新结果:", result);
-        if (result) {
-          message.success("习题更新成功");
-          navigate("/exercises");
-        } else {
-          message.error("习题更新失败");
-        }
+        await updateExercise(id, data);
+        message.success("习题保存成功");
       } else {
-        // 创建习题
-        console.log("执行创建操作");
-        const result = await createExercise(exerciseData);
-        console.log("创建结果:", result);
-        if (result) {
-          message.success("习题创建成功");
-          navigate("/exercises");
-        } else {
-          message.error("习题创建失败");
-        }
+        await createExercise(data);
+        message.success("习题创建成功");
+        navigate("/exercises");
       }
     } catch (error) {
-      console.error("提交表单失败，错误详情:", error);
-      message.error("提交表单失败: " + (error instanceof Error ? error.message : "未知错误"));
+      console.error("保存习题失败:", error);
+      message.error("保存习题失败");
     } finally {
       setSaving(false);
     }
   };
+
+  // 提交审核
+  const handleSubmit = async () => {
+    try {
+      const values = await form.validateFields();
+      setSubmitting(true);
+
+      // 管理员在编辑模式下可以自定义状态，其他情况按原逻辑
+      const status = canModifyStatus()
+        ? (values.status as StatusValue)
+        : ("pending" as StatusValue);
+
+      const data = {
+        ...values,
+        knowledgePointIds: selectedKnowledgePointKeys,
+        status,
+      };
+
+      if (isEditMode && id) {
+        await updateExercise(id, data);
+        message.success(
+          canModifyStatus() && currentExercise
+            ? "习题状态修改成功"
+            : "习题提交审核成功"
+        );
+      } else {
+        await createExercise(data);
+        message.success(
+          canModifyStatus() ? "习题发布成功" : "习题提交审核成功"
+        );
+        navigate("/exercises");
+      }
+    } catch (error) {
+      console.error("提交习题失败:", error);
+      message.error("提交习题失败");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-full">
+      <div className="flex justify-center items-center h-64">
         <Spin size="large" />
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <Title level={2}>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/exercises")} className="mr-3" />
-          {isEditMode ? "编辑习题" : "创建习题"}
-        </Title>
-      </div>
+    <div className="exercise-form-container">
+      <Card>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <Button
+              icon={<ArrowLeftOutlined />}
+              onClick={() => navigate("/exercises")}
+            >
+              返回
+            </Button>
+            <Title level={3} className="mb-0">
+              {isEditMode ? "编辑习题" : "创建习题"}
+            </Title>
+          </div>
+        </div>
 
-      <Form form={form} layout="vertical" onFinish={handleSubmit} initialValues={initialValues}>
-        <Card className="mb-4">
-          <Row gutter={16}>
-            <Col span={6}>
-              <Form.Item name="subject" label="学科" rules={[{ required: true, message: "请选择学科" }]}>
-                <Select onChange={(value: string) => handleSubjectChange(value)}>
-                  {subjects.map((option) => (
+        {/* 状态显示 */}
+        {currentExercise && (
+          <div className="mb-4 p-3 bg-gray-50 rounded">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-gray-600">当前状态：</span>
+              <span
+                className={`px-2 py-1 rounded text-sm ${
+                  currentExercise.status === "published"
+                    ? "bg-green-100 text-green-800"
+                    : currentExercise.status === "pending"
+                    ? "bg-blue-100 text-blue-800"
+                    : currentExercise.status === "under_review"
+                    ? "bg-yellow-100 text-yellow-800"
+                    : currentExercise.status === "rejected"
+                    ? "bg-red-100 text-red-800"
+                    : "bg-gray-100 text-gray-800"
+                }`}
+              >
+                {getStatusLabel(currentExercise.status)}
+              </span>
+            </div>
+            {!canEdit() && (
+              <div className="mt-2 text-xs text-gray-500">
+                当前状态下无法编辑习题内容
+              </div>
+            )}
+          </div>
+        )}
+
+        <Form form={form} layout="vertical" disabled={!canEdit()}>
+          {/* 课程关联选择区域 - 只有新增或管理员可以编辑 */}
+          {canEditCourseAssociation() ? (
+            <Card
+              size="small"
+              className="mb-6"
+              style={{ backgroundColor: "#f8f9fa" }}
+            >
+              <div className="mb-3">
+                <h4 className="text-base font-medium text-gray-900 flex items-center">
+                  <span className="text-red-500 mr-1">*</span>
+                  课程关联设置
+                  <span className="ml-2 text-sm font-normal text-gray-500">
+                    （必须关联到具体课程）
+                  </span>
+                </h4>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Form.Item
+                  name="gradeId"
+                  label="年级"
+                  rules={[{ required: true, message: "请选择年级" }]}
+                >
+                  <Select
+                    placeholder="选择年级"
+                    onChange={handleGradeChange}
+                    disabled={!canEdit()}
+                  >
+                    {grades.map((grade) => (
+                      <Option key={grade.id} value={grade.id}>
+                        {grade.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                <Form.Item
+                  name="subject"
+                  label="学科"
+                  rules={[{ required: true, message: "请选择学科" }]}
+                >
+                  <Select
+                    placeholder="选择学科"
+                    onChange={handleSubjectChange}
+                    disabled={!selectedGrade || !canEdit()}
+                  >
+                    {subjects.map((subject) => (
+                      <Option key={subject.code} value={subject.code}>
+                        {subject.name}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                <Form.Item
+                  name="unitId"
+                  label="单元"
+                  rules={[{ required: true, message: "请选择单元" }]}
+                >
+                  <Select
+                    placeholder="选择单元"
+                    onChange={handleUnitChange}
+                    disabled={!selectedSubject || !canEdit()}
+                  >
+                    {units.map((unit) => (
+                      <Option key={unit.id} value={unit.id}>
+                        {unit.title}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+
+                <Form.Item
+                  name="courseId"
+                  label="课程"
+                  rules={[{ required: true, message: "请选择课程" }]}
+                >
+                  <Select
+                    placeholder="选择课程"
+                    onChange={handleCourseChange}
+                    disabled={!selectedSubject || !canEdit()}
+                  >
+                    {courses.map((course) => (
+                      <Option key={course.id} value={course.id}>
+                        {course.title}
+                      </Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </div>
+            </Card>
+          ) : (
+            /* 关联信息显示区域 - 编辑模式下显示，普通用户只读 */
+            currentExercise && (
+              <Card
+                size="small"
+                className="mb-6"
+                style={{ backgroundColor: "#f0f8ff" }}
+              >
+                <div className="mb-3">
+                  <h4 className="text-base font-medium text-gray-900 flex items-center">
+                    <span className="text-blue-500 mr-2">📎</span>
+                    关联信息
+                    <span className="ml-2 text-sm font-normal text-gray-500">
+                      （关联信息创建后不可修改）
+                    </span>
+                  </h4>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-gray-600 w-16">
+                        年级：
+                      </span>
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                        {currentExercise.grade?.name || "数据加载中..."}
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-gray-600 w-16">
+                        学科：
+                      </span>
+                      <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                        {currentExercise.subjectInfo?.name || "数据加载中..."}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-gray-600 w-16">
+                        单元：
+                      </span>
+                      <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
+                        {currentExercise.unit?.title || "数据加载中..."}
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium text-gray-600 w-16">
+                        课程：
+                      </span>
+                      <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-sm">
+                        {currentExercise.course?.title || "数据加载中..."}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )
+          )}
+
+          {/* 基本信息 */}
+          <Card size="small" className="mb-4">
+            <h4 className="text-base font-medium text-gray-900 mb-4">
+              基本信息
+            </h4>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Form.Item
+                name="title"
+                label="习题标题"
+                rules={[{ required: true, message: "请输入习题标题" }]}
+              >
+                <Input placeholder="输入习题标题" />
+              </Form.Item>
+
+              <Form.Item
+                name="type"
+                label="题目类型"
+                rules={[{ required: true, message: "请选择题目类型" }]}
+              >
+                <Select placeholder="选择题目类型">
+                  {questionTypes.map((type) => (
+                    <Option key={type.value} value={type.value}>
+                      {type.label}
+                    </Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+              <Form.Item
+                name="difficulty"
+                label="难度等级"
+                rules={[{ required: true, message: "请选择难度等级" }]}
+              >
+                <Select placeholder="选择难度等级">
+                  {difficultyOptions.map((option) => (
                     <Option key={option.value} value={option.value}>
                       {option.label}
                     </Option>
                   ))}
                 </Select>
               </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="difficulty" label="难度级别" rules={[{ required: true, message: "请选择难度级别" }]}>
-                <Radio.Group>
-                  {difficultyOptions.map((option) => (
-                    <Radio key={option.value} value={option.value}>
-                      {option.label}
-                    </Radio>
+
+              <Form.Item name="keywords" label="关键词">
+                <Input placeholder="输入关键词，用逗号分隔" />
+              </Form.Item>
+            </div>
+
+            {/* 状态选择字段 - 只有管理员和超级管理员在编辑模式下可见 */}
+            {canModifyStatus() && currentExercise && (
+              <Form.Item
+                name="status"
+                label="发布状态"
+                rules={[{ required: true, message: "请选择发布状态" }]}
+              >
+                <Select placeholder="选择发布状态">
+                  {getStatusOptions().map((status) => (
+                    <Option key={status.value} value={status.value}>
+                      <span
+                        className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                          getStatusColor(status.value) === "green"
+                            ? "bg-green-500"
+                            : getStatusColor(status.value) === "orange"
+                            ? "bg-orange-500"
+                            : getStatusColor(status.value) === "blue"
+                            ? "bg-blue-500"
+                            : getStatusColor(status.value) === "red"
+                            ? "bg-red-500"
+                            : "bg-gray-500"
+                        }`}
+                      />
+                      {status.label}
+                    </Option>
                   ))}
-                </Radio.Group>
+                </Select>
               </Form.Item>
-            </Col>
-            <Col span={6}>
-              <Form.Item name="title" label="习题标题" rules={[{ required: true, message: "请输入习题标题" }]}>
-                <Input placeholder="输入习题标题" />
-              </Form.Item>
-            </Col>
-          </Row>
+            )}
+          </Card>
 
-          <Form.Item name="type" label="题目类型" rules={[{ required: true, message: "请选择题目类型" }]}>
-            <Select onChange={(value: string) => handleTypeChange(value)}>
-              {questionTypes.map((option) => (
-                <Option key={option.value} value={option.value}>
-                  {option.label}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
+          {/* 题目内容 */}
+          <Card size="small" className="mb-4">
+            <h4 className="text-base font-medium text-gray-900 mb-4">
+              题目内容
+            </h4>
 
-          <div className="relative mb-4">
-            <Divider orientation="left">题目内容</Divider>
             <Form.Item
               name="question"
-              rules={[{ required: true, message: "请输入题目内容" }]}
-              style={{ marginBottom: 0 }}
+              label="题目描述"
+              rules={[{ required: true, message: "请输入题目描述" }]}
             >
-              <ReactQuill theme="snow" style={{ height: 150, marginBottom: 40 }} />
+              <ReactQuill
+                readOnly={!canEdit()}
+                theme="snow"
+                placeholder="输入题目描述..."
+                style={{ height: "200px", marginBottom: "50px" }}
+              />
             </Form.Item>
-          </div>
 
-          <Form.Item name="knowledgePointIds" label="关联知识点" extra="选择与此题目相关的知识点">
-            <Transfer
-              dataSource={knowledgePointsData}
-              titles={['可选知识点', '已选知识点']}
-              targetKeys={selectedKnowledgePointKeys}
-              onChange={handleKnowledgePointTransferChange}
-              render={item => item.title}
-              showSearch
-              filterOption={(inputValue, option) =>
-                option.title.toLowerCase().includes(inputValue.toLowerCase()) ||
-                option.description.toLowerCase().includes(inputValue.toLowerCase())
-              }
-              listStyle={{
-                width: 280,
-                height: 300,
-              }}
-              oneWay={false}
-            />
-          </Form.Item>
+            <Form.Item name="explanation" label="解题说明">
+              <ReactQuill
+                readOnly={!canEdit()}
+                theme="snow"
+                placeholder="输入解题说明..."
+                style={{ height: "150px", marginBottom: "50px" }}
+              />
+            </Form.Item>
+          </Card>
 
-          <Form.Item shouldUpdate={(prevValues, currentValues) => prevValues.type !== currentValues.type}>
+          {/* 选择题选项 */}
+          <Form.Item
+            shouldUpdate={(prevValues, currentValues) =>
+              prevValues.type !== currentValues.type
+            }
+          >
             {({ getFieldValue }) => {
-              const type = getFieldValue("type");
+              const questionType = getFieldValue("type");
+              if (questionType === "choice") {
+                return (
+                  <Card size="small" className="mb-4">
+                    <h4 className="text-base font-medium text-gray-900 mb-4">
+                      选择题选项
+                    </h4>
 
-              switch (type) {
-                case "choice":
-                  return (
-                    <>
-                      <Divider orientation="left">选项设置</Divider>
-                      <Form.List name="options">
-                        {(fields, { add, remove }) => (
-                          <>
-                            {fields.map((field, index) => (
-                              <div key={field.key} className="flex items-start space-x-2 mb-2">
-                                <Form.Item
-                                  name={[field.name, "content"]}
-                                  rules={[{ required: true, message: "请输入选项内容" }]}
-                                  style={{ flexGrow: 1, marginBottom: 8 }}
-                                >
-                                  <Input placeholder={`选项 ${index + 1}`} />
-                                </Form.Item>
-
-                                <Button
-                                  type={
-                                    form.getFieldValue(["options", index, "isCorrect"]) === true ? "primary" : "default"
-                                  }
-                                  onClick={() => toggleOptionCorrect(index)}
-                                  icon={<CheckCircleOutlined />}
-                                >
-                                  {form.getFieldValue(["options", index, "isCorrect"]) === true
-                                    ? "正确答案"
-                                    : "设为正确"}
-                                </Button>
-
-                                {fields.length > 2 && (
-                                  <Button danger icon={<MinusCircleOutlined />} onClick={() => remove(field.name)} />
-                                )}
-                              </div>
-                            ))}
-
+                    <Form.List name="options">
+                      {(fields, { add, remove }) => (
+                        <>
+                          {fields.map(({ key, name, ...restField }) => (
+                            <div
+                              key={key}
+                              className="flex items-center space-x-2 mb-2"
+                            >
+                              <Form.Item
+                                {...restField}
+                                name={[name]}
+                                rules={[
+                                  { required: true, message: "请输入选项内容" },
+                                ]}
+                                className="flex-1 mb-0"
+                              >
+                                <Input
+                                  placeholder={`选项 ${String.fromCharCode(
+                                    65 + name
+                                  )}`}
+                                />
+                              </Form.Item>
+                              <Button
+                                type="text"
+                                icon={<MinusCircleOutlined />}
+                                onClick={() => remove(name)}
+                                danger
+                              />
+                            </div>
+                          ))}
+                          <Form.Item>
                             <Button
                               type="dashed"
-                              onClick={() => add({ content: "", isCorrect: false })}
+                              onClick={() => add()}
+                              block
                               icon={<PlusOutlined />}
-                              className="w-full mt-2"
                             >
                               添加选项
                             </Button>
-                          </>
-                        )}
-                      </Form.List>
-                    </>
-                  );
+                          </Form.Item>
+                        </>
+                      )}
+                    </Form.List>
 
-                case "fill_blank":
-                  return (
-                    <>
-                      <Divider orientation="left">填空题答案</Divider>
-                      <Form.Item
-                        name="correctAnswer"
-                        label="正确答案"
-                        rules={[{ required: true, message: "请输入正确答案" }]}
-                        extra="如有多个可接受的答案，请用英文逗号分隔"
-                      >
-                        <TextArea rows={2} placeholder="例如: 4,四,Four" />
-                      </Form.Item>
-                    </>
-                  );
-
-                case "application":
-                  return (
-                    <>
-                      <Divider orientation="left">应用题设置</Divider>
-                      <Form.Item name={["options", "hint"]} label="提示信息">
-                        <Input placeholder="给学生的提示信息" />
-                      </Form.Item>
-
-                      <Form.Item name="correctAnswer" label="参考答案">
-                        <TextArea rows={4} placeholder="请输入参考答案" />
-                      </Form.Item>
-                    </>
-                  );
-
-                case "matching":
-                  return (
-                    <>
-                      <Divider orientation="left">匹配项设置</Divider>
-                      <Row gutter={16}>
-                        <Col span={12}>
-                          <Form.List name={["options", "left"]}>
-                            {(fields, { add, remove }) => (
-                              <div className="mb-4">
-                                <div className="mb-2 font-bold">左侧项目</div>
-                                {fields.map((field, index) => (
-                                  <div key={field.key} className="flex items-center space-x-2 mb-2">
-                                    <Form.Item
-                                      name={field.name}
-                                      rules={[{ required: true, message: "请输入左侧项内容" }]}
-                                      style={{ flexGrow: 1, marginBottom: 0 }}
-                                    >
-                                      <Input placeholder={`左侧项 ${index + 1}`} />
-                                    </Form.Item>
-
-                                    {fields.length > 2 && (
-                                      <Button
-                                        danger
-                                        icon={<MinusCircleOutlined />}
-                                        onClick={() => remove(field.name)}
-                                      />
-                                    )}
-                                  </div>
-                                ))}
-
-                                <Button
-                                  type="dashed"
-                                  onClick={() => add()}
-                                  icon={<PlusOutlined />}
-                                  className="w-full mt-2"
-                                >
-                                  添加左侧项
-                                </Button>
-                              </div>
-                            )}
-                          </Form.List>
-                        </Col>
-
-                        <Col span={12}>
-                          <Form.List name={["options", "right"]}>
-                            {(fields, { add, remove }) => (
-                              <div className="mb-4">
-                                <div className="mb-2 font-bold">右侧项目</div>
-                                {fields.map((field, index) => (
-                                  <div key={field.key} className="flex items-center space-x-2 mb-2">
-                                    <Form.Item
-                                      name={field.name}
-                                      rules={[{ required: true, message: "请输入右侧项内容" }]}
-                                      style={{ flexGrow: 1, marginBottom: 0 }}
-                                    >
-                                      <Input placeholder={`右侧项 ${index + 1}`} />
-                                    </Form.Item>
-
-                                    {fields.length > 2 && (
-                                      <Button
-                                        danger
-                                        icon={<MinusCircleOutlined />}
-                                        onClick={() => remove(field.name)}
-                                      />
-                                    )}
-                                  </div>
-                                ))}
-
-                                <Button
-                                  type="dashed"
-                                  onClick={() => add()}
-                                  icon={<PlusOutlined />}
-                                  className="w-full mt-2"
-                                >
-                                  添加右侧项
-                                </Button>
-                              </div>
-                            )}
-                          </Form.List>
-                        </Col>
-                      </Row>
-
-                      <Divider orientation="left">匹配关系设置</Divider>
-                      <Form.Item shouldUpdate={(prevValues, currentValues) => 
-                        JSON.stringify(prevValues.options?.left) !== JSON.stringify(currentValues.options?.left) ||
-                        JSON.stringify(prevValues.options?.right) !== JSON.stringify(currentValues.options?.right)
-                      }>
-                        {({ getFieldValue }) => {
-                          const leftOptions = getFieldValue(["options", "left"]) || [];
-                          const rightOptions = getFieldValue(["options", "right"]) || [];
-                          
-                          if (leftOptions.length === 0 || rightOptions.length === 0) {
-                            return <div className="text-gray-500">请先添加左侧和右侧项目</div>;
-                          }
-
-                          return (
-                            <div className="space-y-3">
-                              <div className="text-sm text-gray-600 mb-2">
-                                请为每个左侧项目选择对应的右侧项目：
-                              </div>
-                              {leftOptions.map((leftItem: string, leftIndex: number) => (
-                                <div key={leftIndex} className="flex items-center space-x-4">
-                                  <div className="min-w-0 flex-1">
-                                    <span className="text-sm font-medium">{leftItem || `左侧项 ${leftIndex + 1}`}</span>
-                                  </div>
-                                  <div className="text-gray-400">匹配</div>
-                                  <div className="min-w-0 flex-1">
-                                    <Form.Item
-                                      name={["correctAnswer", leftIndex.toString()]}
-                                      rules={[{ required: true, message: "请选择匹配项" }]}
-                                      style={{ marginBottom: 0 }}
-                                    >
-                                      <Select placeholder="选择右侧匹配项">
-                                        {rightOptions.map((rightItem: string, rightIndex: number) => (
-                                          <Select.Option key={rightIndex} value={String(rightIndex)}>
-                                            {rightItem || `右侧项 ${rightIndex + 1}`}
-                                          </Select.Option>
-                                        ))}
-                                      </Select>
-                                    </Form.Item>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        }}
-                      </Form.Item>
-                    </>
-                  );
-
-                default:
-                  return null;
+                    <Form.Item
+                      name="correctAnswer"
+                      label="正确答案"
+                      rules={[{ required: true, message: "请输入正确答案" }]}
+                    >
+                      <Input placeholder="输入正确答案（如：A、B、C等）" />
+                    </Form.Item>
+                  </Card>
+                );
               }
+              return null;
             }}
           </Form.Item>
 
-          <Divider orientation="left">解释说明</Divider>
-          <Form.Item name="explanation" label="题目解释" extra="可选，用于解释答案或提供额外说明">
-            <TextArea rows={4} placeholder="请输入题目解释" />
-          </Form.Item>
-        </Card>
+          {/* 填空题答案 */}
+          <Form.Item
+            shouldUpdate={(prevValues, currentValues) =>
+              prevValues.type !== currentValues.type
+            }
+          >
+            {({ getFieldValue }) => {
+              const questionType = getFieldValue("type");
+              if (questionType === "fill_blank") {
+                return (
+                  <Card size="small" className="mb-4">
+                    <h4 className="text-base font-medium text-gray-900 mb-4">
+                      填空题答案
+                    </h4>
 
-        <div className="flex justify-end space-x-4">
-          <Button onClick={() => navigate("/exercises")}>取消</Button>
-          <Button type="primary" htmlType="submit" loading={saving}>
-            {isEditMode ? "更新习题" : "创建习题"}
-          </Button>
-        </div>
-      </Form>
+                    <Form.Item
+                      name="correctAnswer"
+                      label="标准答案"
+                      rules={[{ required: true, message: "请输入标准答案" }]}
+                    >
+                      <TextArea
+                        rows={3}
+                        placeholder="输入标准答案，多个答案用分号分隔"
+                      />
+                    </Form.Item>
+                  </Card>
+                );
+              }
+              return null;
+            }}
+          </Form.Item>
+
+          {/* 知识点关联 */}
+          <Card size="small" className="mb-4">
+            <h4 className="text-base font-medium text-gray-900 mb-4">
+              知识点关联
+            </h4>
+
+            <Transfer
+              dataSource={knowledgePointsData}
+              titles={["可选知识点", "已选知识点"]}
+              targetKeys={selectedKnowledgePointKeys}
+              onChange={(targetKeys) =>
+                setSelectedKnowledgePointKeys(targetKeys as string[])
+              }
+              render={(item) => item.title}
+              showSearch
+              listStyle={{
+                width: 250,
+                height: 300,
+              }}
+            />
+          </Card>
+
+          {/* 操作按钮 */}
+          <div className="flex justify-end space-x-4 mt-8">
+            <Button onClick={() => navigate("/exercises")}>取消</Button>
+            <Button
+              onClick={handleSave}
+              loading={saving}
+              disabled={submitting || !canEdit()}
+            >
+              保存
+            </Button>
+            <Button
+              type="primary"
+              onClick={handleSubmit}
+              loading={submitting}
+              disabled={saving || !canSubmit()}
+            >
+              {isEditMode ? "提交审核" : "创建并提交审核"}
+            </Button>
+          </div>
+        </Form>
+      </Card>
     </div>
   );
 };

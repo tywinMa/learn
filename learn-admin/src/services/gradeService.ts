@@ -58,11 +58,14 @@ export interface AddSubjectGradeData {
  * 获取所有年级列表
  */
 export const getGrades = async (): Promise<Grade[]> => {
-  const response = await api({
-    url: '/api/admin/grades',
-    method: 'GET'
-  });
-  return response.data;
+  try {
+    const response = await api.get('/api/admin/grades');
+    // API拦截器已经提取了data字段，所以response就是数据数组
+    return response as unknown as Grade[];
+  } catch (error) {
+    console.error('获取年级列表失败:', error);
+    return [];
+  }
 };
 
 /**

@@ -5,6 +5,11 @@ import { type MediaResource, mediaResourceService } from '../../services/mediaRe
 import MediaResourceForm from './MediaResourceForm';
 import { useUser } from '../../contexts/UserContext';
 import { getAllUnits, type Unit } from '../../services/unitService';
+import { 
+  getStatusOptions as getCommonStatusOptions, 
+  getStatusLabel as getCommonStatusLabel,
+  getStatusColor 
+} from '../../constants/status';
 
 // 根据课程ID查找单元的辅助函数
 const findUnitByCourseId = (courseId: string, units: Unit[]): Unit | null => {
@@ -50,14 +55,8 @@ const MediaResourceList: React.FC = () => {
     { value: 'example_media', label: '例题媒体资源' }
   ];
 
-  // 状态选项
-  const statusOptions = [
-    { value: 'draft', label: '草稿', color: 'gray' },
-    { value: 'pending', label: '待审核', color: 'orange' },
-    { value: 'published', label: '已发布', color: 'green' },
-    { value: 'under_review', label: '审核中', color: 'blue' },
-    { value: 'rejected', label: '已退回', color: 'red' },
-  ];
+  // 使用通用的状态选项
+  const statusOptions = getCommonStatusOptions();
 
   // 文件类型选项
   const fileTypeOptions = [
@@ -265,10 +264,9 @@ const MediaResourceList: React.FC = () => {
       key: 'status',
       width: 100,
       render: (status: string) => {
-        const statusConfig = statusOptions.find(s => s.value === status);
         return (
-          <Tag color={statusConfig?.color}>
-            {statusConfig?.label}
+          <Tag color={getStatusColor(status)}>
+            {getCommonStatusLabel(status)}
           </Tag>
         );
       }
@@ -592,9 +590,9 @@ const MediaResourceList: React.FC = () => {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="font-medium">状态：</span>
-                                 <Tag color={statusOptions.find(s => s.value === previewResource.status)?.color}>
-                   {statusOptions.find(s => s.value === previewResource.status)?.label}
-                 </Tag>
+                <Tag color={getStatusColor(previewResource.status)}>
+                  {getCommonStatusLabel(previewResource.status)}
+                </Tag>
               </div>
               <div>
                 <span className="font-medium">上传者：</span>

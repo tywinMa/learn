@@ -30,6 +30,19 @@ Subject.hasMany(Course, { foreignKey: 'subject', sourceKey: 'code' });
 Exercise.belongsTo(Subject, { foreignKey: 'subject', targetKey: 'code' });
 Subject.hasMany(Exercise, { foreignKey: 'subject', sourceKey: 'code' });
 
+// Exercise与其他模型的关联关系
+Exercise.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
+User.hasMany(Exercise, { foreignKey: 'createdBy', as: 'createdExercises' });
+
+Exercise.belongsTo(Grade, { foreignKey: 'gradeId', as: 'grade' });
+Grade.hasMany(Exercise, { foreignKey: 'gradeId', as: 'exercises' });
+
+Exercise.belongsTo(Unit, { foreignKey: 'unitId', as: 'unit' });
+Unit.hasMany(Exercise, { foreignKey: 'unitId', as: 'exercises' });
+
+Exercise.belongsTo(Course, { foreignKey: 'courseId', as: 'course' });
+Course.hasMany(Exercise, { foreignKey: 'courseId', as: 'exercises' });
+
 
 
 // 学科与知识点之间的关系

@@ -72,6 +72,32 @@ const Exercise = sequelize.define(
       defaultValue: false,
       comment: "是否为AI生成的习题，true表示AI生成，false表示人工创建"
     },
+    createdBy: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: "创建用户ID，关联User表"
+    },
+    status: {
+      type: DataTypes.ENUM('draft', 'pending', 'published', 'under_review', 'rejected'),
+      allowNull: false,
+      defaultValue: 'draft',
+      comment: '发布状态：draft-草稿，pending-待发布，published-已发布，under_review-待审核，rejected-已退回'
+    },
+    gradeId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: '年级ID，关联Grade表的id字段'
+    },
+    unitId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: '单元ID，关联Unit表'
+    },
+    courseId: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      comment: '课程ID，关联Course表'
+    },
   },
   {
     timestamps: true,
